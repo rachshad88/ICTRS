@@ -1,0 +1,133 @@
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+
+interface SidebarProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+function Sidebar({ collapsed, onToggle }: SidebarProps) {
+  const { user, logout } = useAuth();
+  const location = useLocation();
+
+  const isOpen = !collapsed;
+
+  const navItems = (() => {
+    if (!user) return [];
+    const role = user.role;
+
+    if (role === 'CLIENT') {
+      return [
+        { section: 'IT Services' },
+        { to: '/request', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18V12 M9 15h6', label: 'IT Request' },
+        { to: '/requested', icon: 'M12 8v4l3 3 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z', label: 'IT History' },
+        { section: 'Multimedia' },
+        { to: '/multimedia-request', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Request' },
+        { to: '/multimedia-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Multimedia History' },
+        { section: 'Digital Media' },
+        { to: '/digital-media-request', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Request' },
+        { to: '/digitalmedia-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Digital Media History' },
+        { section: 'Print Materials' },
+        { to: '/print-materials-request', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Request' },
+        { to: '/print-materials-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Print Materials History' },
+      ];
+    }
+
+    if (role === 'TECHNICIAN') {
+      return [
+        { section: 'Work' },
+        { to: '/dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
+        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+      ];
+    }
+
+    if (role === 'MULTIMEDIA') {
+      return [
+        { section: 'My Assignments' },
+        { to: '/multimedia-dashboard', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Requests' },
+        { to: '/digitalmedia-dashboard', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Requests' },
+        { to: '/print-materials-dashboard', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Requests' },
+      ];
+    }
+
+    if (role === 'ADMIN') {
+      return [
+        { section: 'Admin' },
+        { to: '/dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
+        { to: '/users', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', label: 'Users' },
+        { to: '/audit-logs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H9H8', label: 'Audit Log' },
+        { section: 'Management' },
+        { to: '/multimedia-management', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Mgmt' },
+        { to: '/digitalmedia-management', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Mgmt' },
+        { to: '/print-materials-management', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Mgmt' },
+        { section: '' },
+        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+      ];
+    }
+
+    return [];
+  })();
+
+  return (
+    <>
+      <div className={`sidebar-overlay ${isOpen ? 'open' : ''}`} onClick={onToggle} />
+      <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-brand">
+          <img src="/solano-logo.png" alt="Solano" className="sidebar-logo" />
+          <div className="sidebar-brand-info">
+            <span className="sidebar-brand-text">IT Request System</span>
+            {!collapsed && user && (
+              <span className="sidebar-user-name">{user.first_name} {user.last_name}</span>
+            )}
+          </div>
+        </div>
+
+        <nav className="sidebar-nav">
+          {navItems.map((item, i) => {
+            if ('section' in item) {
+              if (!item.section) return <div key={i} className="sidebar-divider" />;
+              return <div key={i} className="sidebar-section">{item.section}</div>;
+            }
+            const isActive = location.pathname === item.to;
+            return (
+              <Link key={i} to={item.to} className={`sidebar-item ${isActive ? 'active' : ''}`}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {item.icon.split(' M').map((d, j) => <path key={j} d={j === 0 ? d : 'M' + d} />)}
+                </svg>
+                <span className="sidebar-label">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="sidebar-footer">
+          <Link to="/profile" className={`sidebar-item ${location.pathname === '/profile' ? 'active' : ''}`}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="sidebar-label">Profile</span>
+          </Link>
+
+          <button className="sidebar-item sidebar-collapse-btn" onClick={onToggle} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`collapse-icon ${collapsed ? 'flipped' : ''}`}>
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            {!collapsed && <span className="sidebar-label">Hide sidebar</span>}
+          </button>
+
+          <button className="sidebar-item sidebar-logout-btn" onClick={logout} title="Logout">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            <span className="sidebar-label">Logout</span>
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}
+
+export default Sidebar;

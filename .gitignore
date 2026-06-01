@@ -1,0 +1,13 @@
+vendor/
+node_modules/
+.env
+.DS_Store
+Thumbs.db
+logs/
+nul
+*.log
+backend-ts/dist/
+backend-ts/uploads/
+realtime/node_modules/
+frontend-ts/dist/
+frontend-ts/node_modules/
