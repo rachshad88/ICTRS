@@ -153,6 +153,7 @@ body {
 .login-container::before {
   content: '';
   position: absolute;
+  pointer-events: none;
   inset: -100%;
   background:
     radial-gradient(ellipse 600px 400px at 18% 25%, rgba(3, 33, 116, 0.18) 0%, transparent 50%),
@@ -164,6 +165,7 @@ body {
 .login-container::after {
   content: '';
   position: absolute;
+  pointer-events: none;
   inset: -100%;
   background:
     radial-gradient(ellipse 350px 400px at 65% 20%, rgba(3, 33, 116, 0.1) 0%, transparent 50%),
@@ -191,6 +193,7 @@ body {
 .login-box::before {
   content: '';
   position: absolute;
+  pointer-events: none;
   inset: 0;
   border-radius: inherit;
   background: rgba(255, 255, 255, 0.88);
@@ -302,8 +305,6 @@ body {
 .input-wrapper select,
 .input-wrapper textarea {
   padding-left: 42px;
-  position: relative;
-  z-index: 1;
 }
 
 .input-wrapper:focus-within .input-icon {
