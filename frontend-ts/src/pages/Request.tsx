@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-
-import { OFFICES } from '../data/offices';
+import { useAuth } from '../contexts/AuthContext';
 
 function Request() {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const [office, setOffice] = useState('');
   const [unit, setUnit] = useState('');
   const [semester, setSemester] = useState('');
   const [issue, setIssue] = useState('');
@@ -20,7 +19,7 @@ function Request() {
 
     try {
       const response = await api.post('/requests/send_request', {
-        office,
+        office: user?.office,
         unit,
         semester,
         issue
@@ -53,17 +52,8 @@ function Request() {
         
         <form onSubmit={handleSubmit} className="request-form">
           <div className="form-group">
-            <label>Office *</label>
-            <select
-              value={office}
-              onChange={(e) => setOffice(e.target.value)}
-              required
-            >
-              <option value="">Select Office</option>
-              {OFFICES.map((off) => (
-                <option key={off} value={off}>{off}</option>
-              ))}
-            </select>
+            <label>Office</label>
+            <div className="form-control-static">{user?.office || 'N/A'}</div>
           </div>
           
           <div className="form-group">
