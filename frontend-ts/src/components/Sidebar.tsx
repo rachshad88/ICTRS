@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -11,7 +12,15 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const { counts } = useNotification();
   const isOpen = !collapsed;
+
+  const badgeFor = (path: string): number | null => {
+    if (path.includes('multimedia')) return counts.multimedia;
+    if (path.includes('digitalmedia')) return counts.digitalMedia;
+    if (path.includes('print-materials')) return counts.printMaterials;
+    return null;
+  };
 
   const navItems = (() => {
     if (!user) return [];
@@ -90,12 +99,14 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
               return <div key={i} className="sidebar-section">{item.section}</div>;
             }
             const isActive = location.pathname === item.to;
+            const badge = item.to ? badgeFor(item.to) : null;
             return (
               <Link key={i} to={item.to} className={`sidebar-item ${isActive ? 'active' : ''}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   {item.icon.split(' M').map((d, j) => <path key={j} d={j === 0 ? d : 'M' + d} />)}
                 </svg>
                 <span className="sidebar-label">{item.label}</span>
+                {badge !== null && badge > 0 && <span className="sidebar-badge">{badge}</span>}
               </Link>
             );
           })}

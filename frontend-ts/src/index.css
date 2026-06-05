@@ -2447,6 +2447,20 @@ body {
   transition: opacity 0.2s ease, width 0.2s ease;
 }
 
+.sidebar-badge {
+  background: var(--gold);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: auto;
+  line-height: 1.4;
+  min-width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .sidebar-footer {
   border-top: 1px solid var(--border-light);
   padding: 8px 0;

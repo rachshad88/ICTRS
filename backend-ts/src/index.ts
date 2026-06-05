@@ -18,6 +18,7 @@ import digitalMediaRoutes from './routes/digitalMedia';
 import printMaterialsRoutes from './routes/printMaterials';
 import fileRoutes from './routes/files';
 import auditRoutes from './routes/audit';
+import notificationRoutes from './routes/notifications';
 
 const app: Express = express();
 const httpServer = createServer(app);
@@ -131,6 +132,7 @@ app.use('/api/digitalmedia', digitalMediaRoutes);
 app.use('/api/printmaterials', printMaterialsRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 const rawPort = process.env.PORT || '3000';
 const PORT = parseInt(rawPort, 10);
