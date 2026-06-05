@@ -31,16 +31,20 @@ function Requested() {
   const [counts, setCounts] = useState<Counts>({ pending_count: 0, progress_count: 0, done_count: 0 });
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
 
-  const fetchData = useCallback(async (search?: string) => {
+  const fetchData = useCallback(async (search?: string, page?: number) => {
     try {
-      const params: Record<string, string> = {};
+      const params: Record<string, string | number> = {};
       if (search) params.search = search;
+      params.page = page || currentPage;
+      params.limit = 10;
       const response = await api.get('/requests/my_requests', { params });
       setRequests(response.data.requests);
       setCounts(response.data.counts);
+      setTotal(response.data.total);
       setError('');
     } catch (error) {
       console.error('Failed to fetch requests:', error);
@@ -62,13 +66,16 @@ function Requested() {
 
   const searchTermRef = useRef(searchTerm);
   useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
+  const pageRef = useRef(currentPage);
+  useEffect(() => { pageRef.current = currentPage; }, [currentPage]);
 
   useEffect(() => {
-    const timer = setTimeout(() => fetchData(searchTerm), 300);
+    const timer = setTimeout(() => fetchData(searchTerm, currentPage), 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, fetchData]);
+  }, [searchTerm, currentPage, fetchData]);
 
   useEffect(() => {
+    
     if (user) {
       initSocket(user.user_id, user.role);
     }
@@ -76,14 +83,14 @@ function Requested() {
 
   useEffect(() => {
     if (user) {
-      fetchData();
+      fetchData(undefined, 1);
     }
   }, [user, fetchData]);
 
   useEffect(() => {
     const socket = getSocket();
     if (!socket) return;
-    const handler = () => fetchData(searchTermRef.current);
+    const handler = () => fetchData(searchTermRef.current, pageRef.current);
     socket.on('my_request_accepted', handler);
     socket.on('my_request_finished', handler);
     socket.on('request_update', handler);
@@ -99,7 +106,7 @@ function Requested() {
     
     try {
       await api.post('/requests/cancel_request', { request_id: requestId });
-      fetchData(searchTerm);
+      fetchData(searchTerm, currentPage);
     } catch (error) {
       setError('Failed to cancel request');
     }
@@ -118,8 +125,7 @@ function Requested() {
   };
 
   const ITEMS_PER_PAGE = 10;
-  const totalPages = Math.ceil(requests.length / ITEMS_PER_PAGE);
-  const paginatedRequests = requests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const getStatusClass = (status: string) => {
     return 'status-' + status.toLowerCase().replace(' ', '-');
@@ -180,7 +186,7 @@ function Requested() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedRequests.map((req) => {
+                {requests.map((req) => {
                   const isAssigned = req.assigned_to !== null;
                   return (
                     <tr key={req._id}>

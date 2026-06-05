@@ -36,7 +36,9 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    if (user.role === 'CLIENT') return <Navigate to="/request" replace />;
+    if (user.role === 'MULTIMEDIA') return <Navigate to="/multimedia-dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (

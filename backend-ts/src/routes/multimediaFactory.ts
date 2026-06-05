@@ -144,11 +144,14 @@ export function createRequestRouter(config: RouteConfig): Router {
 
         try {
           const fileData = getUploadedFiles(req);
-          const doc = config.buildCreateDoc(req.body, new ObjectId(userId), request_code, fileData);
+          const storedFile = config.uploadMethod === 'single'
+            ? (fileData ? fileData.filename : null)
+            : ((fileData as Express.Multer.File[]).length > 0 ? (fileData as Express.Multer.File[]).map(f => f.filename) : []);
+          const doc = config.buildCreateDoc(req.body, new ObjectId(userId), request_code, storedFile);
           doc.created_at = new Date();
           doc.completed_at = null;
           result = await collection.insertOne(doc);
-          if (fileData && (config.uploadMethod === 'single' ? fileData : fileData.length > 0)) {
+          if (fileData && (config.uploadMethod === 'single' ? fileData : (fileData as Express.Multer.File[]).length > 0)) {
             moveUploadedFiles(fileData, result.insertedId.toString());
           }
           break;
@@ -217,16 +220,20 @@ export function createRequestRouter(config: RouteConfig): Router {
         {
           $lookup: {
             from: 'users',
-            localField: 'assigned_to',
-            foreignField: '_id',
+            let: { lookupId: '$assigned_to' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            ],
             as: 'assignedTechnician'
           }
         },
         {
           $lookup: {
             from: 'users',
-            localField: 'created_by',
-            foreignField: '_id',
+            let: { lookupId: '$created_by' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            ],
             as: 'requester'
           }
         },
@@ -260,25 +267,17 @@ export function createRequestRouter(config: RouteConfig): Router {
         {
           $lookup: {
             from: 'users',
-            localField: 'created_by',
-            foreignField: '_id',
+            let: { lookupId: '$created_by' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            ],
             as: 'requester'
           }
         },
-        { $unwind: { path: '$requester', preserveNullAndEmptyArrays: true } },
         { $sort: { created_at: -1 } }
       ]).toArray();
 
-      const formatted = requests.map((r: any) => ({
-        _id: r._id?.toString(),
-        request_code: r.request_code,
-        status: r.status,
-        created_at: r.created_at,
-        requester: r.requester ? `${r.requester.first_name} ${r.requester.last_name}` : null,
-        summary: r[config.summaryField] || ''
-      }));
-
-      res.json({ requests: formatted });
+      res.json({ requests });
     } catch (error) {
       console.error(`Get unassigned ${config.entity} requests error:`, error);
       res.status(500).json({ error: 'Failed to fetch requests' });
@@ -362,12 +361,13 @@ export function createRequestRouter(config: RouteConfig): Router {
         {
           $lookup: {
             from: 'users',
-            localField: 'created_by',
-            foreignField: '_id',
+            let: { lookupId: '$created_by' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            ],
             as: 'requester'
           }
         },
-        { $unwind: { path: '$requester', preserveNullAndEmptyArrays: true } },
         { $sort: { created_at: -1 } }
       ]).toArray();
 
@@ -445,8 +445,10 @@ export function createRequestRouter(config: RouteConfig): Router {
         {
           $lookup: {
             from: 'users',
-            localField: 'assigned_to',
-            foreignField: '_id',
+            let: { lookupId: '$assigned_to' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            ],
             as: 'assignedTechnician'
           }
         },
@@ -564,8 +566,10 @@ export function createRequestRouter(config: RouteConfig): Router {
         {
           $lookup: {
             from: 'users',
-            localField: 'assigned_to',
-            foreignField: '_id',
+            let: { lookupId: '$assigned_to' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            ],
             as: 'assignedTechnician'
           }
         },

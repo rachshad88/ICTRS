@@ -119,7 +119,7 @@ router.post('/accept_request', isAuthenticated, isTechnicianOnly, validateBody(a
   }
 });
 
-router.post('/request_finish', isAuthenticated, isTechnicianOrAdmin, validateBody(finishRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(finishRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { request_id, finished, remarks, recommendation } = req.body;
 
@@ -133,8 +133,7 @@ router.post('/request_finish', isAuthenticated, isTechnicianOrAdmin, validateBod
 
     let filter: Record<string, unknown>;
     if (role === 'ADMIN') {
-      // Admin can mark any request as done
-      filter = { _id: new ObjectId(request_id) };
+      filter = { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED'] } };
     } else if (role === 'TECHNICIAN') {
       // Technician can only finish requests assigned to them
       filter = { 
@@ -197,13 +196,13 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
     if (role === 'ADMIN' || role === 'TECHNICIAN') {
       result = await requestsCollection.findOneAndUpdate(
         { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED'] } },
-        { $set: { status: 'CANCELLED' } },
+        { $set: { status: 'CANCELLED', assigned_to: null } },
         { returnDocument: 'after' }
       );
     } else {
       result = await requestsCollection.findOneAndUpdate(
         { _id: new ObjectId(request_id), created_by: new ObjectId(user_id), status: 'PENDING' },
-        { $set: { status: 'CANCELLED' } },
+        { $set: { status: 'CANCELLED', assigned_to: null } },
         { returnDocument: 'after' }
       );
     }
@@ -304,12 +303,13 @@ router.get('/get_dashboard', isAuthenticated, isTechnicianOrAdmin, async (req: A
         {
           $lookup: {
             from: 'users',
-            localField: 'created_by',
-            foreignField: '_id',
+            let: { lookupId: '$created_by' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            ],
             as: 'requester'
           }
         },
-        { $unwind: { path: '$requester', preserveNullAndEmptyArrays: true } },
         { $sort: { created_at: -1 } }
       ])
       .toArray();
@@ -324,7 +324,7 @@ router.get('/get_dashboard', isAuthenticated, isTechnicianOrAdmin, async (req: A
 
     const rows = requests.map(r => {
       const status = r.status || '';
-      if (status === 'PENDING' && !r.assigned_to) counts.pending_count++;
+      if (status === 'PENDING') counts.pending_count++;
       else if (status === 'IN_PROGRESS') counts.progress_count++;
       else if (status === 'DONE') {
         counts.done_count++;
@@ -335,8 +335,8 @@ router.get('/get_dashboard', isAuthenticated, isTechnicianOrAdmin, async (req: A
       const statusClass = status.toLowerCase().replace(' ', '-');
       const createdAtStr = r.created_at.toISOString().replace('T', ' ').substring(0, 16);
       const completedAtStr = r.completed_at ? r.completed_at.toISOString().replace('T', ' ').substring(0, 16) : '-';
-      const requester = r.requester || null;
-      const clientName = requester ? `${requester.first_name} ${requester.last_name}` : 'Unknown';
+      const requesterArr = r.requester || [];
+      const clientName = requesterArr.length > 0 ? `${requesterArr[0].first_name} ${requesterArr[0].last_name}` : 'Unknown';
 
       return {
         _id: r._id?.toString(),
@@ -465,25 +465,43 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
       ];
     }
     
-    // Full counts from all matching docs (before pagination)
-    const allStatuses = await requestsCollection
-      .find(filter, { projection: { status: 1 } })
-      .toArray();
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const skip = (page - 1) * limit;
+    
+    const result = await requestsCollection.aggregate([
+      { $match: filter },
+      {
+        $facet: {
+          counts: [
+            { $group: { _id: '$status', count: { $sum: 1 } } }
+          ],
+          data: [
+            { $sort: { created_at: -1 } },
+            { $skip: skip },
+            { $limit: limit }
+          ]
+        }
+      }
+    ]).toArray();
+    
+    const countsResult: Array<{ _id: string; count: number }> = result[0]?.counts || [];
+    const requests = result[0]?.data || [];
     
     const counts = {
-      pending_count: allStatuses.filter(r => r.status === 'PENDING').length,
-      progress_count: allStatuses.filter(r => r.status === 'IN_PROGRESS').length,
-      done_count: allStatuses.filter(r => r.status === 'DONE').length
+      pending_count: countsResult.find(c => c._id === 'PENDING')?.count || 0,
+      progress_count: countsResult.find(c => c._id === 'IN_PROGRESS')?.count || 0,
+      done_count: countsResult.find(c => c._id === 'DONE')?.count || 0
     };
     
-    const requests = await requestsCollection
-      .find(filter)
-      .sort({ created_at: -1 })
-      .toArray();
-
+    const total = countsResult.reduce((sum, c) => sum + c.count, 0);
+    
     res.json({ 
       requests, 
-      counts
+      counts,
+      total,
+      page,
+      limit
     });
   } catch (error) {
     console.error('My requests error:', error);

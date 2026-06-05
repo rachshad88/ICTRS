@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import { ObjectId } from 'mongodb';
 import { getAuditLogsCollection } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated, isAdmin } from '../middleware/auth';
 
@@ -12,14 +13,16 @@ router.get('/logs', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, 
 
     const filter: Record<string, unknown> = {};
 
-    if (req.query.user_id) filter.user_id = req.query.user_id;
-    if (req.query.action) filter.action = req.query.action;
-    if (req.query.entity_type) filter.entity_type = req.query.entity_type;
+    if (req.query.user_id && typeof req.query.user_id === 'string') {
+      try { filter.user_id = new ObjectId(req.query.user_id); } catch { /* ignore invalid */ }
+    }
+    if (req.query.action && typeof req.query.action === 'string') filter.action = req.query.action;
+    if (req.query.entity_type && typeof req.query.entity_type === 'string') filter.entity_type = req.query.entity_type;
 
     if (req.query.date_from || req.query.date_to) {
       filter.timestamp = {};
-      if (req.query.date_from) (filter.timestamp as Record<string, unknown>).$gte = new Date(req.query.date_from as string);
-      if (req.query.date_to) (filter.timestamp as Record<string, unknown>).$lte = new Date(req.query.date_to as string + 'T23:59:59');
+      if (req.query.date_from && typeof req.query.date_from === 'string') (filter.timestamp as Record<string, unknown>).$gte = new Date(req.query.date_from);
+      if (req.query.date_to && typeof req.query.date_to === 'string') (filter.timestamp as Record<string, unknown>).$lte = new Date(req.query.date_to + 'T23:59:59');
     }
 
     const auditCollection = getAuditLogsCollection();

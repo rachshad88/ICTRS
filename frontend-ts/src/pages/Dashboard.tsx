@@ -156,7 +156,7 @@ function Dashboard() {
     if (!req.assigned_to && isAdmin) {
       return <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Pending</span>;
     }
-    if (req.status === 'IN_PROGRESS' || isAdmin) {
+    if (req.status === 'IN_PROGRESS') {
       return <button className="hbtn hbtn-view" onClick={() => openFinishModal(req)}>Mark Done</button>;
     }
     return null;

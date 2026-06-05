@@ -69,12 +69,22 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
 
         await logAudit(user._id!, user.username, user.role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
 
+        const userData = {
+          user_id: user._id?.toString(),
+          username: user.username,
+          first_name: user.first_name,
+          middle_name: user.middle_name,
+          last_name: user.last_name,
+          role: user.role,
+          office: user.office || ''
+        };
+
         if (user.role === 'CLIENT') {
-          return res.json({ redirect: '/request' });
+          return res.json({ redirect: '/request', user: userData });
         } else if (user.role === 'MULTIMEDIA') {
-          return res.json({ redirect: '/multimedia-dashboard' });
+          return res.json({ redirect: '/multimedia-dashboard', user: userData });
         } else {
-          return res.json({ redirect: '/dashboard' });
+          return res.json({ redirect: '/dashboard', user: userData });
         }
       } catch (error) {
         console.error('Login error:', error);

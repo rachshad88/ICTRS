@@ -44,15 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (username: string, password: string) => {
     const response = await api.post('/auth/login', { username, password });
-    if (response.data.redirect) {
-      window.location.href = response.data.redirect;
+    if (response.data.user) {
+      setUser(response.data.user);
     }
   };
 
   const logout = async () => {
     await api.post('/auth/logout');
     setUser(null);
-    window.location.href = '/';
   };
 
   const updateUser = async (data: { username?: string; first_name: string; middle_name: string; last_name: string; office?: string }) => {

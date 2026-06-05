@@ -10,12 +10,18 @@ interface FileViewerProps {
 function FileViewer({ files, requestId, type }: FileViewerProps) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  const toFilename = (f: unknown): string => {
+    if (typeof f === 'string') return f;
+    if (f && typeof f === 'object' && 'filename' in (f as Record<string, unknown>)) return (f as Record<string, string>).filename;
+    return String(f || '');
+  };
+
   const getFileUrl = (filename: string) => {
-    return `/api/files/${type}/${requestId}/${encodeURIComponent(filename)}`;
+    return `/api/files/${type}/${requestId}/${encodeURIComponent(toFilename(filename))}`;
   };
 
   const getFileExtension = (filename: string) => {
-    const parts = filename.split('.');
+    const parts = toFilename(filename).split('.');
     return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
   };
 
@@ -82,11 +88,12 @@ function FileViewer({ files, requestId, type }: FileViewerProps) {
   };
 
   const getCleanFilename = (filename: string) => {
-    const parts = filename.split('-');
+    const name = toFilename(filename);
+    const parts = name.split('-');
     if (parts.length > 1) {
       return parts.slice(1).join('-');
     }
-    return filename;
+    return name;
   };
 
   const handleFileClick = (filename: string) => {

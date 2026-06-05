@@ -1,15 +1,19 @@
 import { io, Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
+let currentUserId = '';
+let currentRole = '';
 
 export const initSocket = (userId: string, role: string): Socket => {
+  currentUserId = userId;
+  currentRole = role;
   if (!socket) {
     socket = io('/', {
       transports: ['websocket', 'polling']
     });
 
     socket.on('connect', () => {
-      socket?.emit('register_user', { user_id: userId, role });
+      socket?.emit('register_user', { user_id: currentUserId, role: currentRole });
     });
   }
   return socket;
