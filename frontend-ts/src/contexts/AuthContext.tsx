@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '../services/api';
+import { initSocket, disconnectSocket } from '../services/socket';
 
 interface User {
   user_id: string;
@@ -28,6 +29,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (user) {
+      initSocket(user.user_id, user.role);
+    }
+    return () => {
+      disconnectSocket();
+    };
+  }, [user]);
 
   const checkAuth = async () => {
     try {

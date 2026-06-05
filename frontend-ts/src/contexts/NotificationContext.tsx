@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '../services/api';
 import { getSocket } from '../services/socket';
+import { useAuth } from './AuthContext';
 
 interface UnassignedCounts {
   total: number;
@@ -16,22 +17,25 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType>({ counts: { total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 } });
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [counts, setCounts] = useState<UnassignedCounts>({ total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 });
 
   const fetchCounts = useCallback(async () => {
+    if (!user) return;
     try {
       const res = await api.get('/notifications/unassigned-count');
       setCounts(res.data);
     } catch {
       // silently ignore
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchCounts();
   }, [fetchCounts]);
 
   useEffect(() => {
+    if (!user) return;
     const socket = getSocket();
     if (!socket) return;
 
@@ -55,7 +59,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         socket.off(event, handler);
       }
     };
-  }, [fetchCounts]);
+  }, [fetchCounts, user]);
 
   return (
     <NotificationContext.Provider value={{ counts }}>
