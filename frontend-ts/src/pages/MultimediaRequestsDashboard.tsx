@@ -58,9 +58,11 @@ function MultimediaRequestsDashboard() {
     const handler = () => fetchRequests(searchTermRef.current);
     socket.on('multimedia_request_assigned', handler);
     socket.on('multimedia_request_completed', handler);
+    socket.on('multimedia_request_cancelled', handler);
     return () => {
       socket.off('multimedia_request_assigned', handler);
       socket.off('multimedia_request_completed', handler);
+      socket.off('multimedia_request_cancelled', handler);
     };
   }, [user]);
 

@@ -57,9 +57,11 @@ function DigitalMediaRequestsDashboard() {
     const handler = () => fetchRequests(searchTermRef.current);
     socket.on('digital_media_request_assigned', handler);
     socket.on('digital_media_request_completed', handler);
+    socket.on('digital_media_request_cancelled', handler);
     return () => {
       socket.off('digital_media_request_assigned', handler);
       socket.off('digital_media_request_completed', handler);
+      socket.off('digital_media_request_cancelled', handler);
     };
   }, [user]);
 

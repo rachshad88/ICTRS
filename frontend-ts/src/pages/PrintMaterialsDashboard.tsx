@@ -57,9 +57,11 @@ function PrintMaterialsDashboard() {
     const handler = () => fetchRequests(searchTermRef.current);
     socket.on('print_materials_request_assigned', handler);
     socket.on('print_materials_request_completed', handler);
+    socket.on('print_materials_request_cancelled', handler);
     return () => {
       socket.off('print_materials_request_assigned', handler);
       socket.off('print_materials_request_completed', handler);
+      socket.off('print_materials_request_cancelled', handler);
     };
   }, [user]);
 

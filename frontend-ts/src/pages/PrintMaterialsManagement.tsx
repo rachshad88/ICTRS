@@ -87,11 +87,13 @@ function PrintMaterialsManagement() {
     socket.on('print_materials_request_assigned', handler);
     socket.on('print_materials_request_assigned_admin', handler);
     socket.on('print_materials_request_completed', handler);
+    socket.on('print_materials_request_cancelled', handler);
     return () => {
       socket.off('print_materials_request_created', handler);
       socket.off('print_materials_request_assigned', handler);
       socket.off('print_materials_request_assigned_admin', handler);
       socket.off('print_materials_request_completed', handler);
+      socket.off('print_materials_request_cancelled', handler);
     };
   }, [user]);
 

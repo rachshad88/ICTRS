@@ -333,6 +333,12 @@ export function createRequestRouter(config: RouteConfig): Router {
           assigned_to: technician_id,
           [config.summaryField]: result.value[config.summaryField]
         });
+        io.to('admins').emit(`${config.socketPrefix}_request_assigned_admin`, {
+          request_id,
+          request_code: requestCode,
+          assigned_to: technician_id,
+          [config.summaryField]: result.value[config.summaryField]
+        });
       }
 
       res.json({ status: 'success' });
@@ -413,6 +419,16 @@ export function createRequestRouter(config: RouteConfig): Router {
       const io = getIO();
       if (io) {
         io.to(`user_${result.value.created_by?.toString()}`).emit(`${config.socketPrefix}_request_completed`, {
+          request_id,
+          request_code: requestCode,
+          status: 'DONE'
+        });
+        io.to('admins').emit(`${config.socketPrefix}_request_completed`, {
+          request_id,
+          request_code: requestCode,
+          status: 'DONE'
+        });
+        io.to('multimedia_staff').emit(`${config.socketPrefix}_request_completed`, {
           request_id,
           request_code: requestCode,
           status: 'DONE'
