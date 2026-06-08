@@ -115,7 +115,7 @@ function MultimediaRequest() {
             />
           </div>
           
-          <div className="form-row">
+          <div className="form-row three-cols">
             <div className="form-group">
               <label>Event Date *</label>
               <input
@@ -150,6 +150,35 @@ function MultimediaRequest() {
             </div>
           </div>
           
+          <div className="form-row">
+            <div className="form-group">
+              <label>Contact Number *</label>
+              <input
+                type="tel"
+                name="contact_number"
+                value={formData.contact_number}
+                onChange={handleInputChange}
+                required
+                placeholder="e.g., 09XXX-XXX-XXXX"
+              />
+            </div>
+            
+            <div className="form-group">
+              <label>Location Type *</label>
+              <select
+                name="location_type"
+                value={formData.location_type}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="">Select Location Type</option>
+                {LOCATION_TYPES.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
           <div className="form-group">
             <label>Specific Location *</label>
             <textarea
@@ -159,33 +188,6 @@ function MultimediaRequest() {
               required
               rows={3}
               placeholder="e.g., Conference Hall, 2nd Floor, LGU Building"
-            />
-          </div>
-          
-          <div className="form-group">
-            <label>Location Type *</label>
-            <select
-              name="location_type"
-              value={formData.location_type}
-              onChange={handleInputChange}
-              required
-            >
-              <option value="">Select Location Type</option>
-              {LOCATION_TYPES.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div className="form-group">
-            <label>Contact Number *</label>
-            <input
-              type="tel"
-              name="contact_number"
-              value={formData.contact_number}
-              onChange={handleInputChange}
-              required
-              placeholder="e.g., 09XXX-XXX-XXXX"
             />
           </div>
           

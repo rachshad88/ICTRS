@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { api } from '../services/api';
 import { getSocket } from '../services/socket';
 import { useAuth } from './AuthContext';
@@ -25,13 +25,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     try {
       const res = await api.get('/notifications/unassigned-count');
       setCounts(res.data);
-    } catch {
-      // silently ignore
+    } catch (err) {
+      console.error('Failed to fetch notification counts:', err);
     }
   }, [user]);
 
   useEffect(() => {
     fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
   }, [fetchCounts]);
 
   useEffect(() => {
@@ -53,11 +55,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     for (const event of events) {
       socket.on(event, handler);
     }
+    socket.on('connect', handler);
 
     return () => {
       for (const event of events) {
         socket.off(event, handler);
       }
+      socket.off('connect', handler);
     };
   }, [fetchCounts, user]);
 

@@ -185,28 +185,30 @@ function PrintMaterialsRequest() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Name of Requestor *</label>
-            <input
-              type="text"
-              name="requestor_name"
-              value={formData.requestor_name}
-              onChange={handleInputChange}
-              required
-              placeholder="The name provided shall serve as the official requestor"
-            />
-          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Name of Requestor *</label>
+              <input
+                type="text"
+                name="requestor_name"
+                value={formData.requestor_name}
+                onChange={handleInputChange}
+                required
+                placeholder="The name provided shall serve as the official requestor"
+              />
+            </div>
 
-          <div className="form-group">
-            <label>Contact Number of Requestor *</label>
-            <input
-              type="tel"
-              name="requestor_contact"
-              value={formData.requestor_contact}
-              onChange={handleInputChange}
-              required
-              placeholder="Please provide a mobile or landline number"
-            />
+            <div className="form-group">
+              <label>Contact Number of Requestor *</label>
+              <input
+                type="tel"
+                name="requestor_contact"
+                value={formData.requestor_contact}
+                onChange={handleInputChange}
+                required
+                placeholder="Please provide a mobile or landline number"
+              />
+            </div>
           </div>
 
           <div className="form-group">

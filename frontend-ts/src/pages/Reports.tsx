@@ -4,11 +4,11 @@ import Skeleton from '../components/Skeleton';
 
 interface Report {
   request_code: string;
-  office: string;
-  issue: string;
+  type: string;
+  description: string;
   client_name: string;
   technician_name: string;
-  finished: string;
+  status: string;
   remarks: string;
   recommendation: string;
   completed_at: string;
@@ -16,7 +16,7 @@ interface Report {
 
 function Reports() {
   const [filterType, setFilterType] = useState('daily');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [showDone, setShowDone] = useState('1');
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,8 +92,8 @@ function Reports() {
             <thead>
               <tr>
                 <th>Code</th>
-                <th>Office</th>
-                <th>Issue</th>
+                <th>Type</th>
+                <th>Description</th>
                 <th>Client</th>
                 <th>Technician</th>
                 <th>Status</th>
@@ -106,14 +106,14 @@ function Reports() {
               {paginatedReports.map((report) => (
                 <tr key={report.request_code}>
                   <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{report.request_code}</td>
-                  <td style={{ fontSize: '12px' }}>{report.office}</td>
-                  <td>{report.issue}</td>
+                  <td><span className="badge-type">{report.type}</span></td>
+                  <td>{report.description}</td>
                   <td style={{ fontSize: '12px' }}>{report.client_name}</td>
                   <td style={{ fontSize: '12px' }}>{report.technician_name}</td>
                   <td>
-                    <span className={`hstatus ${report.finished === 'repaired' ? 'done' : 'cancelled'}`}>
-                      <span className={`hstatus-dot ${report.finished === 'repaired' ? 'done' : 'cancelled'}`} />
-                      {report.finished}
+                    <span className={`hstatus ${report.status === 'DONE' ? 'done' : report.status === 'CANCELLED' ? 'cancelled' : 'pending'}`}>
+                      <span className={`hstatus-dot ${report.status === 'DONE' ? 'done' : report.status === 'CANCELLED' ? 'cancelled' : 'pending'}`} />
+                      {report.status}
                     </span>
                   </td>
                   <td style={{ fontSize: '12px' }}>{report.remarks}</td>
