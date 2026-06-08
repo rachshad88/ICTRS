@@ -3418,3 +3418,33 @@ button.sidebar-item {
   background: var(--gold-light);
   color: #fff;
 }
+
+.reports-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0;
+}
+
+.reports-tab {
+  padding: 8px 20px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.reports-tab:hover {
+  color: var(--text-primary);
+}
+
+.reports-tab.active {
+  color: var(--gold);
+  border-bottom-color: var(--gold);
+}

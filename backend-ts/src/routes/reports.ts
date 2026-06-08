@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { ObjectId } from 'mongodb';
+import { ObjectId, Collection, Document } from 'mongodb';
 import * as XLSX from 'xlsx';
 import {
   getRequestsCollection, getMultimediaRequestsCollection, getDigitalMediaRequestsCollection,
@@ -9,110 +9,130 @@ import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 
 const router = Router();
 
-interface CollectionConfig {
-  name: string;
+interface TypeConfig {
+  getCollection: () => Collection<Document>;
   typeLabel: string;
-  descriptionField: string;
+  roleAccess: string[];
   filterAssigned: boolean;
 }
 
-function getConfigs(role: string): CollectionConfig[] {
-  if (role === 'ADMIN') {
-    return [
-      { name: 'IT', typeLabel: 'IT Request', descriptionField: 'issue', filterAssigned: false },
-      { name: 'MM', typeLabel: 'Multimedia', descriptionField: 'event_title', filterAssigned: false },
-      { name: 'DM', typeLabel: 'Digital Media', descriptionField: 'digital_media_description', filterAssigned: false },
-      { name: 'PM', typeLabel: 'Print Materials', descriptionField: 'printed_media_description', filterAssigned: false },
-    ];
+const TYPE_MAP: Record<string, () => TypeConfig> = {
+  'it': () => ({
+    getCollection: () => getRequestsCollection() as unknown as Collection<Document>,
+    typeLabel: 'IT Request',
+    roleAccess: ['ADMIN', 'TECHNICIAN'],
+    filterAssigned: true,
+  }),
+  'multimedia': () => ({
+    getCollection: () => getMultimediaRequestsCollection() as unknown as Collection<Document>,
+    typeLabel: 'Multimedia',
+    roleAccess: ['ADMIN', 'MULTIMEDIA'],
+    filterAssigned: true,
+  }),
+  'digital-media': () => ({
+    getCollection: () => getDigitalMediaRequestsCollection() as unknown as Collection<Document>,
+    typeLabel: 'Digital Media',
+    roleAccess: ['ADMIN', 'MULTIMEDIA'],
+    filterAssigned: true,
+  }),
+  'print-materials': () => ({
+    getCollection: () => getPrintMaterialsRequestsCollection() as unknown as Collection<Document>,
+    typeLabel: 'Print Materials',
+    roleAccess: ['ADMIN', 'MULTIMEDIA'],
+    filterAssigned: true,
+  }),
+};
+
+const TYPE_LIST = ['it', 'multimedia', 'digital-media', 'print-materials'];
+
+function getDateRange(filterType: string, selectedDate: string): { startDate: Date; endDate: Date } {
+  if (filterType === 'all') {
+    return { startDate: new Date(0), endDate: new Date('2099-12-31T23:59:59') };
   }
-  if (role === 'TECHNICIAN') {
-    return [
-      { name: 'IT', typeLabel: 'IT Request', descriptionField: 'issue', filterAssigned: true },
-    ];
+  if (filterType === 'daily') {
+    return {
+      startDate: new Date(selectedDate + 'T00:00:00'),
+      endDate: new Date(selectedDate + 'T23:59:59'),
+    };
   }
-  if (role === 'MULTIMEDIA') {
-    return [
-      { name: 'MM', typeLabel: 'Multimedia', descriptionField: 'event_title', filterAssigned: true },
-      { name: 'DM', typeLabel: 'Digital Media', descriptionField: 'digital_media_description', filterAssigned: true },
-      { name: 'PM', typeLabel: 'Print Materials', descriptionField: 'printed_media_description', filterAssigned: true },
-    ];
+  if (filterType === 'weekly') {
+    const date = new Date(selectedDate);
+    const day = date.getDay();
+    const startDate = new Date(date);
+    startDate.setDate(date.getDate() - day);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    endDate.setHours(23, 59, 59, 999);
+    return { startDate, endDate };
   }
-  return [];
+  const date = new Date(selectedDate);
+  const startDate = new Date(date.getFullYear(), date.getMonth(), 1);
+  const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+  return { startDate, endDate };
 }
 
-function getCollection(name: string) {
-  switch (name) {
-    case 'IT': return getRequestsCollection();
-    case 'MM': return getMultimediaRequestsCollection();
-    case 'DM': return getDigitalMediaRequestsCollection();
-    case 'PM': return getPrintMaterialsRequestsCollection();
-    default: throw new Error(`Unknown collection: ${name}`);
-  }
-}
-
-function getSearchFilter(config: CollectionConfig, search: string): Record<string, unknown> {
-  const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const regex = { $regex: escaped, $options: 'i' };
-  const searchFields: Record<string, unknown>[] = [
-    { request_code: regex },
-    { [config.descriptionField]: regex },
-    { remarks: regex },
-    { recommendation: regex },
-  ];
-  return { $or: searchFields };
-}
-
-async function queryCollection(
-  config: CollectionConfig,
-  userId: string,
+function buildFilter(
   dateFilter: Record<string, unknown>,
   showDone: boolean,
-  search: string | undefined,
-): Promise<unknown[]> {
-  const collection = getCollection(config.name);
+  search?: string,
+  typeKey?: string,
+): Record<string, unknown> {
   const filter: Record<string, unknown> = { created_at: dateFilter };
-
-  if (config.filterAssigned) {
-    filter.assigned_to = new ObjectId(userId);
-  }
 
   if (!showDone) {
     filter.status = { $ne: 'DONE' };
   }
 
-  if (search) {
-    Object.assign(filter, getSearchFilter(config, search));
+  if (search && typeKey) {
+    const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = { $regex: escaped, $options: 'i' };
+    const searchFields: Record<string, unknown>[] = [{ request_code: regex }, { remarks: regex }];
+    if (typeKey === 'it') {
+      searchFields.push({ issue: regex }, { office: regex }, { unit: regex }, { recommendation: regex });
+    } else if (typeKey === 'multimedia') {
+      searchFields.push({ event_title: regex }, { specific_location: regex }, { recommendation: regex });
+    } else if (typeKey === 'digital-media') {
+      searchFields.push({ digital_media_description: regex }, { event_ppa_name: regex }, { requestor_name: regex });
+    } else if (typeKey === 'print-materials') {
+      searchFields.push({ printed_media_description: regex }, { event_ppa_name: regex }, { requestor_name: regex });
+    }
+    filter.$or = searchFields;
   }
 
-  return collection.find(filter).sort({ created_at: -1 }).toArray();
+  return filter;
 }
 
-async function fetchReports(role: string, userId: string, filterType: string, selectedDate: string, showDone: boolean, search?: string): Promise<{ reports: unknown[]; total: number }> {
-  let startDate: Date, endDate: Date;
+function addUserInfo(doc: Record<string, unknown>, userMap: Map<string, { first_name: string; last_name: string }>) {
+  const creator = doc.created_by ? userMap.get(doc.created_by.toString()) : null;
+  const technician = doc.assigned_to ? userMap.get(doc.assigned_to.toString()) : null;
+  return {
+    ...doc,
+    _id: doc._id?.toString(),
+    client_name: creator ? `${creator.first_name} ${creator.last_name}` : 'Unknown',
+    technician_name: technician ? `${technician.first_name} ${technician.last_name}` : '-',
+  };
+}
 
-  if (filterType === 'all') {
-    startDate = new Date(0);
-    endDate = new Date('2099-12-31T23:59:59');
-  } else if (filterType === 'daily') {
-    startDate = new Date(selectedDate + 'T00:00:00');
-    endDate = new Date(selectedDate + 'T23:59:59');
-  } else if (filterType === 'weekly') {
-    const date = new Date(selectedDate);
-    const day = date.getDay();
-    startDate = new Date(date);
-    startDate.setDate(date.getDate() - day);
-    startDate.setHours(0, 0, 0, 0);
-    endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-    endDate.setHours(23, 59, 59, 999);
-  } else {
-    const date = new Date(selectedDate);
-    startDate = new Date(date.getFullYear(), date.getMonth(), 1);
-    endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-  }
+async function queryType(
+  typeKey: string,
+  role: string,
+  userId: string,
+  filterType: string,
+  selectedDate: string,
+  showDone: boolean,
+  search?: string,
+): Promise<{ reports: Record<string, unknown>[]; total: number }> {
+  const config = TYPE_MAP[typeKey]?.();
+  if (!config) return { reports: [], total: 0 };
 
-  const configs = getConfigs(role);
+  const { startDate, endDate } = getDateRange(filterType, selectedDate);
   const dateFilter = { $gte: startDate, $lte: endDate };
+  const filter = buildFilter(dateFilter, showDone, search, typeKey);
+
+  if (config.filterAssigned && role !== 'ADMIN') {
+    filter.assigned_to = new ObjectId(userId);
+  }
 
   const usersCollection = getUsersCollection();
   const allUsers = await usersCollection.find({}).project({ password: 0 }).toArray();
@@ -121,42 +141,10 @@ async function fetchReports(role: string, userId: string, filterType: string, se
     userMap.set(u._id!.toString(), { first_name: u.first_name, last_name: u.last_name });
   });
 
-  const allResults: unknown[] = [];
+  const docs = await config.getCollection().find(filter).sort({ created_at: -1 }).toArray();
+  const reports = docs.map(d => addUserInfo(d as unknown as Record<string, unknown>, userMap));
 
-  for (const config of configs) {
-    const docs = await queryCollection(config, userId, dateFilter, showDone, search);
-    for (const doc of docs as Array<Record<string, unknown>>) {
-      const creator = doc.created_by ? userMap.get(doc.created_by.toString()) : null;
-      const technician = doc.assigned_to ? userMap.get(doc.assigned_to.toString()) : null;
-      const rawCreated = doc.created_at ? new Date(doc.created_at as string).getTime() : 0;
-      allResults.push({
-        request_code: doc.request_code,
-        type: config.typeLabel,
-        description: doc[config.descriptionField] || '-',
-        client_name: creator ? `${creator.first_name} ${creator.last_name}` : 'Unknown',
-        technician_name: technician ? `${technician.first_name} ${technician.last_name}` : '-',
-        status: doc.status || '-',
-        remarks: doc.remarks || '-',
-        recommendation: doc.recommendation || '-',
-        completed_at: doc.completed_at
-          ? new Date(doc.completed_at as string).toISOString().replace('T', ' ').substring(0, 16)
-          : '-',
-        _ts: rawCreated,
-      });
-    }
-  }
-
-  allResults.sort((a, b) => {
-    const aDoc = a as Record<string, unknown>;
-    const bDoc = b as Record<string, unknown>;
-    return (bDoc._ts as number) - (aDoc._ts as number);
-  });
-
-  for (const r of allResults) {
-    delete (r as Record<string, unknown>)._ts;
-  }
-
-  return { reports: allResults, total: allResults.length };
+  return { reports, total: reports.length };
 }
 
 router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
@@ -169,21 +157,28 @@ router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, re
       return;
     }
 
+    const typeKey = (req.query.type as string) || 'it';
     const filterType = (req.query.filter as string) || 'daily';
     const selectedDate = (req.query.date as string) || new Date().toLocaleDateString('en-CA');
     const showDone = req.query.show_done !== '0';
     const search = req.query.search as string | undefined;
 
-    const cacheKey = `reports:${role}:${userId}:${filterType}:${selectedDate}:${showDone}:${search || ''}`;
-    const cached = await getCache<{ reports: unknown[]; total: number }>(cacheKey);
-    if (cached) {
-      res.json({ reports: cached.reports, total: cached.total });
+    const config = TYPE_MAP[typeKey]?.();
+    if (!config || !config.roleAccess.includes(role)) {
+      res.status(403).json({ error: 'Forbidden' });
       return;
     }
 
-    const { reports, total } = await fetchReports(role, userId, filterType, selectedDate, showDone, search);
-    await setCache(cacheKey, { reports, total }, 60);
-    res.json({ reports, total });
+    const cacheKey = `reports:${typeKey}:${role}:${userId}:${filterType}:${selectedDate}:${showDone}:${search || ''}`;
+    const cached = await getCache<{ reports: Record<string, unknown>[]; total: number }>(cacheKey);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
+    const result = await queryType(typeKey, role, userId, filterType, selectedDate, showDone, search);
+    await setCache(cacheKey, result, 60);
+    res.json(result);
   } catch (error) {
     console.error('Get reports error:', error);
     res.status(500).json({ error: 'Failed to get reports' });
@@ -200,24 +195,37 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
       return;
     }
 
+    const typeKey = (req.query.type as string) || 'it';
     const filterType = (req.query.filter as string) || 'daily';
     const selectedDate = (req.query.date as string) || new Date().toLocaleDateString('en-CA');
     const showDone = req.query.show_done !== '0';
     const search = req.query.search as string | undefined;
 
-    const { reports } = await fetchReports(role, userId, filterType, selectedDate, showDone, search);
+    const config = TYPE_MAP[typeKey]?.();
+    if (!config || !config.roleAccess.includes(role)) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
 
-    const excelRows = (reports as Array<Record<string, unknown>>).map(r => ({
-      'Request Code': r.request_code,
-      'Type': r.type,
-      'Description': r.description,
-      'Client': r.client_name,
-      'Technician': r.technician_name,
-      'Status': r.status,
-      'Remarks': r.remarks,
-      'Recommendation': r.recommendation,
-      'Completed': r.completed_at,
-    }));
+    const { reports } = await queryType(typeKey, role, userId, filterType, selectedDate, showDone, search);
+    if (reports.length === 0) {
+      res.status(404).json({ error: 'No reports found' });
+      return;
+    }
+
+    const internalFields = new Set(['_id', 'created_by', 'assigned_to', 'created_at']);
+    const headers = Object.keys(reports[0]).filter(k => !internalFields.has(k));
+    const excelRows = reports.map(r => {
+      const row: Record<string, unknown> = {};
+      for (const h of headers) {
+        let val = r[h];
+        if (val instanceof Date) {
+          val = val.toISOString().replace('T', ' ').substring(0, 16);
+        }
+        row[h] = val ?? '-';
+      }
+      return row;
+    });
 
     const worksheet = XLSX.utils.json_to_sheet(excelRows);
     const workbook = XLSX.utils.book_new();
@@ -226,7 +234,7 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
     const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=reports_${filterType}_${selectedDate}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=${typeKey}_${filterType}_${selectedDate}.xlsx`);
     res.send(buffer);
   } catch (error) {
     console.error('Export Excel error:', error);
