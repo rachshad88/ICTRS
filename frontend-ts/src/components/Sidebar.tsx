@@ -57,6 +57,8 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
         { to: '/multimedia-dashboard', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Requests' },
         { to: '/digitalmedia-dashboard', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Requests' },
         { to: '/print-materials-dashboard', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Requests' },
+        { section: '' },
+        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
       ];
     }
 
