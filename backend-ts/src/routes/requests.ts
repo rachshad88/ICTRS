@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
-import { getRequestsCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
-import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isTechnicianOnly } from '../middleware/auth';
+import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
+import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isTechnicianOnly, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema } from '../middleware/validation';
 
@@ -75,19 +75,24 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
   }
 });
 
-router.post('/accept_request', isAuthenticated, isTechnicianOnly, validateBody(acceptRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { request_id } = req.body;
-    const assigned_to = req.user!.user_id;
+    const { request_id, technician_id } = req.body;
 
-    if (!request_id) {
-      return res.status(400).json({ status: 'error', message: 'Request ID required' });
+    if (!request_id || !technician_id) {
+      return res.status(400).json({ status: 'error', message: 'Request ID and technician ID required' });
+    }
+
+    const usersCollection = getUsersCollection();
+    const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), role: 'TECHNICIAN' });
+    if (!technician) {
+      return res.status(404).json({ error: 'Technician not found' });
     }
 
     const requestsCollection = getRequestsCollection();
     const result = await requestsCollection.findOneAndUpdate(
       { _id: new ObjectId(request_id), status: 'PENDING' },
-      { $set: { status: 'IN_PROGRESS', assigned_to: new ObjectId(assigned_to) } },
+      { $set: { status: 'IN_PROGRESS', assigned_to: new ObjectId(technician_id) } },
       { returnDocument: 'after' }
     );
 
@@ -95,20 +100,25 @@ router.post('/accept_request', isAuthenticated, isTechnicianOnly, validateBody(a
       return res.status(404).json({ status: 'error', message: 'Request not found or already accepted' });
     }
 
-    await logAudit(new ObjectId(assigned_to), req.user!.username, req.user!.role, 'ACCEPT_REQUEST', 'IT_REQUEST', request_id, `Technician ${req.user!.username} accepted request`);
+    const assignedTo = `${technician.first_name} ${technician.last_name}`;
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.role, 'ACCEPT_REQUEST', 'IT_REQUEST', request_id, `IT Admin ${req.user!.username} assigned request to ${assignedTo}`);
 
     const io = req.app.get('io');
     if (io) {
       io.emit('request_update', {
         event: 'accepted',
         request_id,
-        assigned_to,
+        assigned_to: technician_id,
         status: 'IN_PROGRESS',
         timestamp: new Date()
       });
       io.to(`user_${result.value?.created_by?.toString()}`).emit('my_request_accepted', {
         request_id,
-        assigned_to
+        assigned_to: technician_id
+      });
+      io.to(`user_${technician_id}`).emit('request_assigned_to_you', {
+        request_id,
+        request_code: result.value.request_code
       });
     }
 
@@ -193,7 +203,7 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
     const requestsCollection = getRequestsCollection();
     
     let result;
-    if (role === 'ADMIN' || role === 'TECHNICIAN') {
+    if (role === 'ADMIN' || role === 'TECHNICIAN' || role === 'IT_ADMIN') {
       result = await requestsCollection.findOneAndUpdate(
         { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED'] } },
         { $set: { status: 'CANCELLED', assigned_to: null } },
@@ -231,7 +241,7 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
   }
 });
 
-router.get('/get_dashboard', isAuthenticated, isTechnicianOrAdmin, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.user_id;
     const role = req.user!.role;
@@ -269,10 +279,7 @@ router.get('/get_dashboard', isAuthenticated, isTechnicianOrAdmin, async (req: A
     };
 
     if (role === 'TECHNICIAN') {
-      matchFilter.$or = [
-        { assigned_to: null, status: { $ne: 'CANCELLED' } },
-        { assigned_to: new ObjectId(userId) }
-      ];
+      matchFilter.assigned_to = new ObjectId(userId);
     }
 
     if (!showDone) {
@@ -506,6 +513,17 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
   } catch (error) {
     console.error('My requests error:', error);
     res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
+router.get('/get_technicians', isAuthenticated, isItAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const usersCollection = getUsersCollection();
+    const technicians = await usersCollection.find({ role: 'TECHNICIAN' }).toArray();
+    res.json({ technicians });
+  } catch (error) {
+    console.error('Get technicians error:', error);
+    res.status(500).json({ error: 'Failed to fetch technicians' });
   }
 });
 

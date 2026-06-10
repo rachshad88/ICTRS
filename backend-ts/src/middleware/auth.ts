@@ -64,3 +64,27 @@ export function isAdmin(req: AuthenticatedRequest, res: Response, next: NextFunc
   }
   next();
 }
+
+export function isItAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  if (req.user?.role !== 'IT_ADMIN') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  next();
+}
+
+export function isMultimediaAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  if (req.user?.role !== 'MULTIMEDIA_ADMIN') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  next();
+}
+
+export function isItAdminOrTechnician(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+  if (req.user?.role !== 'IT_ADMIN' && req.user?.role !== 'TECHNICIAN') {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  next();
+}

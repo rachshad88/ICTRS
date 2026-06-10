@@ -3291,6 +3291,16 @@ button.sidebar-item {
   color: #34d399;
 }
 
+.role-badge.it-admin {
+  background: rgba(99, 102, 241, 0.12);
+  color: #818cf8;
+}
+
+.role-badge.multimedia-admin {
+  background: rgba(212, 175, 55, 0.12);
+  color: #f0c929;
+}
+
 /* Compact stat cards for dashboard */
 .stat-row {
   display: flex;

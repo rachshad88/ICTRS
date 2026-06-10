@@ -18,6 +18,12 @@ interface Request {
   assigned_to: string | null;
 }
 
+interface Technician {
+  _id: string;
+  first_name: string;
+  last_name: string;
+}
+
 interface Counts {
   pending_count: number;
   progress_count: number;
@@ -26,7 +32,7 @@ interface Counts {
   beyond_repair_count: number;
 }
 
-function Dashboard() {
+function ItAdminDashboard() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<Request[]>([]);
   const [counts, setCounts] = useState<Counts>({
@@ -41,17 +47,19 @@ function Dashboard() {
   const [showDone, setShowDone] = useState('1');
   const [loading, setLoading] = useState(true);
 
-  const [showModal, setShowModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
-  const [finished, setFinished] = useState('repaired');
-  const [remarks, setRemarks] = useState('');
-  const [recommendation, setRecommendation] = useState('');
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [selectedTechnician, setSelectedTechnician] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => { setCurrentPage(1); }, [filterType, selectedDate, showDone, searchTerm]);
+  useEffect(() => {
+    if (user) {
+      initSocket(user.user_id, user.role);
+    }
+  }, [user]);
 
   const searchTermRef = useRef(searchTerm);
   useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
@@ -73,12 +81,6 @@ function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.role);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
       fetchData(searchTerm);
     }
   }, [user, fetchData, searchTerm]);
@@ -93,40 +95,45 @@ function Dashboard() {
     };
   }, [user, fetchData]);
 
-  const openFinishModal = (req: Request) => {
-    setSelectedRequest(req);
-    setFinished('repaired');
-    setRemarks('');
-    setRecommendation('');
-    setShowModal(true);
+  const fetchTechnicians = async () => {
+    try {
+      const response = await api.get('/requests/get_technicians');
+      setTechnicians(response.data.technicians);
+    } catch (error) {
+      console.error('Failed to fetch technicians:', error);
+    }
   };
 
-  const handleMarkDone = async () => {
-    if (!selectedRequest || !user) return;
+  const openAssignModal = async (req: Request) => {
+    setSelectedRequest(req);
+    setSelectedTechnician('');
+    setShowAssignModal(true);
+    await fetchTechnicians();
+  };
+
+  const handleAssign = async () => {
+    if (!selectedRequest || !selectedTechnician) return;
     setSubmitting(true);
-
-    const payload = {
-      request_id: selectedRequest._id,
-      finished,
-      ...(remarks && { remarks }),
-      ...(recommendation && { recommendation })
-    };
-
     try {
-      await api.post('/requests/request_finish', payload);
-      setShowModal(false);
+      await api.post('/requests/accept_request', {
+        request_id: selectedRequest._id,
+        technician_id: selectedTechnician
+      });
+      setShowAssignModal(false);
       setSelectedRequest(null);
       fetchData(searchTerm);
     } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string; error?: string; details?: unknown[] } } };
-      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Failed to mark request as done';
-      setError(errorMsg);
+      const err = error as { response?: { data?: { message?: string } } };
+      setError(err.response?.data?.message || 'Failed to assign request');
     } finally {
       setSubmitting(false);
     }
   };
 
   const ITEMS_PER_PAGE = 10;
+  const [currentPage, setCurrentPage] = useState(1);
+  useEffect(() => { setCurrentPage(1); }, [filterType, selectedDate, showDone, searchTerm]);
+
   const totalPages = Math.ceil(requests.length / ITEMS_PER_PAGE);
   const paginatedRequests = requests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
@@ -137,11 +144,11 @@ function Dashboard() {
     if (req.status === 'DONE') {
       return <span className="hstatus done"><span className="hstatus-dot done" />Done</span>;
     }
-    if (req.status === 'IN_PROGRESS') {
-      return <button className="hbtn hbtn-view" onClick={() => openFinishModal(req)}>Mark Done</button>;
+    if (!req.assigned_to) {
+      return <button className="hbtn hbtn-assign" onClick={() => openAssignModal(req)}>Assign</button>;
     }
-    if (req.status === 'PENDING' && !req.assigned_to) {
-      return <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Pending</span>;
+    if (req.status === 'IN_PROGRESS') {
+      return <span className="hstatus progress"><span className="hstatus-dot progress" />In Progress</span>;
     }
     return null;
   };
@@ -149,7 +156,7 @@ function Dashboard() {
   return (
     <div className="page-wrap">
       <div className="page-header">
-        <h2>Dashboard</h2>
+        <h2>IT Assign Dashboard</h2>
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -245,36 +252,30 @@ function Dashboard() {
         </div>
       )}
 
-      {showModal && (
+      {showAssignModal && (
         <div className="modal">
           <div className="modal-content">
-            <h3>Mark Request as Done</h3>
+            <h3>Assign Request</h3>
             <p><strong>Request:</strong> {selectedRequest?.request_code}</p>
             <p><strong>Issue:</strong> {selectedRequest?.issue}</p>
 
             <div className="form-group">
-              <label>Status *</label>
-              <select value={finished} onChange={(e) => setFinished(e.target.value)} required>
-                <option value="repaired">Repaired</option>
-                <option value="beyond repair">Beyond Repair</option>
+              <label>Technician *</label>
+              <select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)} required>
+                <option value="">Select technician...</option>
+                {technicians.map((tech) => (
+                  <option key={tech._id} value={tech._id}>
+                    {tech.first_name} {tech.last_name}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <div className="form-group">
-              <label>Remarks</label>
-              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3} placeholder="Optional" />
-            </div>
-
-            <div className="form-group">
-              <label>Recommendation</label>
-              <textarea value={recommendation} onChange={(e) => setRecommendation(e.target.value)} rows={3} placeholder="Optional" />
-            </div>
-
             <div className="modal-actions">
-              <button className="btn-primary" onClick={handleMarkDone} disabled={submitting}>
-                {submitting ? 'Saving...' : 'Save'}
+              <button className="btn-primary" onClick={handleAssign} disabled={submitting || !selectedTechnician}>
+                {submitting ? 'Assigning...' : 'Assign'}
               </button>
-              <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+              <button className="btn-secondary" onClick={() => setShowAssignModal(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -283,4 +284,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard;
+export default ItAdminDashboard;

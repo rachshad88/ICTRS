@@ -8,7 +8,7 @@ export interface User {
   first_name: string;
   middle_name: string;
   last_name: string;
-  role: 'ADMIN' | 'TECHNICIAN' | 'CLIENT' | 'MULTIMEDIA';
+  role: 'ADMIN' | 'TECHNICIAN' | 'CLIENT' | 'MULTIMEDIA' | 'IT_ADMIN' | 'MULTIMEDIA_ADMIN';
   office?: string;
   created_at?: Date;
 }

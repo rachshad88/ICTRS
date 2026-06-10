@@ -24,6 +24,7 @@ import PrintMaterialsHistory from './pages/PrintMaterialsHistory';
 import PrintMaterialsManagement from './pages/PrintMaterialsManagement';
 import PrintMaterialsDashboard from './pages/PrintMaterialsDashboard';
 import AuditLogs from './pages/AuditLogs';
+import ItAdminDashboard from './pages/ItAdminDashboard';
 
 function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSidebar }: { children: React.ReactNode; allowedRoles?: string[]; sidebarCollapsed: boolean; onToggleSidebar: () => void }) {
   const { user, loading } = useAuth();
@@ -39,6 +40,9 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     if (user.role === 'CLIENT') return <Navigate to="/request" replace />;
     if (user.role === 'MULTIMEDIA') return <Navigate to="/multimedia-dashboard" replace />;
+    if (user.role === 'IT_ADMIN') return <Navigate to="/it-dashboard" replace />;
+    if (user.role === 'MULTIMEDIA_ADMIN') return <Navigate to="/multimedia-management" replace />;
+    if (user.role === 'ADMIN') return <Navigate to="/users" replace />;
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -65,8 +69,16 @@ function AppRoutes() {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['TECHNICIAN', 'ADMIN']} {...routeProps}>
+          <ProtectedRoute allowedRoles={['TECHNICIAN']} {...routeProps}>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/it-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['IT_ADMIN']} {...routeProps}>
+            <ItAdminDashboard />
           </ProtectedRoute>
         }
       />
@@ -89,7 +101,7 @@ function AppRoutes() {
       <Route
         path="/reports"
         element={
-          <ProtectedRoute allowedRoles={['TECHNICIAN', 'ADMIN', 'MULTIMEDIA']} {...routeProps}>
+          <ProtectedRoute allowedRoles={['TECHNICIAN', 'ADMIN', 'MULTIMEDIA', 'IT_ADMIN', 'MULTIMEDIA_ADMIN']} {...routeProps}>
             <Reports />
           </ProtectedRoute>
         }
@@ -145,7 +157,7 @@ function AppRoutes() {
       <Route
         path="/multimedia-management"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN']} {...routeProps}>
+          <ProtectedRoute allowedRoles={['MULTIMEDIA_ADMIN']} {...routeProps}>
             <MultimediaManagement />
           </ProtectedRoute>
         }
@@ -169,7 +181,7 @@ function AppRoutes() {
       <Route
         path="/digitalmedia-management"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN']} {...routeProps}>
+          <ProtectedRoute allowedRoles={['MULTIMEDIA_ADMIN']} {...routeProps}>
             <DigitalMediaManagement />
           </ProtectedRoute>
         }
@@ -193,7 +205,7 @@ function AppRoutes() {
       <Route
         path="/print-materials-management"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN']} {...routeProps}>
+          <ProtectedRoute allowedRoles={['MULTIMEDIA_ADMIN']} {...routeProps}>
             <PrintMaterialsManagement />
           </ProtectedRoute>
         }

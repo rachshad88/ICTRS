@@ -111,18 +111,36 @@ function UserManagement() {
   const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
   const paginatedUsers = users.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
+  const ROLES = [
+    { value: 'CLIENT', label: 'Client' },
+    { value: 'TECHNICIAN', label: 'Technician' },
+    { value: 'MULTIMEDIA', label: 'Multimedia' },
+    { value: 'IT_ADMIN', label: 'IT Admin' },
+    { value: 'MULTIMEDIA_ADMIN', label: 'Multimedia Admin' },
+    { value: 'ADMIN', label: 'Super Admin' },
+  ];
+
   const getRoleClass = (role: string) => {
     switch (role) {
       case 'ADMIN': return 'admin';
+      case 'IT_ADMIN': return 'it-admin';
       case 'TECHNICIAN': return 'technician';
+      case 'MULTIMEDIA_ADMIN': return 'multimedia-admin';
       case 'MULTIMEDIA': return 'multimedia';
       default: return 'client';
     }
   };
 
-  const getRoleLabel = (role: string) => {
-    return role.charAt(0) + role.slice(1).toLowerCase();
+  const ROLE_LABELS: Record<string, string> = {
+    CLIENT: 'Client',
+    TECHNICIAN: 'Technician',
+    MULTIMEDIA: 'Multimedia',
+    IT_ADMIN: 'IT Admin',
+    MULTIMEDIA_ADMIN: 'Multimedia Admin',
+    ADMIN: 'Super Admin',
   };
+
+  const getRoleLabel = (role: string) => ROLE_LABELS[role] || role;
 
   return (
     <div className="page-wrap">
@@ -209,10 +227,9 @@ function UserManagement() {
               <div className="form-group">
                 <label>Role</label>
                 <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
-                  <option value="CLIENT">Client</option>
-                  <option value="TECHNICIAN">Technician</option>
-                  <option value="MULTIMEDIA">Multimedia</option>
-                  <option value="ADMIN">Admin</option>
+                  {ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">

@@ -93,13 +93,16 @@ io.on('connection', (socket) => {
       userRoles.set(socket.id, role);
       socket.join(`user_${userId}`);
       
-      if (role === 'ADMIN') {
+      if (role === 'ADMIN' || role === 'MULTIMEDIA_ADMIN') {
         socket.join('admins');
-      } else if (role === 'MULTIMEDIA') {
+      }
+      if (role === 'MULTIMEDIA') {
         socket.join('multimedia_staff');
-      } else if (role === 'TECHNICIAN') {
+      }
+      if (role === 'TECHNICIAN' || role === 'IT_ADMIN') {
         socket.join('technicians');
-      } else if (role === 'CLIENT') {
+      }
+      if (role === 'CLIENT') {
         socket.join('clients');
       }
       

@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb';
 import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { AuthenticatedRequest, isAuthenticated, isAdmin } from '../middleware/auth';
+import { AuthenticatedRequest, isAuthenticated, isMultimediaAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { assignMultimediaSchema, completeMultimediaSchema } from '../middleware/validation';
 import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId } from '../config/database';
@@ -203,7 +203,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   });
 
   // GET /get_all
-  router.get('/get_all', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  router.get('/get_all', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const collection = config.getCollection();
       const search = req.query.search as string | undefined;
@@ -248,7 +248,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   });
 
   // GET /get_unassigned
-  router.get('/get_unassigned', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  router.get('/get_unassigned', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const collection = config.getCollection();
       const filter: Record<string, any> = config.initialStatus === 'UNASSIGNED'
@@ -285,7 +285,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   });
 
   // POST /assign
-  router.post('/assign', isAuthenticated, isAdmin, validateBody(assignMultimediaSchema), async (req: AuthenticatedRequest, res: Response) => {
+  router.post('/assign', isAuthenticated, isMultimediaAdmin, validateBody(assignMultimediaSchema), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { request_id, technician_id } = req.body;
       const collection = config.getCollection();
@@ -513,7 +513,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       }
 
       const isOwner = request.created_by?.toString() === user_id;
-      const isStaff = role === 'ADMIN' || role === 'MULTIMEDIA';
+      const isStaff = role === 'ADMIN' || role === 'MULTIMEDIA' || role === 'MULTIMEDIA_ADMIN';
 
       if (!isOwner && !isStaff) {
         return res.status(403).json({ error: 'Not authorized to cancel this request' });
@@ -561,7 +561,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   });
 
   // GET /get_technicians
-  router.get('/get_technicians', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  router.get('/get_technicians', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const usersCollection = getUsersCollection();
       const technicians = await usersCollection.find({ role: 'MULTIMEDIA' }).toArray();

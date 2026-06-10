@@ -65,9 +65,24 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
     if (role === 'ADMIN') {
       return [
         { section: 'Admin' },
-        { to: '/dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
         { to: '/users', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', label: 'Users' },
         { to: '/audit-logs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H9H8', label: 'Audit Log' },
+        { section: '' },
+        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+      ];
+    }
+
+    if (role === 'IT_ADMIN') {
+      return [
+        { section: 'IT Management' },
+        { to: '/it-dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
+        { section: '' },
+        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+      ];
+    }
+
+    if (role === 'MULTIMEDIA_ADMIN') {
+      return [
         { section: 'Management' },
         { to: '/multimedia-management', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Mgmt' },
         { to: '/digitalmedia-management', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Mgmt' },

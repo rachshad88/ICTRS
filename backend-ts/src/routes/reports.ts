@@ -20,25 +20,25 @@ const TYPE_MAP: Record<string, () => TypeConfig> = {
   'it': () => ({
     getCollection: () => getRequestsCollection() as unknown as Collection<Document>,
     typeLabel: 'IT Request',
-    roleAccess: ['ADMIN', 'TECHNICIAN'],
+    roleAccess: ['ADMIN', 'TECHNICIAN', 'IT_ADMIN'],
     filterAssigned: true,
   }),
   'multimedia': () => ({
     getCollection: () => getMultimediaRequestsCollection() as unknown as Collection<Document>,
     typeLabel: 'Multimedia',
-    roleAccess: ['ADMIN', 'MULTIMEDIA'],
+    roleAccess: ['ADMIN', 'MULTIMEDIA', 'MULTIMEDIA_ADMIN'],
     filterAssigned: true,
   }),
   'digital-media': () => ({
     getCollection: () => getDigitalMediaRequestsCollection() as unknown as Collection<Document>,
     typeLabel: 'Digital Media',
-    roleAccess: ['ADMIN', 'MULTIMEDIA'],
+    roleAccess: ['ADMIN', 'MULTIMEDIA', 'MULTIMEDIA_ADMIN'],
     filterAssigned: true,
   }),
   'print-materials': () => ({
     getCollection: () => getPrintMaterialsRequestsCollection() as unknown as Collection<Document>,
     typeLabel: 'Print Materials',
-    roleAccess: ['ADMIN', 'MULTIMEDIA'],
+    roleAccess: ['ADMIN', 'MULTIMEDIA', 'MULTIMEDIA_ADMIN'],
     filterAssigned: true,
   }),
 };

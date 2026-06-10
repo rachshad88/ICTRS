@@ -26,7 +26,9 @@ const ALL_TABS: TabConfig[] = [
 const ROLE_TABS: Record<string, TabConfig[]> = {
   ADMIN: ALL_TABS,
   TECHNICIAN: [ALL_TABS[0]],
+  IT_ADMIN: [ALL_TABS[0]],
   MULTIMEDIA: ALL_TABS.slice(1),
+  MULTIMEDIA_ADMIN: ALL_TABS.slice(1),
 };
 
 function fmt(v: unknown): string {
