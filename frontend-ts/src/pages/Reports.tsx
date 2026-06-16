@@ -9,7 +9,7 @@ interface Column {
   render?: (val: unknown) => string;
 }
 
-type TabKey = 'it' | 'multimedia' | 'digital-media' | 'print-materials';
+type TabKey = 'it' | 'multimedia' | 'digital-media' | 'print-materials' | 'software';
 
 interface TabConfig {
   key: TabKey;
@@ -21,14 +21,16 @@ const ALL_TABS: TabConfig[] = [
   { key: 'multimedia', label: 'Multimedia' },
   { key: 'digital-media', label: 'Digital Media' },
   { key: 'print-materials', label: 'Print Materials' },
+  { key: 'software', label: 'Software Development' },
 ];
 
 const ROLE_TABS: Record<string, TabConfig[]> = {
   ADMIN: ALL_TABS,
   TECHNICIAN: [ALL_TABS[0]],
-  IT_ADMIN: [ALL_TABS[0]],
-  MULTIMEDIA: ALL_TABS.slice(1),
-  MULTIMEDIA_ADMIN: ALL_TABS.slice(1),
+  IT_ADMIN: [ALL_TABS[0], ALL_TABS[4]],
+  MULTIMEDIA: ALL_TABS.slice(1, 4),
+  MULTIMEDIA_ADMIN: ALL_TABS.slice(1, 4),
+  PROGRAMMER: [ALL_TABS[4]],
 };
 
 function fmt(v: unknown): string {
@@ -105,6 +107,19 @@ const COLUMNS: Record<TabKey, Column[]> = {
     { key: 'client_name', label: 'Client' },
     { key: 'technician_name', label: 'Technician' },
     { key: 'status', label: 'Status' },
+    { key: 'remarks', label: 'Remarks' },
+    { key: 'completed_at', label: 'Completed', render: fmtDateTime },
+  ],
+  'software': [
+    { key: 'request_code', label: 'Code' },
+    { key: 'proposed_title', label: 'Proposed Title' },
+    { key: 'client_name_office', label: 'Client/Office' },
+    { key: 'statement_of_problem', label: 'Problem' },
+    { key: 'objective', label: 'Objective' },
+    { key: 'client_name', label: 'Client' },
+    { key: 'technician_name', label: 'Programmer' },
+    { key: 'status', label: 'Status' },
+    { key: 'rejection_reason', label: 'Rejection Reason', render: fmt },
     { key: 'remarks', label: 'Remarks' },
     { key: 'completed_at', label: 'Completed', render: fmtDateTime },
   ],

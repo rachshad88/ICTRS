@@ -8,7 +8,7 @@ export interface User {
   first_name: string;
   middle_name: string;
   last_name: string;
-  role: 'ADMIN' | 'TECHNICIAN' | 'CLIENT' | 'MULTIMEDIA' | 'IT_ADMIN' | 'MULTIMEDIA_ADMIN';
+  role: 'ADMIN' | 'TECHNICIAN' | 'CLIENT' | 'MULTIMEDIA' | 'IT_ADMIN' | 'MULTIMEDIA_ADMIN' | 'PROGRAMMER';
   office?: string;
   created_at?: Date;
 }
@@ -104,6 +104,25 @@ export interface PrintMaterialsRequest {
   completed_at: Date | null;
 }
 
+export interface SoftwareRequest {
+  _id?: ObjectId;
+  request_code: string;
+  created_by: ObjectId;
+  assigned_to: ObjectId | null;
+  reviewed_by: ObjectId | null;
+  proposed_title: string;
+  client_name_office: string;
+  statement_of_problem: string;
+  objective: string;
+  formal_request_letter: string;
+  process_flow: string;
+  status: 'PENDING' | 'ASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'NOT_APPROVED' | 'CANCELLED';
+  rejection_reason: string | null;
+  remarks: string | null;
+  created_at: Date;
+  completed_at: Date | null;
+}
+
 let client: MongoClient;
 let db: Db;
 let redisClient: RedisClientType | null = null;
@@ -160,6 +179,14 @@ async function createIndexes(): Promise<void> {
     await printMaterialsCollection.createIndex({ assigned_to: 1 });
     await printMaterialsCollection.createIndex({ status: 1 });
     await printMaterialsCollection.createIndex({ created_at: -1 });
+
+    const softwareCollection = db.collection<SoftwareRequest>('software_requests');
+    await softwareCollection.createIndex({ request_code: 1 }, { unique: true });
+    await softwareCollection.createIndex({ created_by: 1 });
+    await softwareCollection.createIndex({ assigned_to: 1 });
+    await softwareCollection.createIndex({ status: 1 });
+    await softwareCollection.createIndex({ created_at: -1 });
+
     const auditCollection = db.collection<AuditLog>('audit_logs');
     await auditCollection.createIndex({ timestamp: -1 });
     await auditCollection.createIndex({ user_id: 1, timestamp: -1 });
@@ -205,6 +232,10 @@ export function getDigitalMediaRequestsCollection(): Collection<DigitalMediaRequ
 
 export function getPrintMaterialsRequestsCollection(): Collection<PrintMaterialsRequest> {
   return db.collection<PrintMaterialsRequest>('print_materials_requests');
+}
+
+export function getSoftwareRequestsCollection(): Collection<SoftwareRequest> {
+  return db.collection<SoftwareRequest>('software_requests');
 }
 
 export function getAuditLogsCollection(): Collection<AuditLog> {

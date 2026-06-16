@@ -19,6 +19,7 @@ import printMaterialsRoutes from './routes/printMaterials';
 import fileRoutes from './routes/files';
 import auditRoutes from './routes/audit';
 import notificationRoutes from './routes/notifications';
+import softwareRoutes from './routes/software';
 
 const app: Express = express();
 const httpServer = createServer(app);
@@ -102,6 +103,9 @@ io.on('connection', (socket) => {
       if (role === 'TECHNICIAN' || role === 'IT_ADMIN') {
         socket.join('technicians');
       }
+      if (role === 'PROGRAMMER') {
+        socket.join('programmers');
+      }
       if (role === 'CLIENT') {
         socket.join('clients');
       }
@@ -136,6 +140,7 @@ app.use('/api/printmaterials', printMaterialsRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/software', softwareRoutes);
 
 const rawPort = process.env.PORT || '3000';
 const PORT = parseInt(rawPort, 10);

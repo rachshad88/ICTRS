@@ -3,7 +3,7 @@ import { ObjectId, Collection, Document } from 'mongodb';
 import * as XLSX from 'xlsx';
 import {
   getRequestsCollection, getMultimediaRequestsCollection, getDigitalMediaRequestsCollection,
-  getPrintMaterialsRequestsCollection, getUsersCollection, getCache, setCache
+  getPrintMaterialsRequestsCollection, getSoftwareRequestsCollection, getUsersCollection, getCache, setCache
 } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 
@@ -41,9 +41,15 @@ const TYPE_MAP: Record<string, () => TypeConfig> = {
     roleAccess: ['ADMIN', 'MULTIMEDIA', 'MULTIMEDIA_ADMIN'],
     filterAssigned: true,
   }),
+  'software': () => ({
+    getCollection: () => getSoftwareRequestsCollection() as unknown as Collection<Document>,
+    typeLabel: 'Software Development',
+    roleAccess: ['ADMIN', 'IT_ADMIN', 'PROGRAMMER'],
+    filterAssigned: true,
+  }),
 };
 
-const TYPE_LIST = ['it', 'multimedia', 'digital-media', 'print-materials'];
+const TYPE_LIST = ['it', 'multimedia', 'digital-media', 'print-materials', 'software'];
 
 function getDateRange(filterType: string, selectedDate: string): { startDate: Date; endDate: Date } {
   if (filterType === 'all') {
@@ -96,6 +102,8 @@ function buildFilter(
       searchFields.push({ digital_media_description: regex }, { event_ppa_name: regex }, { requestor_name: regex });
     } else if (typeKey === 'print-materials') {
       searchFields.push({ printed_media_description: regex }, { event_ppa_name: regex }, { requestor_name: regex });
+    } else if (typeKey === 'software') {
+      searchFields.push({ proposed_title: regex }, { client_name_office: regex }, { statement_of_problem: regex });
     }
     filter.$or = searchFields;
   }

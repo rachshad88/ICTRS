@@ -25,6 +25,10 @@ import PrintMaterialsManagement from './pages/PrintMaterialsManagement';
 import PrintMaterialsDashboard from './pages/PrintMaterialsDashboard';
 import AuditLogs from './pages/AuditLogs';
 import ItAdminDashboard from './pages/ItAdminDashboard';
+import SoftwareRequest from './pages/SoftwareRequest';
+import SoftwareManagement from './pages/SoftwareManagement';
+import ProgrammerDashboard from './pages/ProgrammerDashboard';
+import SoftwareHistory from './pages/SoftwareHistory';
 
 function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSidebar }: { children: React.ReactNode; allowedRoles?: string[]; sidebarCollapsed: boolean; onToggleSidebar: () => void }) {
   const { user, loading } = useAuth();
@@ -42,6 +46,7 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
     if (user.role === 'MULTIMEDIA') return <Navigate to="/multimedia-dashboard" replace />;
     if (user.role === 'IT_ADMIN') return <Navigate to="/it-dashboard" replace />;
     if (user.role === 'MULTIMEDIA_ADMIN') return <Navigate to="/multimedia-management" replace />;
+    if (user.role === 'PROGRAMMER') return <Navigate to="/programmer-dashboard" replace />;
     if (user.role === 'ADMIN') return <Navigate to="/users" replace />;
     return <Navigate to="/dashboard" replace />;
   }
@@ -83,6 +88,38 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/software-request"
+        element={
+          <ProtectedRoute allowedRoles={['CLIENT']} {...routeProps}>
+            <SoftwareRequest />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/software-history"
+        element={
+          <ProtectedRoute allowedRoles={['CLIENT']} {...routeProps}>
+            <SoftwareHistory />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/software-management"
+        element={
+          <ProtectedRoute allowedRoles={['IT_ADMIN']} {...routeProps}>
+            <SoftwareManagement />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/programmer-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['PROGRAMMER']} {...routeProps}>
+            <ProgrammerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/request"
         element={
           <ProtectedRoute allowedRoles={['CLIENT']} {...routeProps}>
@@ -101,7 +138,7 @@ function AppRoutes() {
       <Route
         path="/reports"
         element={
-          <ProtectedRoute allowedRoles={['TECHNICIAN', 'ADMIN', 'MULTIMEDIA', 'IT_ADMIN', 'MULTIMEDIA_ADMIN']} {...routeProps}>
+          <ProtectedRoute allowedRoles={['TECHNICIAN', 'ADMIN', 'MULTIMEDIA', 'IT_ADMIN', 'MULTIMEDIA_ADMIN', 'PROGRAMMER']} {...routeProps}>
             <Reports />
           </ProtectedRoute>
         }

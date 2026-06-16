@@ -115,6 +115,7 @@ function UserManagement() {
     { value: 'CLIENT', label: 'Client' },
     { value: 'TECHNICIAN', label: 'Technician' },
     { value: 'MULTIMEDIA', label: 'Multimedia' },
+    { value: 'PROGRAMMER', label: 'Programmer' },
     { value: 'IT_ADMIN', label: 'IT Admin' },
     { value: 'MULTIMEDIA_ADMIN', label: 'Multimedia Admin' },
     { value: 'ADMIN', label: 'Super Admin' },
@@ -127,6 +128,7 @@ function UserManagement() {
       case 'TECHNICIAN': return 'technician';
       case 'MULTIMEDIA_ADMIN': return 'multimedia-admin';
       case 'MULTIMEDIA': return 'multimedia';
+      case 'PROGRAMMER': return 'programmer';
       default: return 'client';
     }
   };
@@ -135,6 +137,7 @@ function UserManagement() {
     CLIENT: 'Client',
     TECHNICIAN: 'Technician',
     MULTIMEDIA: 'Multimedia',
+    PROGRAMMER: 'Programmer',
     IT_ADMIN: 'IT Admin',
     MULTIMEDIA_ADMIN: 'Multimedia Admin',
     ADMIN: 'Super Admin',

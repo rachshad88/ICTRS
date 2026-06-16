@@ -40,6 +40,9 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
         { section: 'Print Materials' },
         { to: '/print-materials-request', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Request' },
         { to: '/print-materials-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Print Materials History' },
+        { section: 'Software Development' },
+        { to: '/software-request', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Request' },
+        { to: '/software-history', icon: 'M12 8v4l3 3 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z', label: 'Software History' },
       ];
     }
 
@@ -76,6 +79,7 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
       return [
         { section: 'IT Management' },
         { to: '/it-dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
+        { to: '/software-management', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Mgmt' },
         { section: '' },
         { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
       ];
@@ -87,6 +91,15 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
         { to: '/multimedia-management', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Mgmt' },
         { to: '/digitalmedia-management', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Mgmt' },
         { to: '/print-materials-management', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Mgmt' },
+        { section: '' },
+        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+      ];
+    }
+
+    if (role === 'PROGRAMMER') {
+      return [
+        { section: 'Work' },
+        { to: '/programmer-dashboard', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Dashboard' },
         { section: '' },
         { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
       ];
