@@ -370,6 +370,7 @@ router.post('/start_work', isAuthenticated, async (req: AuthenticatedRequest, re
     const io = getIO();
     if (io) {
       io.to('admins').emit('software_request_updated', { request_id, status: 'IN_PROGRESS' });
+      io.to(`user_${result.value.created_by?.toString()}`).emit('software_request_updated', { request_id, status: 'IN_PROGRESS' });
     }
 
     res.json({ status: 'success' });
@@ -538,6 +539,7 @@ router.post('/cancel_request', isAuthenticated, async (req: AuthenticatedRequest
     const io = getIO();
     if (io) {
       io.to('admins').emit('software_request_updated', { request_id, status: 'CANCELLED' });
+      io.to(`user_${result.value.created_by?.toString()}`).emit('software_request_updated', { request_id, status: 'CANCELLED' });
     }
 
     res.json({ status: 'success', message: 'Request cancelled' });
@@ -612,6 +614,22 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
   } catch (error) {
     console.error('Export software excel error:', error);
     res.status(500).json({ error: 'Failed to export' });
+  }
+});
+
+router.get('/get_programmers', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const role = req.user!.role;
+    if (role !== 'IT_ADMIN' && role !== 'ADMIN') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const usersCollection = getUsersCollection();
+    const programmers = await usersCollection.find({ role: 'PROGRAMMER' }).toArray();
+    res.json({ programmers });
+  } catch (error) {
+    console.error('Get programmers error:', error);
+    res.status(500).json({ error: 'Failed to fetch programmers' });
   }
 });
 

@@ -84,11 +84,13 @@ function SoftwareHistory() {
     const handler = () => fetchData(searchTermRef.current, pageRef.current);
     socket.on('software_request_updated', handler);
     socket.on('software_request_completed', handler);
-    socket.on('software_request_assigned', handler);
+    socket.on('software_request_approved', handler);
+    socket.on('software_request_rejected', handler);
     return () => {
       socket.off('software_request_updated', handler);
       socket.off('software_request_completed', handler);
-      socket.off('software_request_assigned', handler);
+      socket.off('software_request_approved', handler);
+      socket.off('software_request_rejected', handler);
     };
   }, [user, fetchData]);
 

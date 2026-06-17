@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { initSocket, getSocket } from '../services/socket';
 import { api } from '../services/api';
 
 function SoftwareRequest() {
@@ -13,11 +14,42 @@ function SoftwareRequest() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [liveUpdate, setLiveUpdate] = useState('');
+
+  useEffect(() => {
+    if (user) initSocket(user.user_id, user.role);
+  }, [user]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+
+    const onApproved = (data: { request_code?: string }) => {
+      setLiveUpdate(`Request ${data.request_code || ''} has been approved and assigned to a programmer.`);
+    };
+    const onRejected = (data: { request_code?: string; rejection_reason?: string }) => {
+      setLiveUpdate(`Request ${data.request_code || ''} was rejected. Reason: ${data.rejection_reason || ''}`);
+    };
+    const onCompleted = (data: { request_code?: string }) => {
+      setLiveUpdate(`Request ${data.request_code || ''} has been completed!`);
+    };
+
+    socket.on('software_request_approved', onApproved);
+    socket.on('software_request_rejected', onRejected);
+    socket.on('software_request_completed', onCompleted);
+
+    return () => {
+      socket.off('software_request_approved', onApproved);
+      socket.off('software_request_rejected', onRejected);
+      socket.off('software_request_completed', onCompleted);
+    };
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setLiveUpdate('');
 
     if (!formalLetter || !processFlow) {
       setError('Both formal request letter and process flow are required');
@@ -61,6 +93,7 @@ function SoftwareRequest() {
 
       {error && <div className="error-message">{error}</div>}
       {success && <div className="success-message">{success}</div>}
+      {liveUpdate && <div className="success-message">{liveUpdate}</div>}
 
       <div className="card" style={{ maxWidth: '700px', margin: '0 auto' }}>
         <form onSubmit={handleSubmit}>

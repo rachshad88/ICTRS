@@ -81,15 +81,10 @@ function SoftwareManagement() {
 
   const fetchProgrammers = async () => {
     try {
-      const response = await api.get('/users/get_technicians?role=PROGRAMMER');
-      setProgrammers(response.data.technicians);
-    } catch {
-      try {
-        const response = await api.get('/users/get_users');
-        setProgrammers(response.data.users.filter((u: any) => u.role === 'PROGRAMMER'));
-      } catch (error) {
-        console.error('Failed to fetch programmers:', error);
-      }
+      const response = await api.get('/software/get_programmers');
+      setProgrammers(response.data.programmers);
+    } catch (error) {
+      console.error('Failed to fetch programmers:', error);
     }
   };
 
