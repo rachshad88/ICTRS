@@ -9,6 +9,8 @@ interface User {
   middle_name: string;
   last_name: string;
   role: string;
+  roles: string[];
+  primary_role: string;
   office?: string;
 }
 
@@ -32,7 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.role);
+      initSocket(user.user_id, user.roles || [user.role]);
     }
     return () => {
       disconnectSocket();

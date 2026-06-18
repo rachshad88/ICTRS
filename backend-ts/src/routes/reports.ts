@@ -9,10 +9,12 @@ import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 
 const router = Router();
 
+import { Role } from '../config/database';
+
 interface TypeConfig {
   getCollection: () => Collection<Document>;
   typeLabel: string;
-  roleAccess: string[];
+  roleAccess: Role[];
   filterAssigned: boolean;
 }
 
@@ -124,7 +126,7 @@ function addUserInfo(doc: Record<string, unknown>, userMap: Map<string, { first_
 
 async function queryType(
   typeKey: string,
-  role: string,
+  roles: string[],
   userId: string,
   filterType: string,
   selectedDate: string,
@@ -138,7 +140,7 @@ async function queryType(
   const dateFilter = { $gte: startDate, $lte: endDate };
   const filter = buildFilter(dateFilter, showDone, search, typeKey);
 
-  if (config.filterAssigned && role !== 'ADMIN') {
+  if (config.filterAssigned && !roles.includes('ADMIN')) {
     filter.assigned_to = new ObjectId(userId);
   }
 
@@ -158,9 +160,9 @@ async function queryType(
 router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.user_id;
-    const role = req.user!.role;
+    const roles = req.user!.roles;
 
-    if (role === 'CLIENT') {
+    if (roles.includes('CLIENT') && roles.length === 1) {
       res.status(403).json({ error: 'Forbidden' });
       return;
     }
@@ -172,19 +174,19 @@ router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, re
     const search = req.query.search as string | undefined;
 
     const config = TYPE_MAP[typeKey]?.();
-    if (!config || !config.roleAccess.includes(role)) {
+    if (!config || !config.roleAccess.some(r => roles.includes(r))) {
       res.status(403).json({ error: 'Forbidden' });
       return;
     }
 
-    const cacheKey = `reports:${typeKey}:${role}:${userId}:${filterType}:${selectedDate}:${showDone}:${search || ''}`;
+    const cacheKey = `reports:${typeKey}:${roles.join(',')}:${userId}:${filterType}:${selectedDate}:${showDone}:${search || ''}`;
     const cached = await getCache<{ reports: Record<string, unknown>[]; total: number }>(cacheKey);
     if (cached) {
       res.json(cached);
       return;
     }
 
-    const result = await queryType(typeKey, role, userId, filterType, selectedDate, showDone, search);
+    const result = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search);
     await setCache(cacheKey, result, 60);
     res.json(result);
   } catch (error) {
@@ -196,9 +198,9 @@ router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, re
 router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.user_id;
-    const role = req.user!.role;
+    const roles = req.user!.roles;
 
-    if (role === 'CLIENT') {
+    if (roles.includes('CLIENT') && roles.length === 1) {
       res.status(403).json({ error: 'Forbidden' });
       return;
     }
@@ -210,12 +212,12 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
     const search = req.query.search as string | undefined;
 
     const config = TYPE_MAP[typeKey]?.();
-    if (!config || !config.roleAccess.includes(role)) {
+    if (!config || !config.roleAccess.some(r => roles.includes(r))) {
       res.status(403).json({ error: 'Forbidden' });
       return;
     }
 
-    const { reports } = await queryType(typeKey, role, userId, filterType, selectedDate, showDone, search);
+    const { reports } = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search);
     if (reports.length === 0) {
       res.status(404).json({ error: 'No reports found' });
       return;

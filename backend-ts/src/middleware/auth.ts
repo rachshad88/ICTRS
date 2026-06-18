@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { Role } from '../config/database';
 
 declare module 'express-session' {
   interface SessionData {
@@ -7,7 +8,8 @@ declare module 'express-session' {
     first_name?: string;
     middle_name?: string;
     last_name?: string;
-    role?: string;
+    roles?: Role[];
+    primary_role?: Role;
     office?: string;
   }
 }
@@ -19,7 +21,8 @@ export interface AuthenticatedRequest extends Request {
     first_name: string;
     middle_name: string;
     last_name: string;
-    role: string;
+    roles: Role[];
+    primary_role: Role;
     office?: string;
   };
 }
@@ -35,14 +38,19 @@ export function isAuthenticated(req: AuthenticatedRequest, res: Response, next: 
     first_name: req.session.first_name || '',
     middle_name: req.session.middle_name || '',
     last_name: req.session.last_name || '',
-    role: req.session.role || '',
+    roles: req.session.roles || [],
+    primary_role: (req.session.primary_role || 'CLIENT') as Role,
     office: req.session.office || ''
   };
   next();
 }
 
+function hasRole(req: AuthenticatedRequest, role: Role): boolean {
+  return req.user?.roles?.includes(role) || false;
+}
+
 export function isTechnicianOrAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'TECHNICIAN' && req.user?.role !== 'ADMIN') {
+  if (!hasRole(req, 'TECHNICIAN') && !hasRole(req, 'ADMIN')) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
@@ -50,7 +58,7 @@ export function isTechnicianOrAdmin(req: AuthenticatedRequest, res: Response, ne
 }
 
 export function isTechnicianOnly(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'TECHNICIAN') {
+  if (!hasRole(req, 'TECHNICIAN')) {
     res.status(403).json({ error: 'Only technicians can accept requests' });
     return;
   }
@@ -58,7 +66,7 @@ export function isTechnicianOnly(req: AuthenticatedRequest, res: Response, next:
 }
 
 export function isAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'ADMIN') {
+  if (!hasRole(req, 'ADMIN')) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
@@ -66,7 +74,7 @@ export function isAdmin(req: AuthenticatedRequest, res: Response, next: NextFunc
 }
 
 export function isItAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'IT_ADMIN') {
+  if (!hasRole(req, 'IT_ADMIN')) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
@@ -74,7 +82,7 @@ export function isItAdmin(req: AuthenticatedRequest, res: Response, next: NextFu
 }
 
 export function isMultimediaAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'MULTIMEDIA_ADMIN') {
+  if (!hasRole(req, 'MULTIMEDIA_ADMIN')) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
@@ -82,7 +90,7 @@ export function isMultimediaAdmin(req: AuthenticatedRequest, res: Response, next
 }
 
 export function isItAdminOrTechnician(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (req.user?.role !== 'IT_ADMIN' && req.user?.role !== 'TECHNICIAN') {
+  if (!hasRole(req, 'IT_ADMIN') && !hasRole(req, 'TECHNICIAN')) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }

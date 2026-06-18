@@ -1,6 +1,9 @@
 import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
 import { RedisClientType, createClient } from 'redis';
 
+export const ALL_ROLE_VALUES = ['ADMIN', 'TECHNICIAN', 'CLIENT', 'MULTIMEDIA', 'IT_ADMIN', 'MULTIMEDIA_ADMIN', 'PROGRAMMER'] as const;
+export type Role = typeof ALL_ROLE_VALUES[number];
+
 export interface User {
   _id?: ObjectId;
   username: string;
@@ -8,7 +11,9 @@ export interface User {
   first_name: string;
   middle_name: string;
   last_name: string;
-  role: 'ADMIN' | 'TECHNICIAN' | 'CLIENT' | 'MULTIMEDIA' | 'IT_ADMIN' | 'MULTIMEDIA_ADMIN' | 'PROGRAMMER';
+  role: Role;
+  roles: Role[];
+  primary_role: Role;
   office?: string;
   created_at?: Date;
 }
@@ -142,6 +147,17 @@ export async function connectDB(): Promise<void> {
   await client.connect();
   db = client.db(dbName);
   
+  // Migrate users: add roles[] and primary_role from existing role field
+  try {
+    const usersCollection = db.collection<User>('users');
+    await usersCollection.updateMany(
+      { roles: { $exists: false } },
+      [{ $set: { roles: ['$role'], primary_role: '$role' } }]
+    );
+  } catch (e) {
+    console.error('Migration error:', e);
+  }
+
   await createIndexes();
 }
 

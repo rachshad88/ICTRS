@@ -65,9 +65,8 @@ router.post('/create_request', isAuthenticated, (req, res, next) => {
   try {
     const { proposed_title, client_name_office, statement_of_problem, objective } = req.body;
     const created_by = req.user!.user_id;
-    const role = req.user!.role;
 
-    if (role !== 'CLIENT') {
+    if (!req.user!.roles.includes('CLIENT')) {
       return res.status(403).json({ error: 'Only clients can create requests' });
     }
 
@@ -119,7 +118,7 @@ router.post('/create_request', isAuthenticated, (req, res, next) => {
     moveFile(formalLetter.filename, result.insertedId.toString());
     moveFile(processFlow.filename, result.insertedId.toString());
 
-    await logAudit(new ObjectId(created_by), req.user!.username, req.user!.role, 'CREATE_REQUEST', 'SOFTWARE_REQUEST', result.insertedId.toString(), `User ${req.user!.username} created software request ${request_code}`);
+    await logAudit(new ObjectId(created_by), req.user!.username, req.user!.primary_role, 'CREATE_REQUEST', 'SOFTWARE_REQUEST', result.insertedId.toString(), `User ${req.user!.username} created software request ${request_code}`);
 
     const io = getIO();
     if (io) {
@@ -141,8 +140,7 @@ router.post('/create_request', isAuthenticated, (req, res, next) => {
 
 router.get('/get_pending', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const role = req.user!.role;
-    if (role !== 'IT_ADMIN' && role !== 'ADMIN') {
+    if (!req.user!.roles.includes('IT_ADMIN') && !req.user!.roles.includes('ADMIN')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -171,8 +169,7 @@ router.get('/get_pending', isAuthenticated, async (req: AuthenticatedRequest, re
 
 router.get('/get_all', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const role = req.user!.role;
-    if (role !== 'IT_ADMIN' && role !== 'ADMIN') {
+    if (!req.user!.roles.includes('IT_ADMIN') && !req.user!.roles.includes('ADMIN')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -226,9 +223,8 @@ router.get('/get_all', isAuthenticated, async (req: AuthenticatedRequest, res: R
 router.post('/review', isAuthenticated, validateBody(reviewSoftwareRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { request_id, action, technician_id, rejection_reason } = req.body;
-    const role = req.user!.role;
 
-    if (role !== 'IT_ADMIN' && role !== 'ADMIN') {
+    if (!req.user!.roles.includes('IT_ADMIN') && !req.user!.roles.includes('ADMIN')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -240,7 +236,7 @@ router.post('/review', isAuthenticated, validateBody(reviewSoftwareRequestSchema
       }
 
       const usersCollection = getUsersCollection();
-      const programmer = await usersCollection.findOne({ _id: new ObjectId(technician_id), role: 'PROGRAMMER' });
+      const programmer = await usersCollection.findOne({ _id: new ObjectId(technician_id), roles: 'PROGRAMMER' });
       if (!programmer) {
         return res.status(404).json({ error: 'Programmer not found' });
       }
@@ -257,7 +253,7 @@ router.post('/review', isAuthenticated, validateBody(reviewSoftwareRequestSchema
 
       const requestCode = result.value.request_code;
       const assignedTo = `${programmer.first_name} ${programmer.last_name}`;
-      await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.role, 'APPROVE_SOFTWARE_REQUEST', 'SOFTWARE_REQUEST', request_id, `IT Admin ${req.user!.username} approved and assigned software request ${requestCode} to ${assignedTo}`);
+      await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'APPROVE_SOFTWARE_REQUEST', 'SOFTWARE_REQUEST', request_id, `IT Admin ${req.user!.username} approved and assigned software request ${requestCode} to ${assignedTo}`);
 
       const io = getIO();
       if (io) {
@@ -290,7 +286,7 @@ router.post('/review', isAuthenticated, validateBody(reviewSoftwareRequestSchema
       }
 
       const requestCode = result.value.request_code;
-      await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.role, 'REJECT_SOFTWARE_REQUEST', 'SOFTWARE_REQUEST', request_id, `IT Admin ${req.user!.username} rejected software request ${requestCode}: ${rejection_reason}`);
+      await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'REJECT_SOFTWARE_REQUEST', 'SOFTWARE_REQUEST', request_id, `IT Admin ${req.user!.username} rejected software request ${requestCode}: ${rejection_reason}`);
 
       const io = getIO();
       if (io) {
@@ -312,10 +308,9 @@ router.post('/review', isAuthenticated, validateBody(reviewSoftwareRequestSchema
 
 router.get('/get_assigned', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const role = req.user!.role;
     const userId = req.user!.user_id;
 
-    if (role !== 'PROGRAMMER') {
+    if (!req.user!.roles.includes('PROGRAMMER')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -346,9 +341,8 @@ router.post('/start_work', isAuthenticated, async (req: AuthenticatedRequest, re
   try {
     const { request_id } = req.body;
     const userId = req.user!.user_id;
-    const role = req.user!.role;
 
-    if (role !== 'PROGRAMMER') {
+    if (!req.user!.roles.includes('PROGRAMMER')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -384,9 +378,8 @@ router.post('/complete_request', isAuthenticated, validateBody(completeSoftwareR
   try {
     const { request_id, remarks } = req.body;
     const userId = req.user!.user_id;
-    const role = req.user!.role;
 
-    if (role !== 'PROGRAMMER') {
+    if (!req.user!.roles.includes('PROGRAMMER')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -402,7 +395,7 @@ router.post('/complete_request', isAuthenticated, validateBody(completeSoftwareR
     }
 
     const requestCode = result.value.request_code;
-    await logAudit(new ObjectId(userId), req.user!.username, req.user!.role, 'COMPLETE_SOFTWARE_REQUEST', 'SOFTWARE_REQUEST', request_id, `Programmer ${req.user!.username} completed software request ${requestCode}`);
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'COMPLETE_SOFTWARE_REQUEST', 'SOFTWARE_REQUEST', request_id, `Programmer ${req.user!.username} completed software request ${requestCode}`);
 
     const io = getIO();
     if (io) {
@@ -423,14 +416,13 @@ router.post('/complete_request', isAuthenticated, validateBody(completeSoftwareR
 router.get('/get_history', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.user_id;
-    const role = req.user!.role;
 
     const collection = getSoftwareRequestsCollection();
     let filter: Record<string, any> = {};
 
-    if (role === 'CLIENT') {
+    if (req.user!.roles.includes('CLIENT')) {
       filter.created_by = new ObjectId(userId);
-    } else if (role === 'PROGRAMMER') {
+    } else if (req.user!.roles.includes('PROGRAMMER')) {
       filter.assigned_to = new ObjectId(userId);
       filter.status = { $in: ['DONE', 'NOT_APPROVED'] };
     } else {
@@ -512,13 +504,12 @@ router.post('/cancel_request', isAuthenticated, async (req: AuthenticatedRequest
   try {
     const { request_id } = req.body;
     const userId = req.user!.user_id;
-    const role = req.user!.role;
 
     if (!request_id) {
       return res.status(400).json({ error: 'Request ID is required' });
     }
 
-    if (role !== 'CLIENT') {
+    if (!req.user!.roles.includes('CLIENT')) {
       return res.status(403).json({ error: 'Only clients can cancel requests' });
     }
 
@@ -534,7 +525,7 @@ router.post('/cancel_request', isAuthenticated, async (req: AuthenticatedRequest
     }
 
     const requestCode = result.value.request_code;
-    await logAudit(new ObjectId(userId), req.user!.username, req.user!.role, 'CANCEL_REQUEST', 'SOFTWARE_REQUEST', request_id, `User ${req.user!.username} cancelled software request ${requestCode}`);
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'CANCEL_REQUEST', 'SOFTWARE_REQUEST', request_id, `User ${req.user!.username} cancelled software request ${requestCode}`);
 
     const io = getIO();
     if (io) {
@@ -551,8 +542,7 @@ router.post('/cancel_request', isAuthenticated, async (req: AuthenticatedRequest
 
 router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const role = req.user!.role;
-    if (role !== 'IT_ADMIN' && role !== 'ADMIN') {
+    if (!req.user!.roles.includes('IT_ADMIN') && !req.user!.roles.includes('ADMIN')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -619,13 +609,12 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
 
 router.get('/get_programmers', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const role = req.user!.role;
-    if (role !== 'IT_ADMIN' && role !== 'ADMIN') {
+    if (!req.user!.roles.includes('IT_ADMIN') && !req.user!.roles.includes('ADMIN')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
     const usersCollection = getUsersCollection();
-    const programmers = await usersCollection.find({ role: 'PROGRAMMER' }).toArray();
+    const programmers = await usersCollection.find({ roles: 'PROGRAMMER' }).toArray();
     res.json({ programmers });
   } catch (error) {
     console.error('Get programmers error:', error);

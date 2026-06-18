@@ -2,18 +2,18 @@ import { io, Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
 let currentUserId = '';
-let currentRole = '';
+let currentRoles: string[] = [];
 
-export const initSocket = (userId: string, role: string): Socket => {
+export const initSocket = (userId: string, roles: string[]): Socket => {
   currentUserId = userId;
-  currentRole = role;
+  currentRoles = roles;
   if (!socket) {
     socket = io('/', {
       transports: ['websocket', 'polling']
     });
 
     socket.on('connect', () => {
-      socket?.emit('register_user', { user_id: currentUserId, role: currentRole });
+      socket?.emit('register_user', { user_id: currentUserId, role: currentRoles[0] || '', roles: currentRoles });
     });
   }
   return socket;

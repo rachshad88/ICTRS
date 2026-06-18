@@ -127,8 +127,22 @@ const COLUMNS: Record<TabKey, Column[]> = {
 
 function Reports() {
   const { user } = useAuth();
-  const role = user?.role || 'ADMIN';
-  const tabs = ROLE_TABS[role] || ALL_TABS;
+  const userRoles = user?.roles || [user?.role || 'ADMIN'];
+  const tabs = (() => {
+    const seen = new Set<string>();
+    return ALL_TABS.filter(t => {
+      if (seen.has(t.key)) return false;
+      const hasAccess = userRoles.some(r => {
+        const roleTabs = ROLE_TABS[r];
+        return roleTabs && roleTabs.some(rt => rt.key === t.key);
+      });
+      if (hasAccess) {
+        seen.add(t.key);
+        return true;
+      }
+      return false;
+    });
+  })();
   const [activeTab, setActiveTab] = useState<TabKey>(tabs[0]?.key || 'it');
   const [filterType, setFilterType] = useState('daily');
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));

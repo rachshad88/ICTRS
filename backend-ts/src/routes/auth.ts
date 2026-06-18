@@ -2,12 +2,20 @@ import { Router, Request, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { getUsersCollection, logAudit } from '../config/database';
+import { getUsersCollection, logAudit, Role } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { loginSchema, changePasswordSchema, updateProfileSchema } from '../middleware/validation';
 
 const router = Router();
+
+function getRedirect(role: Role): string {
+  switch (role) {
+    case 'CLIENT': return '/request';
+    case 'MULTIMEDIA': return '/multimedia-dashboard';
+    default: return '/dashboard';
+  }
+}
 
 router.post('/login', validateBody(loginSchema), async (req: Request, res: Response) => {
   try {
@@ -51,7 +59,9 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    // Regenerate session to prevent session fixation
+    const roles = user.roles || [user.role];
+    const primary_role = user.primary_role || user.role;
+
     req.session.regenerate(async (err) => {
       if (err) {
         console.error('Session regeneration error:', err);
@@ -64,10 +74,11 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
         req.session.first_name = user.first_name;
         req.session.middle_name = user.middle_name;
         req.session.last_name = user.last_name;
-        req.session.role = user.role;
+        req.session.roles = roles;
+        req.session.primary_role = primary_role;
         req.session.office = user.office || '';
 
-        await logAudit(user._id!, user.username, user.role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
+        await logAudit(user._id!, user.username, primary_role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
 
         const userData = {
           user_id: user._id?.toString(),
@@ -75,17 +86,12 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
           first_name: user.first_name,
           middle_name: user.middle_name,
           last_name: user.last_name,
-          role: user.role,
+          roles,
+          primary_role,
           office: user.office || ''
         };
 
-        if (user.role === 'CLIENT') {
-          return res.json({ redirect: '/request', user: userData });
-        } else if (user.role === 'MULTIMEDIA') {
-          return res.json({ redirect: '/multimedia-dashboard', user: userData });
-        } else {
-          return res.json({ redirect: '/dashboard', user: userData });
-        }
+        return res.json({ redirect: getRedirect(primary_role), user: userData });
       } catch (error) {
         console.error('Login error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -100,7 +106,7 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
 router.post('/logout', async (req: Request, res: Response) => {
   const uid = req.session?.user_id;
   const uname = req.session?.username;
-  const urole = req.session?.role;
+  const urole = req.session?.primary_role || req.session?.roles?.[0];
   if (uid && uname) {
     await logAudit(new ObjectId(uid), uname, urole || 'UNKNOWN', 'LOGOUT', 'USER', uid, `User ${uname} logged out`);
   }
@@ -125,7 +131,8 @@ router.get('/me', isAuthenticated, async (req: AuthenticatedRequest, res: Respon
     first_name: req.user?.first_name,
     middle_name: req.user?.middle_name,
     last_name: req.user?.last_name,
-    role: req.user?.role,
+    roles: req.user?.roles,
+    primary_role: req.user?.primary_role,
     office: req.user?.office
   });
 });
@@ -164,7 +171,7 @@ router.post('/change_password', isAuthenticated, validateBody(changePasswordSche
       { $set: { password: hashedPassword } }
     );
 
-    await logAudit(new ObjectId(userId), req.user!.username, req.user!.role, 'CHANGE_PASSWORD', 'USER', userId, `User ${req.user!.username} changed their password`);
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'CHANGE_PASSWORD', 'USER', userId, `User ${req.user!.username} changed their password`);
     res.json({ status: 'success', message: 'Password changed successfully' });
   } catch (error) {
     console.error('Change password error:', error);
@@ -215,7 +222,7 @@ router.put('/update_profile', isAuthenticated, validateBody(updateProfileSchema)
       req.session.office = office;
     }
 
-    await logAudit(new ObjectId(userId), req.user!.username, req.user!.role, 'UPDATE_PROFILE', 'USER', userId, `User ${req.user!.username} updated their profile`);
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'UPDATE_PROFILE', 'USER', userId, `User ${req.user!.username} updated their profile`);
     res.json({ status: 'success', message: 'Profile updated successfully' });
   } catch (error) {
     console.error('Update profile error:', error);

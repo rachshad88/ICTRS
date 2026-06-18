@@ -168,7 +168,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       }
 
       await logAudit(
-        new ObjectId(userId), req.user!.username, req.user!.role,
+        new ObjectId(userId), req.user!.username, req.user!.primary_role,
         'CREATE_REQUEST', config.auditEntityType, result.insertedId.toString(),
         `User ${req.user!.username} created ${config.entity} request ${request_code}`
       );
@@ -291,7 +291,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       const collection = config.getCollection();
       const usersCollection = getUsersCollection();
 
-      const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), role: 'MULTIMEDIA' });
+      const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), roles: 'MULTIMEDIA' });
       if (!technician) {
         return res.status(404).json({ error: 'Technician not found' });
       }
@@ -314,7 +314,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       const requestCode = result.value.request_code || 'unknown';
       const assignedTo = `${technician.first_name} ${technician.last_name}`;
       await logAudit(
-        new ObjectId(req.user!.user_id), req.user!.username, req.user!.role,
+        new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
         'ASSIGN_REQUEST', config.auditEntityType, request_id,
         `Admin ${req.user!.username} assigned ${config.entity} request ${requestCode} to ${assignedTo}`
       );
@@ -410,7 +410,7 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const requestCode = result.value.request_code || 'unknown';
       await logAudit(
-        new ObjectId(req.user!.user_id), req.user!.username, req.user!.role,
+        new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
         'COMPLETE_REQUEST', config.auditEntityType, request_id,
         `Multimedia staff ${req.user!.username} completed ${config.entity} request ${requestCode}`,
         { remarks: remarks || null, ...(config.hasRecommendation ? { recommendation: recommendation || null } : {}) }
@@ -504,7 +504,7 @@ export function createRequestRouter(config: RouteConfig): Router {
     try {
       const { request_id } = req.body;
       const user_id = req.user!.user_id;
-      const role = req.user!.role;
+      const roles = req.user!.roles;
 
       const collection = config.getCollection();
       const request = await collection.findOne({ _id: new ObjectId(request_id) });
@@ -513,7 +513,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       }
 
       const isOwner = request.created_by?.toString() === user_id;
-      const isStaff = role === 'ADMIN' || role === 'MULTIMEDIA' || role === 'MULTIMEDIA_ADMIN';
+      const isStaff = roles.includes('ADMIN') || roles.includes('MULTIMEDIA') || roles.includes('MULTIMEDIA_ADMIN');
 
       if (!isOwner && !isStaff) {
         return res.status(403).json({ error: 'Not authorized to cancel this request' });
@@ -539,9 +539,9 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const requestCode = result.value.request_code || 'unknown';
       await logAudit(
-        new ObjectId(user_id), req.user!.username, req.user!.role,
+        new ObjectId(user_id), req.user!.username, req.user!.primary_role,
         'CANCEL_REQUEST', config.auditEntityType, request_id,
-        `${role} ${req.user!.username} cancelled ${config.entity} request ${requestCode}`
+        `${req.user!.primary_role} ${req.user!.username} cancelled ${config.entity} request ${requestCode}`
       );
 
       const io = getIO();
@@ -564,7 +564,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   router.get('/get_technicians', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const usersCollection = getUsersCollection();
-      const technicians = await usersCollection.find({ role: 'MULTIMEDIA' }).toArray();
+      const technicians = await usersCollection.find({ roles: 'MULTIMEDIA' }).toArray();
       res.json({ technicians });
     } catch (error) {
       console.error('Get technicians error:', error);

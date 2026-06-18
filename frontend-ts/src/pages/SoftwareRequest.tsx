@@ -17,7 +17,7 @@ function SoftwareRequest() {
   const [liveUpdate, setLiveUpdate] = useState('');
 
   useEffect(() => {
-    if (user) initSocket(user.user_id, user.role);
+    if (user) initSocket(user.user_id, user.roles || [user.role]);
   }, [user]);
 
   useEffect(() => {

@@ -20,6 +20,7 @@ import fileRoutes from './routes/files';
 import auditRoutes from './routes/audit';
 import notificationRoutes from './routes/notifications';
 import softwareRoutes from './routes/software';
+import csfRoutes from './routes/csf_route';
 
 const app: Express = express();
 const httpServer = createServer(app);
@@ -75,7 +76,7 @@ const authLimiter = rateLimit({
 });
 
 const connectedUsers = new Map<string, string>();
-const userRoles = new Map<string, string>();
+const userRoles = new Map<string, string[]>();
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -89,28 +90,28 @@ io.on('connection', (socket) => {
       const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
       if (!user) return;
 
-      const role = user.role;
+      const roles = user.roles || [user.role];
       connectedUsers.set(socket.id, userId);
-      userRoles.set(socket.id, role);
+      userRoles.set(socket.id, roles);
       socket.join(`user_${userId}`);
       
-      if (role === 'ADMIN' || role === 'MULTIMEDIA_ADMIN') {
+      if (roles.includes('ADMIN') || roles.includes('MULTIMEDIA_ADMIN')) {
         socket.join('admins');
       }
-      if (role === 'MULTIMEDIA') {
+      if (roles.includes('MULTIMEDIA')) {
         socket.join('multimedia_staff');
       }
-      if (role === 'TECHNICIAN' || role === 'IT_ADMIN') {
+      if (roles.includes('TECHNICIAN') || roles.includes('IT_ADMIN')) {
         socket.join('technicians');
       }
-      if (role === 'PROGRAMMER') {
+      if (roles.includes('PROGRAMMER')) {
         socket.join('programmers');
       }
-      if (role === 'CLIENT') {
+      if (roles.includes('CLIENT')) {
         socket.join('clients');
       }
       
-      console.log(`User ${userId} (${role}) registered with socket ${socket.id}`);
+      console.log(`User ${userId} (${roles.join(', ')}) registered with socket ${socket.id}`);
     } catch (error) {
       console.error('Error registering user:', error);
     }
@@ -118,10 +119,10 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     const userId = connectedUsers.get(socket.id);
-    const role = userRoles.get(socket.id);
+    const roles = userRoles.get(socket.id);
     connectedUsers.delete(socket.id);
     userRoles.delete(socket.id);
-    console.log(`Client disconnected: ${socket.id} (User: ${userId}, Role: ${role})`);
+    console.log(`Client disconnected: ${socket.id} (User: ${userId}, Roles: ${roles?.join(', ')})`);
   });
 });
 
@@ -141,6 +142,7 @@ app.use('/api/files', fileRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/software', softwareRoutes);
+app.use('/api/csf', csfRoutes);
 
 const rawPort = process.env.PORT || '3000';
 const PORT = parseInt(rawPort, 10);

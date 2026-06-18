@@ -22,90 +22,84 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return null;
   };
 
+  const ROLE_NAV: Record<string, Array<{ to?: string; icon?: string; label?: string; section?: string }>> = {
+    CLIENT: [
+      { section: 'IT Services' },
+      { to: '/request', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18V12 M9 15h6', label: 'IT Request' },
+      { to: '/requested', icon: 'M12 8v4l3 3 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z', label: 'IT History' },
+      { section: 'Multimedia' },
+      { to: '/multimedia-request', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Request' },
+      { to: '/multimedia-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Multimedia History' },
+      { section: 'Digital Media' },
+      { to: '/digital-media-request', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Request' },
+      { to: '/digitalmedia-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Digital Media History' },
+      { section: 'Print Materials' },
+      { to: '/print-materials-request', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Request' },
+      { to: '/print-materials-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Print Materials History' },
+      { section: 'Software Development' },
+      { to: '/software-request', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Request' },
+      { to: '/software-history', icon: 'M12 8v4l3 3 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z', label: 'Software History' },
+    ],
+    TECHNICIAN: [
+      { section: 'Work' },
+      { to: '/dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
+      { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+    ],
+    MULTIMEDIA: [
+      { section: 'My Assignments' },
+      { to: '/multimedia-dashboard', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Requests' },
+      { to: '/digitalmedia-dashboard', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Requests' },
+      { to: '/print-materials-dashboard', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Requests' },
+      { section: '' },
+      { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+    ],
+    ADMIN: [
+      { section: 'Admin' },
+      { to: '/users', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', label: 'Users' },
+      { to: '/audit-logs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H9H8', label: 'Audit Log' },
+      { section: '' },
+      { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+    ],
+    IT_ADMIN: [
+      { section: 'IT Management' },
+      { to: '/it-dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
+      { to: '/software-management', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Mgmt' },
+      { section: '' },
+      { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+    ],
+    MULTIMEDIA_ADMIN: [
+      { section: 'Management' },
+      { to: '/multimedia-management', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Mgmt' },
+      { to: '/digitalmedia-management', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Mgmt' },
+      { to: '/print-materials-management', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Mgmt' },
+      { section: '' },
+      { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+    ],
+    PROGRAMMER: [
+      { section: 'Work' },
+      { to: '/programmer-dashboard', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Dashboard' },
+      { section: '' },
+      { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
+    ],
+  };
+
   const navItems = (() => {
     if (!user) return [];
-    const role = user.role;
+    const userRoles = user.roles || [user.role];
+    const seen = new Set<string>();
+    const items: Array<{ to?: string; icon?: string; label?: string; section?: string }> = [];
 
-    if (role === 'CLIENT') {
-      return [
-        { section: 'IT Services' },
-        { to: '/request', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M12 18V12 M9 15h6', label: 'IT Request' },
-        { to: '/requested', icon: 'M12 8v4l3 3 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z', label: 'IT History' },
-        { section: 'Multimedia' },
-        { to: '/multimedia-request', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Request' },
-        { to: '/multimedia-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Multimedia History' },
-        { section: 'Digital Media' },
-        { to: '/digital-media-request', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Request' },
-        { to: '/digitalmedia-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Digital Media History' },
-        { section: 'Print Materials' },
-        { to: '/print-materials-request', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Request' },
-        { to: '/print-materials-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Print Materials History' },
-        { section: 'Software Development' },
-        { to: '/software-request', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Request' },
-        { to: '/software-history', icon: 'M12 8v4l3 3 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z', label: 'Software History' },
-      ];
+    for (const r of userRoles) {
+      const roleItems = ROLE_NAV[r];
+      if (!roleItems) continue;
+      for (const item of roleItems) {
+        const key = item.to || item.section || item.label || '';
+        if (seen.has(key)) continue;
+        seen.add(key);
+        items.push(item);
+      }
     }
-
-    if (role === 'TECHNICIAN') {
-      return [
-        { section: 'Work' },
-        { to: '/dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
-        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
-      ];
-    }
-
-    if (role === 'MULTIMEDIA') {
-      return [
-        { section: 'My Assignments' },
-        { to: '/multimedia-dashboard', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Requests' },
-        { to: '/digitalmedia-dashboard', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Requests' },
-        { to: '/print-materials-dashboard', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Requests' },
-        { section: '' },
-        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
-      ];
-    }
-
-    if (role === 'ADMIN') {
-      return [
-        { section: 'Admin' },
-        { to: '/users', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', label: 'Users' },
-        { to: '/audit-logs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H9H8', label: 'Audit Log' },
-        { section: '' },
-        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
-      ];
-    }
-
-    if (role === 'IT_ADMIN') {
-      return [
-        { section: 'IT Management' },
-        { to: '/it-dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
-        { to: '/software-management', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Mgmt' },
-        { section: '' },
-        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
-      ];
-    }
-
-    if (role === 'MULTIMEDIA_ADMIN') {
-      return [
-        { section: 'Management' },
-        { to: '/multimedia-management', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Mgmt' },
-        { to: '/digitalmedia-management', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Mgmt' },
-        { to: '/print-materials-management', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Mgmt' },
-        { section: '' },
-        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
-      ];
-    }
-
-    if (role === 'PROGRAMMER') {
-      return [
-        { section: 'Work' },
-        { to: '/programmer-dashboard', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Dashboard' },
-        { section: '' },
-        { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
-      ];
-    }
-
-    return [];
+    return items;
   })();
 
   return (
@@ -124,16 +118,16 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
         <nav className="sidebar-nav">
           {navItems.map((item, i) => {
-            if ('section' in item) {
+            if (item.section !== undefined) {
               if (!item.section) return <div key={i} className="sidebar-divider" />;
               return <div key={i} className="sidebar-section">{item.section}</div>;
             }
             const isActive = location.pathname === item.to;
             const badge = item.to ? badgeFor(item.to) : null;
             return (
-              <Link key={i} to={item.to} className={`sidebar-item ${isActive ? 'active' : ''}`}>
+              <Link key={i} to={item.to!} className={`sidebar-item ${isActive ? 'active' : ''}`}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  {item.icon.split(' M').map((d, j) => <path key={j} d={j === 0 ? d : 'M' + d} />)}
+                  {item.icon?.split(' M').map((d, j) => <path key={j} d={j === 0 ? d : 'M' + d} />)}
                 </svg>
                 <span className="sidebar-label">{item.label}</span>
                 {badge !== null && badge > 0 && <span className="sidebar-badge">{badge}</span>}

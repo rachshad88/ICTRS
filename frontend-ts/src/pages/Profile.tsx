@@ -116,7 +116,7 @@ function Profile() {
                 <span>{getInitials()}</span>
               </div>
               <h3>{user?.first_name} {user?.last_name}</h3>
-              <p className="role-badge">{user?.role}</p>
+              <p className="role-badge">{user?.primary_role || user?.role}</p>
             </div>
             
             <div className="profile-menu">
@@ -196,7 +196,7 @@ function Profile() {
                     </div>
                     <div className="summary-info">
                       <span className="summary-label">Role</span>
-                      <span className="summary-value">{user?.role}</span>
+                      <span className="summary-value">{(user?.roles || [user?.role]).join(', ')}</span>
                     </div>
                   </div>
                 </div>

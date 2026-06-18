@@ -13,8 +13,9 @@ function Login() {
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'CLIENT') navigate('/request');
-      else if (user.role === 'MULTIMEDIA') navigate('/multimedia-dashboard');
+      const primary = user.primary_role || user.role;
+      if (primary === 'CLIENT') navigate('/request');
+      else if (primary === 'MULTIMEDIA') navigate('/multimedia-dashboard');
       else navigate('/dashboard');
     }
   }, [user, navigate]);

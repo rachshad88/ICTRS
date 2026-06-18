@@ -41,13 +41,16 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
     return <Navigate to="/" replace />;
   }
 
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    if (user.role === 'CLIENT') return <Navigate to="/request" replace />;
-    if (user.role === 'MULTIMEDIA') return <Navigate to="/multimedia-dashboard" replace />;
-    if (user.role === 'IT_ADMIN') return <Navigate to="/it-dashboard" replace />;
-    if (user.role === 'MULTIMEDIA_ADMIN') return <Navigate to="/multimedia-management" replace />;
-    if (user.role === 'PROGRAMMER') return <Navigate to="/programmer-dashboard" replace />;
-    if (user.role === 'ADMIN') return <Navigate to="/users" replace />;
+  const userRoles = user.roles || [user.role];
+  const primary = user.primary_role || user.role;
+
+  if (allowedRoles && !allowedRoles.some(r => userRoles.includes(r))) {
+    if (primary === 'CLIENT') return <Navigate to="/request" replace />;
+    if (primary === 'MULTIMEDIA') return <Navigate to="/multimedia-dashboard" replace />;
+    if (primary === 'IT_ADMIN') return <Navigate to="/it-dashboard" replace />;
+    if (primary === 'MULTIMEDIA_ADMIN') return <Navigate to="/multimedia-management" replace />;
+    if (primary === 'PROGRAMMER') return <Navigate to="/programmer-dashboard" replace />;
+    if (primary === 'ADMIN') return <Navigate to="/users" replace />;
     return <Navigate to="/dashboard" replace />;
   }
 

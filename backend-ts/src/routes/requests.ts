@@ -53,7 +53,7 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
       return res.status(500).json({ status: 'error', message: 'Failed to generate unique request code' });
     }
 
-    await logAudit(new ObjectId(created_by), req.user!.username, req.user!.role, 'CREATE_REQUEST', 'IT_REQUEST', result.insertedId.toString(), `User ${req.user!.username} created IT request ${request_code}`, { office, issue: sanitizeInput(issue) });
+    await logAudit(new ObjectId(created_by), req.user!.username, req.user!.primary_role, 'CREATE_REQUEST', 'IT_REQUEST', result.insertedId.toString(), `User ${req.user!.username} created IT request ${request_code}`, { office, issue: sanitizeInput(issue) });
 
     const io = req.app.get('io');
     if (io) {
@@ -84,7 +84,7 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
     }
 
     const usersCollection = getUsersCollection();
-    const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), role: 'TECHNICIAN' });
+    const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), roles: 'TECHNICIAN' });
     if (!technician) {
       return res.status(404).json({ error: 'Technician not found' });
     }
@@ -101,7 +101,7 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
     }
 
     const assignedTo = `${technician.first_name} ${technician.last_name}`;
-    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.role, 'ACCEPT_REQUEST', 'IT_REQUEST', request_id, `IT Admin ${req.user!.username} assigned request to ${assignedTo}`);
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'ACCEPT_REQUEST', 'IT_REQUEST', request_id, `IT Admin ${req.user!.username} assigned request to ${assignedTo}`);
 
     const io = req.app.get('io');
     if (io) {
@@ -139,12 +139,11 @@ router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(f
 
     const requestsCollection = getRequestsCollection();
     const userId = req.user!.user_id;
-    const role = req.user!.role;
 
     let filter: Record<string, unknown>;
-    if (role === 'ADMIN') {
+    if (req.user!.roles.includes('ADMIN')) {
       filter = { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED'] } };
-    } else if (role === 'TECHNICIAN') {
+    } else if (req.user!.roles.includes('TECHNICIAN')) {
       // Technician can only finish requests assigned to them
       filter = { 
         _id: new ObjectId(request_id),
@@ -174,7 +173,7 @@ router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(f
     }
 
     const requestCode = result.value.request_code || 'unknown';
-    await logAudit(new ObjectId(userId), req.user!.username, req.user!.role, 'FINISH_REQUEST', 'IT_REQUEST', request_id, `${role === 'ADMIN' ? 'Admin' : 'Technician'} ${req.user!.username} marked request ${requestCode} as ${finished}`, { finished, remarks: remarks || null, recommendation: recommendation || null });
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'FINISH_REQUEST', 'IT_REQUEST', request_id, `${req.user!.roles.includes('ADMIN') ? 'Admin' : 'Technician'} ${req.user!.username} marked request ${requestCode} as ${finished}`, { finished, remarks: remarks || null, recommendation: recommendation || null });
 
     const io = req.app.get('io');
     if (io) {
@@ -198,12 +197,11 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
   try {
     const { request_id } = req.body;
     const user_id = req.user!.user_id;
-    const role = req.user!.role;
 
     const requestsCollection = getRequestsCollection();
     
     let result;
-    if (role === 'ADMIN' || role === 'TECHNICIAN' || role === 'IT_ADMIN') {
+    if (req.user!.roles.includes('ADMIN') || req.user!.roles.includes('TECHNICIAN') || req.user!.roles.includes('IT_ADMIN')) {
       result = await requestsCollection.findOneAndUpdate(
         { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED'] } },
         { $set: { status: 'CANCELLED', assigned_to: null } },
@@ -222,7 +220,7 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
     }
 
     const cancelledCode = result.value.request_code || 'unknown';
-    await logAudit(new ObjectId(user_id), req.user!.username, req.user!.role, 'CANCEL_REQUEST', 'IT_REQUEST', request_id, `${role} ${req.user!.username} cancelled request ${cancelledCode}`);
+    await logAudit(new ObjectId(user_id), req.user!.username, req.user!.primary_role, 'CANCEL_REQUEST', 'IT_REQUEST', request_id, `${req.user!.primary_role} ${req.user!.username} cancelled request ${cancelledCode}`);
 
     const io = req.app.get('io');
     if (io) {
@@ -244,7 +242,6 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
 router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.user_id;
-    const role = req.user!.role;
     const filterType = (req.query.filter as string) || 'all';
     const selectedDate = (req.query.date as string) || new Date().toISOString().split('T')[0];
     const showDone = req.query.show_done !== '0';
@@ -278,7 +275,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
       created_at: { $gte: startDate, $lte: endDate }
     };
 
-    if (role === 'TECHNICIAN') {
+    if (req.user!.roles.includes('TECHNICIAN')) {
       matchFilter.assigned_to = new ObjectId(userId);
     }
 
@@ -375,11 +372,10 @@ router.get('/check_status/:requestCode', isAuthenticated, async (req: Authentica
   try {
     const { requestCode } = req.params;
     const userId = req.user!.user_id;
-    const role = req.user!.role;
 
     const requestsCollection = getRequestsCollection();
     
-    const query = role === 'CLIENT' 
+    const query = req.user!.roles.includes('CLIENT')
       ? { request_code: requestCode, created_by: new ObjectId(userId) }
       : { request_code: requestCode };
 
@@ -428,7 +424,7 @@ router.post('/shared_access', isAuthenticated, validateBody(sharedAccessSchema),
     }
 
     const sharedCode = result.value.request_code || 'unknown';
-    await logAudit(new ObjectId(granted_by), req.user!.username, req.user!.role, 'SHARED_ACCESS', 'IT_REQUEST', request_id, `User ${req.user!.username} granted access to request ${sharedCode} to user ${user_id}`);
+    await logAudit(new ObjectId(granted_by), req.user!.username, req.user!.primary_role, 'SHARED_ACCESS', 'IT_REQUEST', request_id, `User ${req.user!.username} granted access to request ${sharedCode} to user ${user_id}`);
 
     const io = req.app.get('io');
     if (io) {
@@ -448,15 +444,14 @@ router.post('/shared_access', isAuthenticated, validateBody(sharedAccessSchema),
 router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.user_id;
-    const role = req.user!.role;
     
     const requestsCollection = getRequestsCollection();
     
     let filter: Record<string, unknown> = {};
     
-    if (role === 'CLIENT') {
+    if (req.user!.roles.includes('CLIENT')) {
       filter = { created_by: new ObjectId(userId) };
-    } else if (role === 'TECHNICIAN') {
+    } else if (req.user!.roles.includes('TECHNICIAN')) {
       filter = { assigned_to: new ObjectId(userId) };
     }
     
@@ -519,7 +514,7 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
 router.get('/get_technicians', isAuthenticated, isItAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const usersCollection = getUsersCollection();
-    const technicians = await usersCollection.find({ role: 'TECHNICIAN' }).toArray();
+    const technicians = await usersCollection.find({ roles: 'TECHNICIAN' }).toArray();
     res.json({ technicians });
   } catch (error) {
     console.error('Get technicians error:', error);

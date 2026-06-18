@@ -8,9 +8,9 @@ const router = Router();
 router.get('/unassigned-count', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.user_id;
-    const role = req.user!.role;
+    const roles = req.user!.roles;
 
-    if (role === 'ADMIN') {
+    if (roles.includes('ADMIN')) {
       const [multimedia, digitalMedia, printMaterials] = await Promise.all([
         getMultimediaRequestsCollection().countDocuments({ status: 'UNASSIGNED' }),
         getDigitalMediaRequestsCollection().countDocuments({ status: 'PENDING', assigned_to: null }),
@@ -20,7 +20,7 @@ router.get('/unassigned-count', isAuthenticated, async (req: AuthenticatedReques
       return res.json({ total, multimedia, digitalMedia, printMaterials });
     }
 
-    if (role === 'MULTIMEDIA') {
+    if (roles.includes('MULTIMEDIA')) {
       const uid = new ObjectId(userId);
       const [multimedia, digitalMedia, printMaterials] = await Promise.all([
         getMultimediaRequestsCollection().countDocuments({ assigned_to: uid, status: { $ne: 'DONE' } }),

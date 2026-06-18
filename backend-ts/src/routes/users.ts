@@ -19,7 +19,7 @@ router.get('/get_technicians', isAuthenticated, isAdmin, async (req: Authenticat
 
     const usersCollection = getUsersCollection();
     const technicians = await usersCollection
-      .find({ role: 'TECHNICIAN' })
+      .find({ roles: 'TECHNICIAN' })
       .project({ password: 0 })
       .limit(100)
       .toArray();
@@ -43,7 +43,7 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
 
     const usersCollection = getUsersCollection();
     const users = await usersCollection
-      .find({ role: { $ne: 'ADMIN' } })
+      .find({ roles: { $ne: 'ADMIN' } })
       .project({ password: 0 })
       .limit(100)
       .toArray();
@@ -58,7 +58,7 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
 
 router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { username, password, first_name, middle_name, last_name, role, office } = req.body;
+    const { username, password, first_name, middle_name, last_name, roles, primary_role, office } = req.body;
 
     const usersCollection = getUsersCollection();
     const existing = await usersCollection.findOne({ username });
@@ -75,17 +75,18 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
       first_name,
       middle_name: middle_name || '',
       last_name,
-      role,
+      role: primary_role,
+      roles,
+      primary_role,
       office: office || '',
       created_at: new Date()
     });
 
-    // Invalidate caches
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
     }
 
-    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.role, 'CREATE_USER', 'USER', '', `Admin ${req.user!.username} created user ${username} (${role})`);
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'CREATE_USER', 'USER', '', `Admin ${req.user!.username} created user ${username} (${primary_role})`);
     res.json({ status: 'success' });
   } catch (error) {
     console.error('Create user error:', error);
@@ -95,7 +96,7 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
 
 router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { user_id, username, first_name, middle_name, last_name, role, office, password } = req.body;
+    const { user_id, username, first_name, middle_name, last_name, roles, primary_role, office, password } = req.body;
 
     const usersCollection = getUsersCollection();
     
@@ -104,7 +105,9 @@ router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSch
       first_name,
       middle_name: middle_name || '',
       last_name,
-      role,
+      role: primary_role,
+      roles,
+      primary_role,
       office: office || ''
     };
 
@@ -117,12 +120,11 @@ router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSch
       { $set: updateData }
     );
 
-    // Invalidate caches
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
     }
 
-    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.role, 'UPDATE_USER', 'USER', user_id, `Admin ${req.user!.username} updated user ${username}`);
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'UPDATE_USER', 'USER', user_id, `Admin ${req.user!.username} updated user ${username}`);
     res.json({ status: 'success' });
   } catch (error) {
     console.error('Update user error:', error);
@@ -138,12 +140,11 @@ router.post('/delete_user', isAuthenticated, isAdmin, validateBody(deleteUserSch
     const deletedUser = await usersCollection.findOneAndDelete({ _id: new ObjectId(user_id) });
     const deletedUsername = deletedUser?.value?.username || 'unknown';
 
-    // Invalidate caches
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
     }
 
-    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.role, 'DELETE_USER', 'USER', user_id, `Admin ${req.user!.username} deleted user ${deletedUsername}`);
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'DELETE_USER', 'USER', user_id, `Admin ${req.user!.username} deleted user ${deletedUsername}`);
     res.json({ status: 'success' });
   } catch (error) {
     console.error('Delete user error:', error);

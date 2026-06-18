@@ -25,9 +25,9 @@ function isImageFile(ext: string): boolean {
   return ['.jpg', '.jpeg', '.png'].includes(ext.toLowerCase());
 }
 
-async function verifyAccess(requestId: string, userId: string, userRole: string, collection: 'multimedia' | 'digitalmedia' | 'printmaterials'): Promise<boolean> {
+async function verifyAccess(requestId: string, userId: string, userRoles: string[], collection: 'multimedia' | 'digitalmedia' | 'printmaterials'): Promise<boolean> {
   try {
-    if (userRole === 'ADMIN' || userRole === 'MULTIMEDIA_ADMIN') return true;
+    if (userRoles.includes('ADMIN') || userRoles.includes('MULTIMEDIA_ADMIN')) return true;
 
     let collectionGetter;
     switch (collection) {
@@ -47,7 +47,7 @@ async function verifyAccess(requestId: string, userId: string, userRole: string,
 
     if (!request) return false;
 
-    if (userRole === 'CLIENT' && request.created_by?.toString() === userId) return true;
+    if (userRoles.includes('CLIENT') && request.created_by?.toString() === userId) return true;
 
     if (request.assigned_to?.toString() === userId) return true;
 
@@ -62,9 +62,9 @@ async function verifyAccess(requestId: string, userId: string, userRole: string,
 router.get('/multimedia/:requestId/:filename', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { requestId, filename } = req.params;
-    const role = req.user!.role;
+    const roles = req.user!.roles;
 
-    if (role !== 'MULTIMEDIA' && role !== 'ADMIN' && role !== 'CLIENT' && role !== 'MULTIMEDIA_ADMIN') {
+    if (!roles.includes('MULTIMEDIA') && !roles.includes('ADMIN') && !roles.includes('CLIENT') && !roles.includes('MULTIMEDIA_ADMIN')) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -72,7 +72,7 @@ router.get('/multimedia/:requestId/:filename', isAuthenticated, async (req: Auth
       return res.status(400).json({ error: 'Invalid request ID' });
     }
 
-    const hasAccess = await verifyAccess(requestId, req.user!.user_id, role, 'multimedia');
+    const hasAccess = await verifyAccess(requestId, req.user!.user_id, roles, 'multimedia');
     if (!hasAccess) {
       return res.status(403).json({ error: 'You do not have access to this file' });
     }
@@ -108,9 +108,9 @@ router.get('/multimedia/:requestId/:filename', isAuthenticated, async (req: Auth
 router.get('/digitalmedia/:requestId/:filename', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { requestId, filename } = req.params;
-    const role = req.user!.role;
+    const roles = req.user!.roles;
 
-    if (role !== 'MULTIMEDIA' && role !== 'ADMIN' && role !== 'CLIENT' && role !== 'MULTIMEDIA_ADMIN') {
+    if (!roles.includes('MULTIMEDIA') && !roles.includes('ADMIN') && !roles.includes('CLIENT') && !roles.includes('MULTIMEDIA_ADMIN')) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -118,7 +118,7 @@ router.get('/digitalmedia/:requestId/:filename', isAuthenticated, async (req: Au
       return res.status(400).json({ error: 'Invalid request ID' });
     }
 
-    const hasAccess = await verifyAccess(requestId, req.user!.user_id, role, 'digitalmedia');
+    const hasAccess = await verifyAccess(requestId, req.user!.user_id, roles, 'digitalmedia');
     if (!hasAccess) {
       return res.status(403).json({ error: 'You do not have access to this file' });
     }
@@ -154,9 +154,9 @@ router.get('/digitalmedia/:requestId/:filename', isAuthenticated, async (req: Au
 router.get('/printmaterials/:requestId/:filename', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { requestId, filename } = req.params;
-    const role = req.user!.role;
+    const roles = req.user!.roles;
 
-    if (role !== 'MULTIMEDIA' && role !== 'ADMIN' && role !== 'CLIENT' && role !== 'MULTIMEDIA_ADMIN') {
+    if (!roles.includes('MULTIMEDIA') && !roles.includes('ADMIN') && !roles.includes('CLIENT') && !roles.includes('MULTIMEDIA_ADMIN')) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -164,7 +164,7 @@ router.get('/printmaterials/:requestId/:filename', isAuthenticated, async (req: 
       return res.status(400).json({ error: 'Invalid request ID' });
     }
 
-    const hasAccess = await verifyAccess(requestId, req.user!.user_id, role, 'printmaterials');
+    const hasAccess = await verifyAccess(requestId, req.user!.user_id, roles, 'printmaterials');
     if (!hasAccess) {
       return res.status(403).json({ error: 'You do not have access to this file' });
     }
@@ -200,9 +200,9 @@ router.get('/printmaterials/:requestId/:filename', isAuthenticated, async (req: 
 router.get('/software/:requestId/:filename', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { requestId, filename } = req.params;
-    const role = req.user!.role;
+    const roles = req.user!.roles;
 
-    if (role !== 'PROGRAMMER' && role !== 'IT_ADMIN' && role !== 'ADMIN' && role !== 'CLIENT') {
+    if (!roles.includes('PROGRAMMER') && !roles.includes('IT_ADMIN') && !roles.includes('ADMIN') && !roles.includes('CLIENT')) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -218,7 +218,7 @@ router.get('/software/:requestId/:filename', isAuthenticated, async (req: Authen
 
     const isOwner = request.created_by?.toString() === req.user!.user_id;
     const isAssignee = request.assigned_to?.toString() === req.user!.user_id;
-    const isItAdmin = role === 'IT_ADMIN' || role === 'ADMIN';
+    const isItAdmin = roles.includes('IT_ADMIN') || roles.includes('ADMIN');
 
     if (!isOwner && !isAssignee && !isItAdmin) {
       return res.status(403).json({ error: 'You do not have access to this file' });

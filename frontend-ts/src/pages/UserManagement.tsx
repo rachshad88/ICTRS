@@ -10,6 +10,8 @@ interface User {
   middle_name: string;
   last_name: string;
   role: string;
+  roles: string[];
+  primary_role: string;
   office?: string;
 }
 
@@ -28,6 +30,8 @@ function UserManagement() {
     middle_name: '',
     last_name: '',
     role: 'CLIENT',
+    roles: [] as string[],
+    primary_role: 'CLIENT',
     office: ''
   });
 
@@ -52,7 +56,9 @@ function UserManagement() {
         first_name: user.first_name,
         middle_name: user.middle_name || '',
         last_name: user.last_name,
-        role: user.role,
+        role: user.role || (user.roles?.[0] || 'CLIENT'),
+        roles: user.roles || [user.role || 'CLIENT'],
+        primary_role: user.primary_role || user.role || 'CLIENT',
         office: user.office || ''
       });
     } else {
@@ -64,6 +70,8 @@ function UserManagement() {
         middle_name: '',
         last_name: '',
         role: 'CLIENT',
+        roles: ['CLIENT'],
+        primary_role: 'CLIENT',
         office: ''
       });
     }
@@ -81,12 +89,14 @@ function UserManagement() {
           middle_name: formData.middle_name,
           last_name: formData.last_name,
           role: formData.role,
+          roles: formData.roles,
+          primary_role: formData.primary_role,
           office: formData.office
         };
         if (formData.password) payload.password = formData.password;
         await api.post('/users/update_user', payload);
       } else {
-        await api.post('/users/create_user', formData);
+        await api.post('/users/create_user', { ...formData, roles: formData.roles, primary_role: formData.primary_role });
       }
       setShowModal(false);
       fetchUsers();
@@ -175,9 +185,13 @@ function UserManagement() {
                   <td style={{ fontSize: '12px' }}>{user.username}</td>
                   <td>{user.first_name} {user.middle_name} {user.last_name}</td>
                   <td>
-                    <span className={`role-badge ${getRoleClass(user.role)}`}>
-                      {getRoleLabel(user.role)}
-                    </span>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {(user.roles || [user.role]).map(r => (
+                        <span key={r} className={`role-badge ${getRoleClass(r)}`} style={{ fontSize: '10px' }}>
+                          {getRoleLabel(r)}{r === (user.primary_role || user.role) ? '*' : ''}
+                        </span>
+                      ))}
+                    </div>
                   </td>
                   <td className="col-actions">
                     <div className="history-actions">
@@ -228,13 +242,38 @@ function UserManagement() {
                 <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
               </div>
               <div className="form-group">
-                <label>Role</label>
-                <select value={formData.role} onChange={(e) => setFormData({...formData, role: e.target.value})}>
+                <label>Roles (check all that apply)</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
                   {ROLES.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
+                    <label key={r.value} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.roles.includes(r.value)}
+                        onChange={(e) => {
+                          const newRoles = e.target.checked
+                            ? [...formData.roles, r.value]
+                            : formData.roles.filter(v => v !== r.value);
+                          const newPrimary = newRoles.includes(formData.primary_role)
+                            ? formData.primary_role
+                            : newRoles[0] || 'CLIENT';
+                          setFormData({...formData, roles: newRoles, primary_role: newPrimary, role: newPrimary});
+                        }}
+                      />
+                      {r.label}
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
+              {formData.roles.length > 1 && (
+                <div className="form-group">
+                  <label>Primary Role</label>
+                  <select value={formData.primary_role} onChange={(e) => setFormData({...formData, primary_role: e.target.value, role: e.target.value})}>
+                    {formData.roles.map(r => (
+                      <option key={r} value={r}>{ROLES.find(ro => ro.value === r)?.label || r}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="form-group">
                 <label>Office</label>
                 <select value={formData.office} onChange={(e) => setFormData({...formData, office: e.target.value})}>

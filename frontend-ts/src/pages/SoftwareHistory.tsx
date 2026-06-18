@@ -40,7 +40,7 @@ function SoftwareHistory() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.role);
+      initSocket(user.user_id, user.roles || [user.role]);
     }
   }, [user]);
 

@@ -72,7 +72,8 @@ export const createUserSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   middle_name: z.string().optional(),
   last_name: z.string().min(1, 'Last name is required'),
-  role: z.enum(ALL_ROLES),
+  roles: z.array(z.enum(ALL_ROLES)).min(1, 'At least one role is required'),
+  primary_role: z.enum(ALL_ROLES),
   office: z.string().optional()
 });
 
@@ -82,7 +83,8 @@ export const updateUserSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   middle_name: z.string().optional(),
   last_name: z.string().min(1, 'Last name is required'),
-  role: z.enum(ALL_ROLES),
+  roles: z.array(z.enum(ALL_ROLES)).min(1, 'At least one role is required'),
+  primary_role: z.enum(ALL_ROLES),
   office: z.string().optional(),
   password: z.string().min(8, 'Password must be at least 8 characters').optional()
 });
