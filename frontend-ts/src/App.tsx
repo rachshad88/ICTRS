@@ -29,6 +29,7 @@ import SoftwareRequest from './pages/SoftwareRequest';
 import SoftwareManagement from './pages/SoftwareManagement';
 import ProgrammerDashboard from './pages/ProgrammerDashboard';
 import SoftwareHistory from './pages/SoftwareHistory';
+import AdminDashboard from './pages/AdminDashboard';
 
 function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSidebar }: { children: React.ReactNode; allowedRoles?: string[]; sidebarCollapsed: boolean; onToggleSidebar: () => void }) {
   const { user, loading } = useAuth();
@@ -50,7 +51,7 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
     if (primary === 'IT_ADMIN') return <Navigate to="/it-dashboard" replace />;
     if (primary === 'MULTIMEDIA_ADMIN') return <Navigate to="/multimedia-management" replace />;
     if (primary === 'PROGRAMMER') return <Navigate to="/programmer-dashboard" replace />;
-    if (primary === 'ADMIN') return <Navigate to="/users" replace />;
+    if (primary === 'ADMIN') return <Navigate to="/admin-dashboard" replace />;
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -151,6 +152,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['ADMIN']} {...routeProps}>
             <UserManagement />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']} {...routeProps}>
+            <AdminDashboard />
           </ProtectedRoute>
         }
       />

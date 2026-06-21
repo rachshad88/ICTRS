@@ -21,6 +21,7 @@ import auditRoutes from './routes/audit';
 import notificationRoutes from './routes/notifications';
 import softwareRoutes from './routes/software';
 import csfRoutes from './routes/csf_route';
+import dashboardRoutes from './routes/dashboard';
 
 const app: Express = express();
 const httpServer = createServer(app);
@@ -143,6 +144,7 @@ app.use('/api/audit', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/software', softwareRoutes);
 app.use('/api/csf', csfRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 const rawPort = process.env.PORT || '3000';
 const PORT = parseInt(rawPort, 10);
