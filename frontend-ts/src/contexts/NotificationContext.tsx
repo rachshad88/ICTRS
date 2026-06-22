@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '../services/api';
 import { getSocket } from '../services/socket';
 import { useAuth } from './AuthContext';
@@ -31,12 +31,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    fetchCounts();
-    const interval = setInterval(fetchCounts, 30000);
-    return () => clearInterval(interval);
-  }, [fetchCounts]);
-
-  useEffect(() => {
     if (!user) return;
     const socket = getSocket();
     if (!socket) return;
@@ -56,6 +50,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       socket.on(event, handler);
     }
     socket.on('connect', handler);
+
+    fetchCounts();
 
     return () => {
       for (const event of events) {
