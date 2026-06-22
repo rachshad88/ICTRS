@@ -140,7 +140,7 @@ async function queryType(
   const dateFilter = { $gte: startDate, $lte: endDate };
   const filter = buildFilter(dateFilter, showDone, search, typeKey);
 
-  if (config.filterAssigned && !roles.includes('ADMIN')) {
+  if (config.filterAssigned && !roles.some(r => config.roleAccess.includes(r as Role) && r.includes('ADMIN'))) {
     filter.assigned_to = new ObjectId(userId);
   }
 
