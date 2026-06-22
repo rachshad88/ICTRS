@@ -241,7 +241,7 @@ function SoftwareHistory() {
       </div>
 
       {selectedRequest && (
-        <div className="modal-overlay" onClick={() => setSelectedRequest(null)}>
+        <div className="modal" onClick={() => setSelectedRequest(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '650px' }}>
             <div className="modal-header">
               <h3>{selectedRequest.request_code}</h3>
