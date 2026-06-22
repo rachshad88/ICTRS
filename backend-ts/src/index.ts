@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import express, { Express } from 'express';
 import session from 'express-session';
+import MongoStore from 'connect-mongo';
 import cors from 'cors';
 import { createServer } from 'http';
 import rateLimit from 'express-rate-limit';
@@ -52,6 +53,13 @@ app.use(session({
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    dbName: process.env.MONGO_DB,
+    collectionName: 'sessions',
+    ttl: 24 * 60 * 60,
+    autoRemove: 'native'
+  }),
   cookie: {
     secure: isProduction,
     httpOnly: true,
