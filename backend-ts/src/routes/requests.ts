@@ -245,6 +245,9 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
     const filterType = (req.query.filter as string) || 'all';
     const selectedDate = (req.query.date as string) || new Date().toISOString().split('T')[0];
     const showDone = req.query.show_done !== '0';
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const skip = (page - 1) * limit;
 
     let startDate: Date, endDate: Date;
 
@@ -301,7 +304,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
       }
     }
 
-    const requests = await requestsCollection
+    const results = await requestsCollection
       .aggregate([
         { $match: matchFilter },
         {
@@ -314,31 +317,47 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
             as: 'requester'
           }
         },
-        { $sort: { created_at: -1 } }
+        { $sort: { created_at: -1 } },
+        {
+          $facet: {
+            metadata: [
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: 1 },
+                  pending_count: { $sum: { $cond: [{ $eq: ['$status', 'PENDING'] }, 1, 0] } },
+                  progress_count: { $sum: { $cond: [{ $eq: ['$status', 'IN_PROGRESS'] }, 1, 0] } },
+                  done_count: { $sum: { $cond: [{ $eq: ['$status', 'DONE'] }, 1, 0] } },
+                  repaired_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'repaired'] }] }, 1, 0] } },
+                  beyond_repair_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'beyond repair'] }] }, 1, 0] } }
+                }
+              }
+            ],
+            data: [
+              { $skip: skip },
+              { $limit: limit }
+            ]
+          }
+        }
       ])
       .toArray();
 
+    const meta = results[0]?.metadata?.[0] || {};
     const counts = {
-      pending_count: 0,
-      progress_count: 0,
-      done_count: 0,
-      repaired_count: 0,
-      beyond_repair_count: 0
+      pending_count: meta.pending_count || 0,
+      progress_count: meta.progress_count || 0,
+      done_count: meta.done_count || 0,
+      repaired_count: meta.repaired_count || 0,
+      beyond_repair_count: meta.beyond_repair_count || 0
     };
+    const total = meta.total || 0;
+    const docs = results[0]?.data || [];
 
-    const rows = requests.map(r => {
+    const rows = docs.map((r: any) => {
       const status = r.status || '';
-      if (status === 'PENDING') counts.pending_count++;
-      else if (status === 'IN_PROGRESS') counts.progress_count++;
-      else if (status === 'DONE') {
-        counts.done_count++;
-        if (r.finished === 'repaired') counts.repaired_count++;
-        else if (r.finished === 'beyond repair') counts.beyond_repair_count++;
-      }
-
       const statusClass = status.toLowerCase().replace(' ', '-');
-      const createdAtStr = r.created_at.toISOString().replace('T', ' ').substring(0, 16);
-      const completedAtStr = r.completed_at ? r.completed_at.toISOString().replace('T', ' ').substring(0, 16) : '-';
+      const createdAtStr = r.created_at ? new Date(r.created_at).toISOString().replace('T', ' ').substring(0, 16) : '-';
+      const completedAtStr = r.completed_at ? new Date(r.completed_at).toISOString().replace('T', ' ').substring(0, 16) : '-';
       const requesterArr = r.requester || [];
       const clientName = requesterArr.length > 0 ? `${requesterArr[0].first_name} ${requesterArr[0].last_name}` : 'Unknown';
 
@@ -359,6 +378,10 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
     res.json({
       counts,
       requests: rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
       dateRange: startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' - ' + 
                 endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     });

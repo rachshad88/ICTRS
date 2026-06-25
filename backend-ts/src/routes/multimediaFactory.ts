@@ -78,6 +78,36 @@ export function createRequestRouter(config: RouteConfig): Router {
     ? upload.single(config.fileFieldName)
     : upload.array(config.fileFieldName, config.maxFiles || 10);
 
+  function getPaginationParams(query: any): { page: number; limit: number; skip: number } {
+    const page = Math.max(1, parseInt(query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 10));
+    return { page, limit, skip: (page - 1) * limit };
+  }
+
+  async function paginatedAggregate(
+    collection: any,
+    pipeline: any[],
+    page: number,
+    limit: number,
+    skip: number
+  ): Promise<{ data: any[]; total: number; page: number; limit: number; totalPages: number }> {
+    const results = await collection.aggregate([
+      ...pipeline,
+      { $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [{ $skip: skip }, { $limit: limit }]
+      }}
+    ]).toArray();
+    const total = results[0]?.metadata?.[0]?.total || 0;
+    return {
+      data: results[0]?.data || [],
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
+  }
+
   function getUploadedFiles(req: any): any {
     if (config.uploadMethod === 'single') {
       return req.file || null;
@@ -206,6 +236,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   router.get('/get_all', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const collection = config.getCollection();
+      const { page, limit, skip } = getPaginationParams(req.query);
       const search = req.query.search as string | undefined;
       let filter: Record<string, any> = {};
 
@@ -215,7 +246,7 @@ export function createRequestRouter(config: RouteConfig): Router {
         filter.$or = config.searchFields.getAll.map(f => ({ [f]: regex }));
       }
 
-      const requests = await collection.aggregate([
+      const pipeline = [
         { $match: filter },
         {
           $lookup: {
@@ -238,9 +269,10 @@ export function createRequestRouter(config: RouteConfig): Router {
           }
         },
         { $sort: { created_at: -1 } }
-      ]).toArray();
+      ];
 
-      res.json({ requests });
+      const result = await paginatedAggregate(collection, pipeline, page, limit, skip);
+      res.json({ requests: result.data, total: result.total, page: result.page, limit: result.limit, totalPages: result.totalPages });
     } catch (error) {
       console.error(`Get all ${config.entity} requests error:`, error);
       res.status(500).json({ error: 'Failed to fetch requests' });
@@ -251,6 +283,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   router.get('/get_unassigned', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const collection = config.getCollection();
+      const { page, limit, skip } = getPaginationParams(req.query);
       const filter: Record<string, any> = config.initialStatus === 'UNASSIGNED'
         ? { status: 'UNASSIGNED' }
         : { status: 'PENDING', assigned_to: null };
@@ -262,7 +295,7 @@ export function createRequestRouter(config: RouteConfig): Router {
         filter.$or = config.searchFields.getUnassigned.map(f => ({ [f]: regex }));
       }
 
-      const requests = await collection.aggregate([
+      const pipeline = [
         { $match: filter },
         {
           $lookup: {
@@ -275,9 +308,10 @@ export function createRequestRouter(config: RouteConfig): Router {
           }
         },
         { $sort: { created_at: -1 } }
-      ]).toArray();
+      ];
 
-      res.json({ requests });
+      const result = await paginatedAggregate(collection, pipeline, page, limit, skip);
+      res.json({ requests: result.data, total: result.total, page: result.page, limit: result.limit, totalPages: result.totalPages });
     } catch (error) {
       console.error(`Get unassigned ${config.entity} requests error:`, error);
       res.status(500).json({ error: 'Failed to fetch requests' });
@@ -352,6 +386,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const collection = config.getCollection();
+      const { page, limit, skip } = getPaginationParams(req.query);
       const userId = new ObjectId(req.user!.user_id);
 
       let filter: Record<string, any> = { assigned_to: userId };
@@ -362,7 +397,7 @@ export function createRequestRouter(config: RouteConfig): Router {
         filter.$or = config.searchFields.myRequests.map(f => ({ [f]: regex }));
       }
 
-      const requests = await collection.aggregate([
+      const pipeline = [
         { $match: filter },
         {
           $lookup: {
@@ -375,9 +410,10 @@ export function createRequestRouter(config: RouteConfig): Router {
           }
         },
         { $sort: { created_at: -1 } }
-      ]).toArray();
+      ];
 
-      res.json({ requests });
+      const result = await paginatedAggregate(collection, pipeline, page, limit, skip);
+      res.json({ requests: result.data, total: result.total, page: result.page, limit: result.limit, totalPages: result.totalPages });
     } catch (error) {
       console.error(`My ${config.entity} requests error:`, error);
       res.status(500).json({ error: 'Failed to fetch requests' });
@@ -446,6 +482,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   router.get('/my_history', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const collection = config.getCollection();
+      const { page, limit, skip } = getPaginationParams(req.query);
       const userId = new ObjectId(req.user!.user_id);
 
       let filter: Record<string, any> = { created_by: userId };
@@ -456,7 +493,7 @@ export function createRequestRouter(config: RouteConfig): Router {
         filter.$or = config.searchFields.myHistory.map(f => ({ [f]: regex }));
       }
 
-      const requests = await collection.aggregate([
+      const pipeline = [
         { $match: filter },
         {
           $lookup: {
@@ -469,9 +506,10 @@ export function createRequestRouter(config: RouteConfig): Router {
           }
         },
         { $sort: { created_at: -1 } }
-      ]).toArray();
+      ];
 
-      res.json({ requests });
+      const result = await paginatedAggregate(collection, pipeline, page, limit, skip);
+      res.json({ requests: result.data, total: result.total, page: result.page, limit: result.limit, totalPages: result.totalPages });
     } catch (error) {
       console.error(`My ${config.entity} history error:`, error);
       res.status(500).json({ error: 'Failed to fetch history' });

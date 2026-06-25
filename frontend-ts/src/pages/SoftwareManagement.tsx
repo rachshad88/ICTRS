@@ -42,6 +42,9 @@ function SoftwareManagement() {
   const [selectedProgrammer, setSelectedProgrammer] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     if (user) {
@@ -51,17 +54,18 @@ function SoftwareManagement() {
 
   const fetchData = useCallback(async (search?: string) => {
     try {
-      const params: Record<string, string> = {};
+      const params: Record<string, string | number> = { page: currentPage, limit: 10 };
       if (search) params.search = search;
       const response = await api.get('/software/get_all', { params });
       setRequests(response.data.requests);
+      setTotal(response.data.total || 0);
       setError('');
     } catch (error) {
       console.error('Failed to fetch software requests:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     if (user) fetchData(searchTerm);
@@ -133,10 +137,7 @@ function SoftwareManagement() {
     }
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 10;
-  const totalPages = Math.ceil(requests.length / ITEMS_PER_PAGE);
-  const paginatedRequests = requests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const getStatusBadge = (status: string) => {
     const cls = status.toLowerCase().replace(/_/g, '-');
@@ -182,7 +183,7 @@ function SoftwareManagement() {
               </tr>
             </thead>
             <tbody>
-              {paginatedRequests.map((req) => (
+              {requests.map((req) => (
                 <tr key={req.request_code}>
                   <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{req.request_code}</td>
                   <td style={{ fontSize: '12px' }}>{req.proposed_title}</td>

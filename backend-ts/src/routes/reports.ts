@@ -132,6 +132,8 @@ async function queryType(
   selectedDate: string,
   showDone: boolean,
   search?: string,
+  page?: number,
+  limit?: number,
 ): Promise<{ reports: Record<string, unknown>[]; total: number }> {
   const config = TYPE_MAP[typeKey]?.();
   if (!config) return { reports: [], total: 0 };
@@ -151,10 +153,17 @@ async function queryType(
     userMap.set(u._id!.toString(), { first_name: u.first_name, last_name: u.last_name });
   });
 
-  const docs = await config.getCollection().find(filter).sort({ created_at: -1 }).toArray();
+  const total = await config.getCollection().countDocuments(filter);
+  const p = page || 1;
+  const l = limit || total || 10;
+  const docs = await config.getCollection().find(filter)
+    .sort({ created_at: -1 })
+    .skip((p - 1) * l)
+    .limit(l)
+    .toArray();
   const reports = docs.map(d => addUserInfo(d as unknown as Record<string, unknown>, userMap));
 
-  return { reports, total: reports.length };
+  return { reports, total };
 }
 
 router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
@@ -172,6 +181,8 @@ router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, re
     const selectedDate = (req.query.date as string) || new Date().toLocaleDateString('en-CA');
     const showDone = req.query.show_done !== '0';
     const search = req.query.search as string | undefined;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
 
     const config = TYPE_MAP[typeKey]?.();
     if (!config || !config.roleAccess.some(r => roles.includes(r))) {
@@ -179,16 +190,17 @@ router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, re
       return;
     }
 
-    const cacheKey = `reports:${typeKey}:${roles.join(',')}:${userId}:${filterType}:${selectedDate}:${showDone}:${search || ''}`;
-    const cached = await getCache<{ reports: Record<string, unknown>[]; total: number }>(cacheKey);
+    const cacheKey = `reports:${typeKey}:${roles.join(',')}:${userId}:${filterType}:${selectedDate}:${showDone}:${search || ''}:${page}:${limit}`;
+    const cached = await getCache<{ reports: Record<string, unknown>[]; total: number; page: number; limit: number; totalPages: number }>(cacheKey);
     if (cached) {
       res.json(cached);
       return;
     }
 
-    const result = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search);
-    await setCache(cacheKey, result, 60);
-    res.json(result);
+    const result = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search, page, limit);
+    const response = { ...result, page, limit, totalPages: Math.ceil(result.total / limit) };
+    await setCache(cacheKey, response, 60);
+    res.json(response);
   } catch (error) {
     console.error('Get reports error:', error);
     res.status(500).json({ error: 'Failed to get reports' });

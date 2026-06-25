@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { initSocket, getSocket } from '../services/socket';
@@ -32,7 +32,23 @@ function DigitalMediaRequestsDashboard() {
   const [remarks, setRemarks] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
+
+  const fetchRequests = useCallback(async (search?: string) => {
+    try {
+      const params: Record<string, string | number> = {};
+      if (search) params.search = search;
+      params.page = currentPage;
+      params.limit = 10;
+      const response = await api.get('/digitalmedia/my_requests', { params });
+      setRequests(response.data.requests);
+      setTotal(response.data.total || 0);
+      setError('');
+    } catch (error) {
+      console.error('Failed to fetch requests:', error);
+    } finally { setLoading(false); }
+  }, [currentPage]);
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
@@ -49,7 +65,7 @@ function DigitalMediaRequestsDashboard() {
     if (user) {
       fetchRequests(searchTerm);
     }
-  }, [user, searchTerm]);
+  }, [user, searchTerm, fetchRequests]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -65,18 +81,6 @@ function DigitalMediaRequestsDashboard() {
     };
   }, [user]);
 
-  const fetchRequests = async (search?: string) => {
-    try {
-      const params: Record<string, string> = {};
-      if (search) params.search = search;
-      const response = await api.get('/digitalmedia/my_requests', { params });
-      setRequests(response.data.requests);
-      setError('');
-    } catch (error) {
-      console.error('Failed to fetch requests:', error);
-    } finally { setLoading(false); }
-  };
-
   const handleCompleteRequest = async () => {
     if (!selectedRequest) return;
     try {
@@ -87,8 +91,7 @@ function DigitalMediaRequestsDashboard() {
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const ITEMS_PER_PAGE = 10;
-  const totalPages = Math.ceil(requests.length / ITEMS_PER_PAGE);
-  const paginatedRequests = requests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   return (
     <div className="history-page">
@@ -104,7 +107,7 @@ function DigitalMediaRequestsDashboard() {
 
       {loading ? (
         <Skeleton variant="table" rows={5} />
-      ) : paginatedRequests.length === 0 ? (
+      ) : requests.length === 0 ? (
         <div className="history-empty">No assigned digital media requests</div>
       ) : (
         <div className="history-table-wrap">
@@ -122,7 +125,7 @@ function DigitalMediaRequestsDashboard() {
               </tr>
             </thead>
             <tbody>
-              {paginatedRequests.map((request) => (
+              {requests.map((request) => (
                 <tr key={request._id}>
                   <td>
                     <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>

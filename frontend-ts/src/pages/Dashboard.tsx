@@ -50,6 +50,7 @@ function Dashboard() {
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [total, setTotal] = useState(0);
 
   useEffect(() => { setCurrentPage(1); }, [filterType, selectedDate, showDone, searchTerm]);
 
@@ -58,18 +59,19 @@ function Dashboard() {
 
   const fetchData = useCallback(async (search?: string) => {
     try {
-      const params: Record<string, string | number> = { filter: filterType, date: selectedDate, show_done: showDone };
+      const params: Record<string, string | number> = { filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: 10 };
       if (search) params.search = search;
       const response = await api.get('/requests/get_dashboard', { params });
       setRequests(response.data.requests);
       setCounts(response.data.counts);
+      setTotal(response.data.total || 0);
       setError('');
     } catch (error) {
       console.error('Failed to fetch dashboard:', error);
     } finally {
       setLoading(false);
     }
-  }, [filterType, selectedDate, showDone]);
+  }, [filterType, selectedDate, showDone, currentPage]);
 
   useEffect(() => {
     if (user) {
@@ -127,8 +129,7 @@ function Dashboard() {
   };
 
   const ITEMS_PER_PAGE = 10;
-  const totalPages = Math.ceil(requests.length / ITEMS_PER_PAGE);
-  const paginatedRequests = requests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const getActionButtons = (req: Request) => {
     if (req.status === 'CANCELLED') {
@@ -213,7 +214,7 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {paginatedRequests.map((req) => (
+              {requests.map((req) => (
                 <tr key={req.request_code}>
                   <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{req.request_code}</td>
                   <td style={{ fontSize: '12px' }}>{req.office}</td>

@@ -31,17 +31,23 @@ function ProgrammerDashboard() {
     }
   }, [user]);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => { setCurrentPage(1); }, []);
+
   const fetchData = useCallback(async () => {
     try {
-      const response = await api.get('/software/get_assigned');
+      const response = await api.get('/software/get_assigned', { params: { page: currentPage, limit: 10 } });
       setRequests(response.data.requests);
+      setTotal(response.data.total || 0);
       setError('');
     } catch (error) {
       console.error('Failed to fetch assigned requests:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     if (user) fetchData();
@@ -149,6 +155,16 @@ function ProgrammerDashboard() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {total > 10 && (
+        <div className="history-pagination">
+          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
+          {Array.from({ length: Math.ceil(total / 10) }, (_, i) => i + 1).map(page => (
+            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
+          ))}
+          <button className="hbtn-page" disabled={currentPage === Math.ceil(total / 10)} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
         </div>
       )}
     </div>

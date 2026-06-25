@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
 import { useAuth } from '../contexts/AuthContext';
@@ -150,31 +150,35 @@ function Reports() {
   const [reports, setReports] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
 
   const columns = COLUMNS[activeTab];
 
   useEffect(() => { setCurrentPage(1); }, [filterType, selectedDate, showDone, searchTerm, activeTab]);
 
-  const fetchReports = async (search?: string) => {
+  const ITEMS_PER_PAGE = 10;
+
+  const fetchReports = useCallback(async (search?: string) => {
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { type: activeTab, filter: filterType, date: selectedDate, show_done: showDone };
+      const params: Record<string, string | number> = { type: activeTab, filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: ITEMS_PER_PAGE };
       if (search) params.search = search;
       const response = await api.get('/reports/get_reports', { params });
       setReports(response.data.reports);
+      setTotal(response.data.total || 0);
     } catch (error) {
       console.error('Failed to fetch reports:', error);
       setReports([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, filterType, selectedDate, showDone, activeTab, currentPage]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchReports(searchTerm), 300);
     return () => clearTimeout(timer);
-  }, [searchTerm, filterType, selectedDate, showDone, activeTab]);
+  }, [searchTerm, filterType, selectedDate, showDone, activeTab, currentPage, fetchReports]);
 
   const exportToExcel = () => {
     window.location.href = `/api/reports/export_excel?type=${activeTab}&filter=${filterType}&date=${selectedDate}&show_done=${showDone}`;
@@ -191,9 +195,7 @@ function Reports() {
     );
   };
 
-  const ITEMS_PER_PAGE = 10;
-  const totalPages = Math.ceil(reports.length / ITEMS_PER_PAGE);
-  const paginatedReports = reports.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   return (
     <div className="page-wrap">
@@ -260,7 +262,7 @@ function Reports() {
               </tr>
             </thead>
             <tbody>
-              {paginatedReports.map((report, idx) => (
+              {reports.map((report, idx) => (
                 <tr key={report.request_code as string || idx}>
                   {columns.map(col => (
                     <td key={col.key} style={col.key === 'request_code' ? { color: 'var(--text-secondary)', fontSize: '12px' } : { fontSize: '12px' }}>

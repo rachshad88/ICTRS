@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import FileViewer from './FileViewer';
 import Skeleton from './Skeleton';
@@ -63,28 +63,30 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
-  const fetchRequests = async (search?: string) => {
+  const fetchRequests = useCallback(async (search?: string) => {
     try {
-      const params: Record<string, string> = {};
+      const params: Record<string, string | number> = { page: currentPage, limit: ITEMS_PER_PAGE };
       if (search) params.search = search;
       const response = await api.get(config.fetchEndpoint, { params });
       setRequests(response.data.requests);
+      setTotal(response.data.total || 0);
       setError('');
     } catch (error) {
       console.error(`Failed to fetch ${config.title.toLowerCase()}:`, error);
     } finally { setLoading(false); }
-  };
+  }, [currentPage, config.fetchEndpoint]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchRequests(searchTerm || undefined), 300);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, fetchRequests]);
 
   const handleCancel = async (requestId: string) => {
     if (!window.confirm('Are you sure you want to cancel this request?')) return;
@@ -101,8 +103,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
     window.location.href = config.exportEndpoint;
   };
 
-  const totalPages = Math.ceil(requests.length / ITEMS_PER_PAGE);
-  const paginatedRequests = requests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const defaultRender = (row: any, col: ColumnDef) => {
     if (col.render) return col.render(row);
@@ -153,7 +154,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                 </tr>
               </thead>
               <tbody>
-                {paginatedRequests.map((request) => (
+                {requests.map((request) => (
                   <tr key={request._id}>
                     <td>{renderStatusBadge(request.status)}</td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{request.request_code}</td>

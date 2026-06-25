@@ -145,7 +145,11 @@ router.get('/get_pending', isAuthenticated, async (req: AuthenticatedRequest, re
     }
 
     const collection = getSoftwareRequestsCollection();
-    const requests = await collection.aggregate([
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const skip = (page - 1) * limit;
+
+    const pipeline = [
       { $match: { status: 'PENDING' } },
       {
         $lookup: {
@@ -158,9 +162,20 @@ router.get('/get_pending', isAuthenticated, async (req: AuthenticatedRequest, re
         }
       },
       { $sort: { created_at: -1 } }
+    ];
+
+    const results = await collection.aggregate([
+      ...pipeline,
+      { $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [{ $skip: skip }, { $limit: limit }]
+      }}
     ]).toArray();
 
-    res.json({ requests });
+    const total = results[0]?.metadata?.[0]?.total || 0;
+    const requests = results[0]?.data || [];
+
+    res.json({ requests, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     console.error('Get pending software requests error:', error);
     res.status(500).json({ error: 'Failed to fetch requests' });
@@ -174,6 +189,9 @@ router.get('/get_all', isAuthenticated, async (req: AuthenticatedRequest, res: R
     }
 
     const collection = getSoftwareRequestsCollection();
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const skip = (page - 1) * limit;
     const search = req.query.search as string | undefined;
     let filter: Record<string, any> = {};
 
@@ -188,7 +206,7 @@ router.get('/get_all', isAuthenticated, async (req: AuthenticatedRequest, res: R
       ];
     }
 
-    const requests = await collection.aggregate([
+    const pipeline = [
       { $match: filter },
       {
         $lookup: {
@@ -211,9 +229,20 @@ router.get('/get_all', isAuthenticated, async (req: AuthenticatedRequest, res: R
         }
       },
       { $sort: { created_at: -1 } }
+    ];
+
+    const results = await collection.aggregate([
+      ...pipeline,
+      { $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [{ $skip: skip }, { $limit: limit }]
+      }}
     ]).toArray();
 
-    res.json({ requests });
+    const total = results[0]?.metadata?.[0]?.total || 0;
+    const requests = results[0]?.data || [];
+
+    res.json({ requests, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     console.error('Get all software requests error:', error);
     res.status(500).json({ error: 'Failed to fetch requests' });
@@ -315,7 +344,11 @@ router.get('/get_assigned', isAuthenticated, async (req: AuthenticatedRequest, r
     }
 
     const collection = getSoftwareRequestsCollection();
-    const requests = await collection.aggregate([
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const skip = (page - 1) * limit;
+
+    const pipeline = [
       { $match: { assigned_to: new ObjectId(userId), status: { $in: ['ASSIGNED', 'IN_PROGRESS'] } } },
       {
         $lookup: {
@@ -328,9 +361,20 @@ router.get('/get_assigned', isAuthenticated, async (req: AuthenticatedRequest, r
         }
       },
       { $sort: { created_at: -1 } }
+    ];
+
+    const results = await collection.aggregate([
+      ...pipeline,
+      { $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [{ $skip: skip }, { $limit: limit }]
+      }}
     ]).toArray();
 
-    res.json({ requests });
+    const total = results[0]?.metadata?.[0]?.total || 0;
+    const requests = results[0]?.data || [];
+
+    res.json({ requests, total, page, limit, totalPages: Math.ceil(total / limit) });
   } catch (error) {
     console.error('Get assigned software requests error:', error);
     res.status(500).json({ error: 'Failed to fetch requests' });

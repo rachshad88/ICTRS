@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { initSocket, getSocket } from '../services/socket';
@@ -42,36 +42,46 @@ function DigitalMediaManagement() {
   const [activeTab, setActiveTab] = useState<'unassigned' | 'all'>('unassigned');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [totalUnassigned, setTotalUnassigned] = useState(0);
+  const [totalAll, setTotalAll] = useState(0);
+
+  const ITEMS_PER_PAGE = 10;
 
   useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm]);
 
   const searchTermRef = useRef(searchTerm);
   useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
 
-  const fetchData = async (search?: string) => {
+  const fetchData = useCallback(async (search?: string) => {
     try {
-      const unassignedParams: Record<string, string> = {};
-      const allParams: Record<string, string> = {};
+      const unassignedParams: Record<string, string | number> = {};
+      const allParams: Record<string, string | number> = {};
       if (search) { unassignedParams.search = search; allParams.search = search; }
+      unassignedParams.page = activeTab === 'unassigned' ? currentPage : 1;
+      unassignedParams.limit = ITEMS_PER_PAGE;
+      allParams.page = activeTab === 'all' ? currentPage : 1;
+      allParams.limit = ITEMS_PER_PAGE;
       const [unassignedRes, allRes, techniciansRes] = await Promise.all([
         api.get('/digitalmedia/get_unassigned', { params: unassignedParams }),
         api.get('/digitalmedia/get_all', { params: allParams }),
         api.get('/digitalmedia/get_technicians')
       ]);
       setRequests(unassignedRes.data.requests);
+      setTotalUnassigned(unassignedRes.data.total || 0);
       setAllRequests(allRes.data.requests);
+      setTotalAll(allRes.data.total || 0);
       setTechnicians(techniciansRes.data.technicians);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab, currentPage]);
 
   useEffect(() => {
     const timer = setTimeout(() => fetchData(searchTerm), 300);
     return () => clearTimeout(timer);
-  }, [searchTerm]);
+  }, [searchTerm, fetchData]);
 
   useEffect(() => {
     if (user) {
@@ -95,7 +105,7 @@ function DigitalMediaManagement() {
       socket.off('digital_media_request_completed', handler);
       socket.off('digital_media_request_cancelled', handler);
     };
-  }, [user]);
+  }, [user, fetchData]);
 
   const handleAssign = async () => {
     if (!selectedRequest || !selectedTechnician) {
@@ -119,9 +129,8 @@ function DigitalMediaManagement() {
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   const displayRequests = activeTab === 'unassigned' ? requests : allRequests;
-  const ITEMS_PER_PAGE = 10;
-  const totalPages = Math.ceil(displayRequests.length / ITEMS_PER_PAGE);
-  const paginatedRequests = displayRequests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalItems = activeTab === 'unassigned' ? totalUnassigned : totalAll;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
   return (
     <div className="history-page">
@@ -131,10 +140,10 @@ function DigitalMediaManagement() {
 
       <div className="mgmt-tabs">
         <button className={`mgmt-tab ${activeTab === 'unassigned' ? 'active' : ''}`} onClick={() => setActiveTab('unassigned')}>
-          Unassigned ({requests.length})
+          Unassigned ({totalUnassigned})
         </button>
         <button className={`mgmt-tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
-          All ({allRequests.length})
+          All ({totalAll})
         </button>
       </div>
 
@@ -168,7 +177,7 @@ function DigitalMediaManagement() {
               </tr>
             </thead>
             <tbody>
-              {paginatedRequests.map((request) => (
+              {displayRequests.map((request) => (
                 <tr key={request._id}>
                   <td>
                     <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
