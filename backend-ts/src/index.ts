@@ -4,7 +4,6 @@ import session from 'express-session';
 import MongoStore from 'connect-mongo';
 import cors from 'cors';
 import { createServer } from 'http';
-import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { ObjectId } from 'mongodb';
 import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection } from './config/database';
@@ -68,22 +67,6 @@ app.use(session({
   }
 }));
 
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { error: 'Too many requests, please try again later' },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  message: { error: 'Too many login attempts, please try again later' },
-  standardHeaders: true,
-  legacyHeaders: false
-});
-
 const connectedUsers = new Map<string, string>();
 const userRoles = new Map<string, string[]>();
 
@@ -139,8 +122,7 @@ app.use('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date() });
 });
 
-app.use(globalLimiter);
-app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
