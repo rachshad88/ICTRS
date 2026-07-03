@@ -47,6 +47,7 @@ function SoftwareRequest() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     setError('');
     setSuccess('');
     setLiveUpdate('');
@@ -81,7 +82,7 @@ function SoftwareRequest() {
       const err = error as { response?: { data?: { error?: string; message?: string } } };
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to submit request');
     } finally {
-      setSubmitting(false);
+      setTimeout(() => setSubmitting(false), 5000);
     }
   };
 

@@ -28,7 +28,12 @@ function MultimediaRequest() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'contact_number') {
+      const numericValue = value.replace(/\D/g, '').slice(0, 11);
+      setFormData(prev => ({ ...prev, [name]: numericValue }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,12 +60,18 @@ function MultimediaRequest() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    if (!formData.event_title.trim() || !formData.specific_location.trim()) {
+      setMessage('Please fill in all required fields');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setMessage('');
 
     try {
       const submitData = new FormData();
-      submitData.append('event_title', formData.event_title);
+      submitData.append('event_title', formData.event_title.trim());
       submitData.append('event_date', formData.event_date);
       submitData.append('event_start_time', formData.event_start_time);
       submitData.append('event_end_time', formData.event_end_time);
@@ -86,7 +97,7 @@ function MultimediaRequest() {
       const err = error as { response?: { data?: { error?: string } } };
       setMessage(err.response?.data?.error || 'Failed to submit request');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 5000);
     }
   };
 
@@ -111,6 +122,7 @@ function MultimediaRequest() {
               value={formData.event_title}
               onChange={handleInputChange}
               required
+              maxLength={100}
               placeholder="e.g., Annual Conference 2026"
             />
           </div>
@@ -159,7 +171,8 @@ function MultimediaRequest() {
                 value={formData.contact_number}
                 onChange={handleInputChange}
                 required
-                placeholder="e.g., 09XXX-XXX-XXXX"
+                maxLength={11}
+                placeholder="e.g., 09XXXXXXXXX"
               />
             </div>
             
@@ -187,6 +200,7 @@ function MultimediaRequest() {
               onChange={handleInputChange}
               required
               rows={3}
+              maxLength={100}
               placeholder="e.g., Conference Hall, 2nd Floor, LGU Building"
             />
           </div>

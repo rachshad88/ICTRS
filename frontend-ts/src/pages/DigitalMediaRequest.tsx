@@ -29,6 +29,11 @@ function DigitalMediaRequest() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    if (name === 'requestor_contact') {
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
+      setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -56,6 +61,12 @@ function DigitalMediaRequest() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    if (!formData.digital_media_description.trim() || !formData.event_ppa_name.trim() || !formData.requestor_name.trim()) {
+      setMessage('Please fill in all required fields');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setMessage('');
 
@@ -90,7 +101,7 @@ function DigitalMediaRequest() {
       const err = error as { response?: { data?: { error?: string } } };
       setMessage(err.response?.data?.error || 'Failed to submit request');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 5000);
     }
   };
 
@@ -147,6 +158,7 @@ function DigitalMediaRequest() {
               onChange={handleInputChange}
               required
               rows={4}
+              maxLength={100}
               placeholder="Briefly describe the type of digital media you are requesting (e.g., social media post, infographic, poster, teaser video, etc.). Include specific details or key messages if available."
             />
           </div>
@@ -159,6 +171,7 @@ function DigitalMediaRequest() {
               value={formData.event_ppa_name}
               onChange={handleInputChange}
               required
+              maxLength={100}
               placeholder="Enter the official name of the event or Program, Project, or Activity (PPA)"
             />
           </div>
@@ -190,26 +203,28 @@ function DigitalMediaRequest() {
           <div className="form-row">
             <div className="form-group">
               <label>Name of Requestor *</label>
-              <input
-                type="text"
-                name="requestor_name"
-                value={formData.requestor_name}
-                onChange={handleInputChange}
-                required
-                placeholder="The name provided shall serve as the official requestor"
-              />
+            <input
+              type="text"
+              name="requestor_name"
+              value={formData.requestor_name}
+              onChange={handleInputChange}
+              required
+              maxLength={30}
+              placeholder="The name provided shall serve as the official requestor"
+            />
             </div>
 
             <div className="form-group">
               <label>Contact Number of the Requestor *</label>
-              <input
-                type="tel"
-                name="requestor_contact"
-                value={formData.requestor_contact}
-                onChange={handleInputChange}
-                required
-                placeholder="Mangyaring magbigay ng mobile o landline number"
-              />
+            <input
+              type="tel"
+              name="requestor_contact"
+              value={formData.requestor_contact}
+              onChange={handleInputChange}
+              required
+              maxLength={11}
+              placeholder="Mangyaring magbigay ng mobile o landline number"
+            />
             </div>
           </div>
 

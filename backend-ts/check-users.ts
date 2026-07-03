@@ -14,9 +14,9 @@ async function checkUsers() {
   const allUsers = await users.find({}).toArray();
   allUsers.forEach(user => {
     console.log(`\nUsername: ${user.username}`);
-    console.log(`Password hash: ${user.password}`);
     console.log(`Role: ${user.role}`);
     console.log(`First name: ${user.first_name}`);
+    console.log(`Office: ${user.office}`);
   });
 
   await client.close();

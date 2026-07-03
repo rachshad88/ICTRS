@@ -14,6 +14,12 @@ function Request() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    if (!issue.trim()) {
+      setMessage('Please fill in all required fields');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setMessage('');
 
@@ -22,7 +28,7 @@ function Request() {
         office: user?.office,
         unit,
         semester,
-        issue
+        issue: issue.trim()
       });
 
       if (response.data.status === 'success') {
@@ -34,7 +40,7 @@ function Request() {
     } catch (error) {
       setMessage('Failed to submit request. Please try again.');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 5000);
     }
   };
 
@@ -90,6 +96,7 @@ function Request() {
               onChange={(e) => setIssue(e.target.value)}
               required
               rows={4}
+              maxLength={100}
             />
           </div>
           

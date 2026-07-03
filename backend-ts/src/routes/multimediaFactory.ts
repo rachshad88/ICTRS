@@ -9,6 +9,7 @@ import { assignMultimediaSchema, completeMultimediaSchema } from '../middleware/
 import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId } from '../config/database';
 import { getIO } from '../config/socket';
 import * as XLSX from 'xlsx';
+import { validateFileMagicBytes } from '../utils/fileValidation';
 
 interface ColumnDef {
   header: string;
@@ -174,6 +175,27 @@ export function createRequestRouter(config: RouteConfig): Router {
 
         try {
           const fileData = getUploadedFiles(req);
+
+          if (fileData) {
+            if (config.uploadMethod === 'single') {
+              const f = fileData as Express.Multer.File;
+              if (!validateFileMagicBytes(f.path, f.mimetype)) {
+                try { fs.unlinkSync(f.path); } catch {}
+                return res.status(400).json({ status: 'error', message: `File ${f.originalname} content does not match its declared type` });
+              }
+            } else {
+              const files = fileData as Express.Multer.File[];
+              for (const f of files) {
+                if (!validateFileMagicBytes(f.path, f.mimetype)) {
+                  for (const f2 of files) {
+                    try { fs.unlinkSync(f2.path); } catch {}
+                  }
+                  return res.status(400).json({ status: 'error', message: `File ${f.originalname} content does not match its declared type` });
+                }
+              }
+            }
+          }
+
           const storedFile = config.uploadMethod === 'single'
             ? (fileData ? fileData.filename : null)
             : ((fileData as Express.Multer.File[]).length > 0 ? (fileData as Express.Multer.File[]).map(f => f.filename) : []);

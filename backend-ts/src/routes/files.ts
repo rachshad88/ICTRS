@@ -7,7 +7,10 @@ import { getMultimediaRequestsCollection, getDigitalMediaRequestsCollection, get
 
 const router = Router();
 
-const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'];
+const allowedExtensions = [
+  '.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx',
+  '.pptx', '.mp4', '.webm', '.ps', '.eps', '.psd', '.tif', '.tiff'
+];
 
 function getMimeType(ext: string): string {
   const mimeTypes: Record<string, string> = {
@@ -16,13 +19,26 @@ function getMimeType(ext: string): string {
     '.jpeg': 'image/jpeg',
     '.png': 'image/png',
     '.doc': 'application/msword',
-    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.ps': 'application/postscript',
+    '.eps': 'application/postscript',
+    '.psd': 'image/vnd.adobe.photoshop',
+    '.tif': 'image/tiff',
+    '.tiff': 'image/tiff'
   };
   return mimeTypes[ext.toLowerCase()] || 'application/octet-stream';
 }
 
 function isImageFile(ext: string): boolean {
-  return ['.jpg', '.jpeg', '.png'].includes(ext.toLowerCase());
+  return ['.jpg', '.jpeg', '.png', '.psd', '.tif', '.tiff'].includes(ext.toLowerCase());
+}
+
+function isInlineFile(ext: string): boolean {
+  const inline = ext.toLowerCase();
+  return isImageFile(inline) || inline === '.pdf' || inline === '.mp4' || inline === '.webm';
 }
 
 async function verifyAccess(requestId: string, userId: string, userRoles: string[], collection: 'multimedia' | 'digitalmedia' | 'printmaterials'): Promise<boolean> {
@@ -93,7 +109,7 @@ router.get('/multimedia/:requestId/:filename', isAuthenticated, async (req: Auth
     const fileName = Buffer.from(safeFilename, 'latin1').toString('utf8');
 
     res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', isImageFile(ext) || ext === '.pdf' 
+    res.setHeader('Content-Disposition', isInlineFile(ext)
       ? `inline; filename="${fileName}"` 
       : `attachment; filename="${fileName}"`);
     
@@ -139,7 +155,7 @@ router.get('/digitalmedia/:requestId/:filename', isAuthenticated, async (req: Au
     const fileName = Buffer.from(safeFilename, 'latin1').toString('utf8');
 
     res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', isImageFile(ext) || ext === '.pdf' 
+    res.setHeader('Content-Disposition', isInlineFile(ext)
       ? `inline; filename="${fileName}"` 
       : `attachment; filename="${fileName}"`);
     
@@ -185,7 +201,7 @@ router.get('/printmaterials/:requestId/:filename', isAuthenticated, async (req: 
     const fileName = Buffer.from(safeFilename, 'latin1').toString('utf8');
 
     res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', isImageFile(ext) || ext === '.pdf' 
+    res.setHeader('Content-Disposition', isInlineFile(ext)
       ? `inline; filename="${fileName}"` 
       : `attachment; filename="${fileName}"`);
     
@@ -240,7 +256,7 @@ router.get('/software/:requestId/:filename', isAuthenticated, async (req: Authen
     const fileName = Buffer.from(safeFilename, 'latin1').toString('utf8');
 
     res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', isImageFile(ext) || ext === '.pdf' 
+    res.setHeader('Content-Disposition', isInlineFile(ext)
       ? `inline; filename="${fileName}"` 
       : `attachment; filename="${fileName}"`);
 

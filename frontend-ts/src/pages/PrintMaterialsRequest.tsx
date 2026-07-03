@@ -28,6 +28,11 @@ function PrintMaterialsRequest() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    if (name === 'requestor_contact') {
+      const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
+      setFormData(prev => ({ ...prev, [name]: digitsOnly }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -55,6 +60,12 @@ function PrintMaterialsRequest() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
+    if (!formData.size_of_printed_media.trim() || !formData.printed_media_description.trim() || !formData.event_ppa_name.trim() || !formData.requestor_name.trim()) {
+      setMessage('Please fill in all required fields');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setMessage('');
 
@@ -89,7 +100,7 @@ function PrintMaterialsRequest() {
       const err = error as { response?: { data?: { error?: string } } };
       setMessage(err.response?.data?.error || 'Failed to submit request');
     } finally {
-      setLoading(false);
+      setTimeout(() => setLoading(false), 5000);
     }
   };
 
@@ -133,6 +144,7 @@ function PrintMaterialsRequest() {
               value={formData.size_of_printed_media}
               onChange={handleInputChange}
               required
+              maxLength={20}
               placeholder="e.g., 2ft x 3ft, A4, 5ft x 7ft, etc."
             />
           </div>
@@ -145,6 +157,7 @@ function PrintMaterialsRequest() {
               onChange={handleInputChange}
               required
               rows={4}
+              maxLength={100}
               placeholder="Provide a short description of the content, purpose, or layout of the material (e.g., for event backdrop, with official logos, program title, etc.)"
             />
           </div>
@@ -157,6 +170,7 @@ function PrintMaterialsRequest() {
               value={formData.event_ppa_name}
               onChange={handleInputChange}
               required
+              maxLength={100}
               placeholder="State the official name of the event or Program, Project, or Activity (PPA)"
             />
           </div>
@@ -188,26 +202,28 @@ function PrintMaterialsRequest() {
           <div className="form-row">
             <div className="form-group">
               <label>Name of Requestor *</label>
-              <input
-                type="text"
-                name="requestor_name"
-                value={formData.requestor_name}
-                onChange={handleInputChange}
-                required
-                placeholder="The name provided shall serve as the official requestor"
-              />
+            <input
+              type="text"
+              name="requestor_name"
+              value={formData.requestor_name}
+              onChange={handleInputChange}
+              required
+              maxLength={20}
+              placeholder="The name provided shall serve as the official requestor"
+            />
             </div>
 
             <div className="form-group">
               <label>Contact Number of Requestor *</label>
-              <input
-                type="tel"
-                name="requestor_contact"
-                value={formData.requestor_contact}
-                onChange={handleInputChange}
-                required
-                placeholder="Please provide a mobile or landline number"
-              />
+            <input
+              type="tel"
+              name="requestor_contact"
+              value={formData.requestor_contact}
+              onChange={handleInputChange}
+              required
+              maxLength={11}
+              placeholder="Please provide a mobile or landline number"
+            />
             </div>
           </div>
 

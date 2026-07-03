@@ -203,7 +203,7 @@ function Requested() {
                       <td className="date-cell">{formatDate(req.created_at)}</td>
                       <td className="date-cell">{formatDate(req.completed_at)}</td>
                       <td>
-                        {req.status === 'PENDING' && !isAssigned && user?.role === 'CLIENT' && (
+                        {req.status === 'PENDING' && user?.roles?.includes('CLIENT') && (
                           <button 
                             onClick={() => handleCancel(req._id)}
                             className="btn btn-sm btn-cancel"
