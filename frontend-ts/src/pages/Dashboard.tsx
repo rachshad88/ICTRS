@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { initSocket, getSocket } from '../services/socket';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
+import AnimatedNumber from '../components/AnimatedNumber';
+import { staggerContainer, staggerItem } from '../lib/motion';
 
 interface Request {
   _id: string;
@@ -142,7 +146,7 @@ function Dashboard() {
       return <button className="hbtn hbtn-view" onClick={() => openFinishModal(req)}>Mark Done</button>;
     }
     if (req.status === 'PENDING' && !req.assigned_to) {
-      return <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Pending</span>;
+      return <span className="td-code">Pending</span>;
     }
     return null;
   };
@@ -173,78 +177,83 @@ function Dashboard() {
         </label>
       </div>
 
-      <div className="stat-row">
-        <div className="stat-card-sm">
-          <h4>Pending</h4>
-          <p className="stat-num">{counts.pending_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>In Progress</h4>
-          <p className="stat-num">{counts.progress_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Done</h4>
-          <p className="stat-num">{counts.done_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Repaired</h4>
-          <p className="stat-num">{counts.repaired_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Beyond Repair</h4>
-          <p className="stat-num">{counts.beyond_repair_count}</p>
-        </div>
-      </div>
+      <motion.div className="stats-container" variants={staggerContainer} initial="hidden" animate="visible">
+        <motion.div className="stat-card" variants={staggerItem}>
+          <div className="stat-label">Pending Requests</div>
+          <div className="stat-number"><AnimatedNumber value={counts.pending_count} /></div>
+          <p className="stat-note">Requests awaiting technician assignment.</p>
+        </motion.div>
+        <motion.div className="stat-card" variants={staggerItem}>
+          <div className="stat-label">In Progress</div>
+          <div className="stat-number"><AnimatedNumber value={counts.progress_count} /></div>
+          <p className="stat-note">Requests currently being serviced.</p>
+        </motion.div>
+        <motion.div className="stat-card" variants={staggerItem}>
+          <div className="stat-label">Completed</div>
+          <div className="stat-number"><AnimatedNumber value={counts.done_count} /></div>
+          <p className="stat-note">Requests finished this period.</p>
+        </motion.div>
+        <motion.div className="stat-card" variants={staggerItem}>
+          <div className="stat-label">Repaired</div>
+          <div className="stat-number"><AnimatedNumber value={counts.repaired_count} /></div>
+          <p className="stat-note">Equipment successfully repaired.</p>
+        </motion.div>
+        <motion.div className="stat-card" variants={staggerItem}>
+          <div className="stat-label">Beyond Repair</div>
+          <div className="stat-number"><AnimatedNumber value={counts.beyond_repair_count} /></div>
+          <p className="stat-note">Requests requiring escalation.</p>
+        </motion.div>
+      </motion.div>
 
       {loading ? (
         <Skeleton variant="table" rows={5} />
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Office</th>
-                <th>Requested By</th>
-                <th>Issue</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Completed</th>
-                <th className="col-actions">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((req) => (
-                <tr key={req.request_code}>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{req.request_code}</td>
-                  <td style={{ fontSize: '12px' }}>{req.office}</td>
-                  <td style={{ fontSize: '12px' }}>{req.client_name}</td>
-                  <td>{req.issue}</td>
-                  <td>
-                    <span className={`hstatus ${req.statusClass}`}>
-                      <span className={`hstatus-dot ${req.statusClass}`} />
-                      {req.status}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '12px' }}>{req.created_at}</td>
-                  <td style={{ fontSize: '12px' }}>{req.completed_at}</td>
-                  <td className="col-actions">{getActionButtons(req)}</td>
+        <>
+          <div className="history-table-wrap">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Office</th>
+                  <th>Requested By</th>
+                  <th>Issue</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Completed</th>
+                  <th className="col-actions">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {requests.map((req) => (
+                  <motion.tr
+                    key={req.request_code}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <td className="td-code">{req.request_code}</td>
+                    <td className="td-cell">{req.office}</td>
+                    <td className="td-cell">{req.client_name}</td>
+                    <td>{req.issue}</td>
+                    <td>
+                      <span className={`hstatus ${req.statusClass}`}>
+                        <span className={`hstatus-dot ${req.statusClass}`} />
+                        {req.status}
+                      </span>
+                    </td>
+                    <td className="td-cell">{req.created_at}</td>
+                    <td className="td-cell">{req.completed_at}</td>
+                    <td className="col-actions">{getActionButtons(req)}</td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {requests.length === 0 && <div className="history-empty">No requests match the current filter. Try broadening search criteria.</div>}
+        </>
       )}
 
-      {totalPages > 1 && (
-        <div className="history-pagination">
-          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
-          <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {showModal && (
         <div className="modal">

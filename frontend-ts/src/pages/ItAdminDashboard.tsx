@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import { initSocket, getSocket } from '../services/socket';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
 
 interface Request {
   _id: string;
@@ -148,7 +149,7 @@ function ItAdminDashboard() {
       return <button className="hbtn hbtn-assign" onClick={() => openAssignModal(req)}>Assign</button>;
     }
     if (req.status === 'IN_PROGRESS') {
-      return <span className="hstatus progress"><span className="hstatus-dot progress" />In Progress</span>;
+      return <span className="hstatus in-progress"><span className="hstatus-dot in-progress" />In Progress</span>;
     }
     return null;
   };
@@ -222,9 +223,9 @@ function ItAdminDashboard() {
             <tbody>
               {requests.map((req) => (
                 <tr key={req.request_code}>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{req.request_code}</td>
-                  <td style={{ fontSize: '12px' }}>{req.office}</td>
-                  <td style={{ fontSize: '12px' }}>{req.client_name}</td>
+                  <td className="td-code">{req.request_code}</td>
+                  <td className="td-cell">{req.office}</td>
+                  <td className="td-cell">{req.client_name}</td>
                   <td>{req.issue}</td>
                   <td>
                     <span className={`hstatus ${req.statusClass}`}>
@@ -232,8 +233,8 @@ function ItAdminDashboard() {
                       {req.status}
                     </span>
                   </td>
-                  <td style={{ fontSize: '12px' }}>{req.created_at}</td>
-                  <td style={{ fontSize: '12px' }}>{req.completed_at}</td>
+                  <td className="td-cell">{req.created_at}</td>
+                  <td className="td-cell">{req.completed_at}</td>
                   <td className="col-actions">{getActionButtons(req)}</td>
                 </tr>
               ))}
@@ -242,15 +243,7 @@ function ItAdminDashboard() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="history-pagination">
-          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
-          <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {showAssignModal && (
         <div className="modal">

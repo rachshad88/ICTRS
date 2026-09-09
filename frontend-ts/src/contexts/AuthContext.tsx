@@ -12,6 +12,7 @@ interface User {
   roles: string[];
   primary_role: string;
   office?: string;
+  is_default_password?: boolean;
 }
 
 interface AuthContextType {
@@ -19,6 +20,7 @@ interface AuthContextType {
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   updateUser: (data: { username?: string; first_name: string; middle_name: string; last_name: string; office?: string }) => Promise<void>;
 }
 
@@ -54,15 +56,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const refreshUser = async () => {
+    const response = await api.get('/auth/me', {
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    });
+    setUser(response.data);
+  };
+
   const login = async (username: string, password: string) => {
     const response = await api.post('/auth/login', { username, password });
     if (response.data.user) {
       setUser(response.data.user);
+      if (password === '12345') {
+        const modalKey = `default-password-modal-seen:${response.data.user.user_id}`;
+        sessionStorage.setItem(modalKey, 'pending');
+      }
+      await refreshUser();
     }
   };
 
   const logout = async () => {
     await api.post('/auth/logout');
+    const modalKeyPrefix = 'default-password-modal-seen:';
+    Object.keys(sessionStorage).forEach((key) => {
+      if (key.startsWith(modalKeyPrefix)) {
+        sessionStorage.removeItem(key);
+      }
+    });
     setUser(null);
   };
 
@@ -73,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

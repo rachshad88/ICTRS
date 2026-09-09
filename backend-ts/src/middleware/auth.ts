@@ -11,6 +11,7 @@ declare module 'express-session' {
     roles?: Role[];
     primary_role?: Role;
     office?: string;
+    is_default_password?: boolean;
   }
 }
 
@@ -24,6 +25,7 @@ export interface AuthenticatedRequest extends Request {
     roles: Role[];
     primary_role: Role;
     office?: string;
+    is_default_password?: boolean;
   };
 }
 
@@ -40,7 +42,8 @@ export function isAuthenticated(req: AuthenticatedRequest, res: Response, next: 
     last_name: req.session.last_name || '',
     roles: req.session.roles || [],
     primary_role: (req.session.primary_role || 'CLIENT') as Role,
-    office: req.session.office || ''
+    office: req.session.office || '',
+    is_default_password: req.session.is_default_password || false
   };
   next();
 }

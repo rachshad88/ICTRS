@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { initSocket, getSocket } from '../services/socket';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
+import RequestMobileCard from '../components/RequestMobileCard';
 
 interface MultimediaRequest {
   _id: string;
@@ -121,65 +123,102 @@ function MultimediaRequestsDashboard() {
       ) : requests.length === 0 ? (
         <div className="history-empty">No assigned multimedia requests</div>
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Code</th>
-                <th>Event</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Location</th>
-                <th>Requested By</th>
-                <th className="col-actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((request) => (
-                <tr key={request._id}>
-                  <td>
-                    <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
-                      <span className={`hstatus-dot ${request.status.toLowerCase().replace(/_/g, '-')}`} />
-                      {request.status.replace(/_/g, ' ')}
-                    </span>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{request.request_code}</td>
-                  <td>{request.event_title}</td>
-                  <td>{formatDate(request.event_date)}</td>
-                  <td style={{ fontSize: '12px' }}>{request.event_start_time} - {request.event_end_time}</td>
-                  <td style={{ fontSize: '12px' }}>{request.location_type}</td>
-                  <td style={{ fontSize: '12px' }}>
-                    {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
-                  </td>
-                  <td className="col-actions">
-                    <div className="history-actions">
-                      <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                        Files
-                      </button>
-                      {request.status === 'IN_PROGRESS' && (
-                        <button className="hbtn hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
-                          Done
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        <>
+          <div className="history-table-wrap">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Code</th>
+                  <th>Event</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Location</th>
+                  <th>Requested By</th>
+                  <th className="col-actions">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {requests.map((request) => (
+                  <tr key={request._id}>
+                    <td>
+                      <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
+                        <span className={`hstatus-dot ${request.status.toLowerCase().replace(/_/g, '-')}`} />
+                        {request.status.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="td-code">{request.request_code}</td>
+                    <td>{request.event_title}</td>
+                    <td>{formatDate(request.event_date)}</td>
+                    <td className="td-cell">{request.event_start_time} - {request.event_end_time}</td>
+                    <td className="td-cell">{request.location_type}</td>
+                    <td className="td-cell">
+                      {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
+                    </td>
+                    <td className="col-actions">
+                      <div className="history-actions">
+                        <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
+                          Files
+                        </button>
+                        {request.status === 'IN_PROGRESS' && (
+                          <button className="hbtn hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
+                            Done
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mobile-request-list">
+            {requests.map((request) => (
+              <RequestMobileCard
+                key={request._id}
+                title={request.event_title}
+                subtitle={request.location_type}
+                thumbnailLabel={request.request_code}
+                typeLabel="Multimedia"
+                statusLabel={request.status.replace(/_/g, ' ')}
+                statusClass={request.status.toLowerCase().replace(/_/g, '-')}
+                metaItems={[
+                  { label: 'Date', value: formatDate(request.event_date) },
+                  { label: 'Time', value: `${request.event_start_time} - ${request.event_end_time}` },
+                  { label: 'Contact', value: request.contact_number },
+                ]}
+                details={(
+                  <>
+                    <p><strong>Specific Location:</strong> {request.specific_location}</p>
+                    <p><strong>Requested By:</strong> {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}</p>
+                    {request.program_file && (
+                      <div className="file-section">
+                        <p><strong>Program File:</strong></p>
+                        <FileViewer files={[request.program_file]} requestId={request._id} type="multimedia" />
+                      </div>
+                    )}
+                  </>
+                )}
+                actions={(
+                  <>
+                    <button className="btn-primary" onClick={() => setSelectedRequest(request)}>
+                      View Files
+                    </button>
+                    {request.status === 'IN_PROGRESS' && (
+                      <button className="btn-secondary" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
+                        Mark Done
+                      </button>
+                    )}
+                  </>
+                )}
+              />
+            ))}
+          </div>
+        </>
       )}
 
-      {totalPages > 1 && (
-        <div className="history-pagination">
-          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
-          <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {selectedRequest && !showCompleteModal && (
         <div className="modal">

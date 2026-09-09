@@ -3,7 +3,7 @@ import { ObjectId, Collection, Document } from 'mongodb';
 import * as XLSX from 'xlsx';
 import {
   getRequestsCollection, getMultimediaRequestsCollection, getDigitalMediaRequestsCollection,
-  getPrintMaterialsRequestsCollection, getSoftwareRequestsCollection, getUsersCollection, getCache, setCache
+  getPrintMaterialsRequestsCollection, getUsersCollection, getCache, setCache
 } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 
@@ -43,15 +43,9 @@ const TYPE_MAP: Record<string, () => TypeConfig> = {
     roleAccess: ['ADMIN', 'MULTIMEDIA', 'MULTIMEDIA_ADMIN'],
     filterAssigned: true,
   }),
-  'software': () => ({
-    getCollection: () => getSoftwareRequestsCollection() as unknown as Collection<Document>,
-    typeLabel: 'Software Development',
-    roleAccess: ['ADMIN', 'IT_ADMIN', 'PROGRAMMER'],
-    filterAssigned: true,
-  }),
 };
 
-const TYPE_LIST = ['it', 'multimedia', 'digital-media', 'print-materials', 'software'];
+const TYPE_LIST = ['it', 'multimedia', 'digital-media', 'print-materials'];
 
 function getDateRange(filterType: string, selectedDate: string): { startDate: Date; endDate: Date } {
   if (filterType === 'all') {
@@ -104,8 +98,6 @@ function buildFilter(
       searchFields.push({ digital_media_description: regex }, { event_ppa_name: regex }, { requestor_name: regex });
     } else if (typeKey === 'print-materials') {
       searchFields.push({ printed_media_description: regex }, { event_ppa_name: regex }, { requestor_name: regex });
-    } else if (typeKey === 'software') {
-      searchFields.push({ proposed_title: regex }, { client_name_office: regex }, { statement_of_problem: regex });
     }
     filter.$or = searchFields;
   }
@@ -142,7 +134,8 @@ async function queryType(
   const dateFilter = { $gte: startDate, $lte: endDate };
   const filter = buildFilter(dateFilter, showDone, search, typeKey);
 
-  if (config.filterAssigned && !roles.some(r => config.roleAccess.includes(r as Role) && r.includes('ADMIN'))) {
+  const isAdmin = roles.includes('ADMIN');
+  if (config.filterAssigned && !isAdmin) {
     filter.assigned_to = new ObjectId(userId);
   }
 

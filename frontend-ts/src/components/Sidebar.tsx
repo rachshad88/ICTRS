@@ -1,6 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -13,6 +15,7 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const navigate = useNavigate();
 
   const { counts } = useNotification();
+  const { theme, toggleTheme } = useTheme();
   const isOpen = !collapsed;
 
   const badgeFor = (path: string): number | null => {
@@ -36,9 +39,6 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
       { section: 'Print Materials' },
       { to: '/print-materials-request', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Request' },
       { to: '/print-materials-history', icon: 'M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 6v6l4 2', label: 'Print Materials History' },
-      { section: 'Software Development' },
-      { to: '/software-request', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Request' },
-      { to: '/software-history', icon: 'M12 8v4l3 3 M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z', label: 'Software History' },
     ],
     TECHNICIAN: [
       { section: 'Work' },
@@ -64,7 +64,6 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
     IT_ADMIN: [
       { section: 'IT Management' },
       { to: '/it-dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
-      { to: '/software-management', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Mgmt' },
       { section: '' },
       { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
     ],
@@ -78,8 +77,6 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
     ],
     PROGRAMMER: [
       { section: 'Work' },
-      { to: '/programmer-dashboard', icon: 'M16 18l6-6-6-6 M8 6l-6 6 6 6', label: 'Software Dashboard' },
-      { section: '' },
       { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
     ],
   };
@@ -127,6 +124,13 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
             const badge = item.to ? badgeFor(item.to) : null;
             return (
               <Link key={i} to={item.to!} className={`sidebar-item ${isActive ? 'active' : ''}`}>
+                {isActive && (
+                  <motion.span
+                    layoutId="sidebar-active-pill"
+                    className="sidebar-active-pill"
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  />
+                )}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   {item.icon?.split(' M').map((d, j) => <path key={j} d={j === 0 ? d : 'M' + d} />)}
                 </svg>
@@ -145,6 +149,27 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </svg>
             <span className="sidebar-label">Profile</span>
           </Link>
+
+          <button className="sidebar-item sidebar-theme-btn" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`theme-icon ${theme === 'light' ? 'flipped' : ''}`}>
+              {theme === 'dark' ? (
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              ) : (
+                <>
+                  <circle cx="12" cy="12" r="5" />
+                  <line x1="12" y1="1" x2="12" y2="3" />
+                  <line x1="12" y1="21" x2="12" y2="23" />
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                  <line x1="1" y1="12" x2="3" y2="12" />
+                  <line x1="21" y1="12" x2="23" y2="12" />
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                </>
+              )}
+            </svg>
+            {!collapsed && <span className="sidebar-label">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
+          </button>
 
           <button className="sidebar-item sidebar-collapse-btn" onClick={onToggle} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`collapse-icon ${collapsed ? 'flipped' : ''}`}>

@@ -10,7 +10,6 @@ interface StatsData {
   multimedia_counts: Record<string, number>;
   digital_counts: Record<string, number>;
   print_counts: Record<string, number>;
-  software_counts: Record<string, number>;
   recent_requests: Array<{
     type: string;
     request_code: string;
@@ -102,7 +101,6 @@ function AdminDashboard() {
   if (!data) return null;
 
   const userTotal = Object.values(data.user_counts).reduce((a, b) => a + b, 0);
-  const pendingSoftware = data.software_counts.PENDING || 0;
   const unassignedMultimedia = data.multimedia_counts.UNASSIGNED || 0;
   const unassignedDigital = data.digital_counts.PENDING || 0;
   const unassignedPrint = data.print_counts.PENDING || 0;
@@ -141,36 +139,29 @@ function AdminDashboard() {
         <RequestTypeCard label="Multimedia" counts={data.multimedia_counts} bgColor="#8b5cf6" />
         <RequestTypeCard label="Digital Media" counts={data.digital_counts} bgColor="#06b6d4" />
         <RequestTypeCard label="Print Materials" counts={data.print_counts} bgColor="#f59e0b" />
-        <RequestTypeCard label="Software Dev" counts={data.software_counts} bgColor="#10b981" />
       </div>
 
-      {(pendingSoftware > 0 || unassignedMultimedia > 0 || unassignedDigital > 0 || unassignedPrint > 0) && (
+      {(unassignedMultimedia > 0 || unassignedDigital > 0 || unassignedPrint > 0) && (
         <div className="page-header" style={{ marginTop: '24px', marginBottom: '12px' }}>
           <h3>Needs Attention</h3>
         </div>
       )}
       <div className="stat-row" style={{ marginBottom: '20px' }}>
-        {pendingSoftware > 0 && (
-          <Link to="/software-management" className="hbtn hbtn-view" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', fontSize: '13px' }}>
-            <span style={{ background: '#ef4444', color: '#fff', borderRadius: '50%', width: '20px', height: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{pendingSoftware}</span>
-            Software Reviews Pending
-          </Link>
-        )}
         {unassignedMultimedia > 0 && (
-          <Link to="/multimedia-management" className="hbtn hbtn-view" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', fontSize: '13px' }}>
-            <span style={{ background: '#f59e0b', color: '#fff', borderRadius: '50%', width: '20px', height: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{unassignedMultimedia}</span>
+            <Link to="/multimedia-management" className="hbtn hbtn-view" style={{ padding: '10px 16px', fontSize: '13px' }}>
+            <span className="count-circle" style={{ background: '#f59e0b' }}>{unassignedMultimedia}</span>
             Unassigned Multimedia
           </Link>
         )}
         {unassignedDigital > 0 && (
-          <Link to="/digitalmedia-management" className="hbtn hbtn-view" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', fontSize: '13px' }}>
-            <span style={{ background: '#06b6d4', color: '#fff', borderRadius: '50%', width: '20px', height: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{unassignedDigital}</span>
+            <Link to="/digitalmedia-management" className="hbtn hbtn-view" style={{ padding: '10px 16px', fontSize: '13px' }}>
+            <span className="count-circle" style={{ background: '#06b6d4' }}>{unassignedDigital}</span>
             Unassigned Digital Media
           </Link>
         )}
         {unassignedPrint > 0 && (
-          <Link to="/print-materials-management" className="hbtn hbtn-view" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 16px', fontSize: '13px' }}>
-            <span style={{ background: '#f59e0b', color: '#fff', borderRadius: '50%', width: '20px', height: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}>{unassignedPrint}</span>
+            <Link to="/print-materials-management" className="hbtn hbtn-view" style={{ padding: '10px 16px', fontSize: '13px' }}>
+            <span className="count-circle" style={{ background: '#f59e0b' }}>{unassignedPrint}</span>
             Unassigned Print Materials
           </Link>
         )}
@@ -197,14 +188,14 @@ function AdminDashboard() {
               {data.recent_requests.map((r, i) => (
                 <tr key={i}>
                   <td><span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-secondary)' }}>{r.type}</span></td>
-                  <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{r.request_code}</td>
+                  <td className="td-code">{r.request_code}</td>
                   <td>
                     <span className={`hstatus ${getStatusClass(r.status)}`}>
                       <span className={`hstatus-dot ${getStatusClass(r.status)}`} />
                       {STATUS_LABELS[r.status] || r.status}
                     </span>
                   </td>
-                  <td style={{ fontSize: '12px' }}>{fmtDateTime(r.created_at)}</td>
+                  <td className="td-cell">{fmtDateTime(r.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -235,9 +226,9 @@ function AdminDashboard() {
                 <tr key={i}>
                   <td style={{ fontWeight: 500 }}>{a.username}</td>
                   <td><code style={{ fontSize: '11px', padding: '2px 4px', background: 'var(--bg-secondary)', borderRadius: '3px' }}>{a.action}</code></td>
-                  <td style={{ fontSize: '12px' }}>{a.entity_type}</td>
-                  <td style={{ fontSize: '12px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.details}</td>
-                  <td style={{ fontSize: '12px' }}>{fmtDateTime(a.timestamp)}</td>
+                  <td className="td-cell">{a.entity_type}</td>
+                  <td className="td-truncate" style={{ maxWidth: '300px' }}>{a.details}</td>
+                  <td className="td-cell">{fmtDateTime(a.timestamp)}</td>
                 </tr>
               ))}
             </tbody>

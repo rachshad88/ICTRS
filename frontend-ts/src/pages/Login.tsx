@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -79,7 +80,12 @@ function Login() {
         </div>
 
         <div className="login-form-panel">
-          <div className="login-form-content">
+          <motion.div
+            className="login-form-content"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          >
             <div className="login-form-header">
               <h2>Welcome back</h2>
               <p>Sign in to your account to continue</p>
@@ -94,7 +100,12 @@ function Login() {
             {error && <div className="error-message">{error}</div>}
 
             <form onSubmit={handleSubmit}>
-              <div className="form-group">
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <div className="form-group">
                 <label htmlFor="username">Username</label>
                 <div className="input-wrapper">
                   <svg className="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -181,10 +192,11 @@ function Login() {
                   'Sign In'
                 )}
               </button>
+              </motion.div>
             </form>
 
             <div className="login-version">v1.0.0</div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>

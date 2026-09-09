@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
+    allowedHosts: ['itrs.dave', 'getregisterforms.online'],
     port: 5173,
     proxy: {
       '/api': {

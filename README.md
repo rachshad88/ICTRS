@@ -6,7 +6,7 @@ This is a Node.js/Express backend and Vite/React frontend application for the In
 
 ```
 ┌─────────────────┐
-│ 192.168.110.24  │
+│ 192.168.110.28  │
 │      (Public)   │
 └─────────┬───────┘
           │ HTTP/80

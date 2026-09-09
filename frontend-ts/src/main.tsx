@@ -1,7 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './index.css';
+import './styles/reset.css';
+import './styles/tokens.css';
+import './styles/layout.css';
+import './styles/components.css';
+import './styles/pages.css';
+import './styles/responsive/login-desktop.css';
+import './styles/responsive/login-mobile.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

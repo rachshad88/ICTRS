@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { initSocket, getSocket } from '../services/socket';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
 
 interface MultimediaRequest {
   _id: string;
@@ -184,12 +185,12 @@ function MultimediaManagement() {
                       {request.status.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{request.request_code}</td>
+                  <td className="td-code">{request.request_code}</td>
                   <td>{request.event_title}</td>
                   <td>{formatDate(request.event_date)}</td>
-                  <td style={{ fontSize: '12px' }}>{request.event_start_time} - {request.event_end_time}</td>
-                  <td style={{ fontSize: '12px' }}>{request.location_type}</td>
-                  <td style={{ fontSize: '12px' }}>
+                  <td className="td-cell">{request.event_start_time} - {request.event_end_time}</td>
+                  <td className="td-cell">{request.location_type}</td>
+                  <td className="td-cell">
                     {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
                   </td>
                   <td className="col-actions">
@@ -212,15 +213,7 @@ function MultimediaManagement() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="history-pagination">
-          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
-          <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {selectedRequest && (
         <div className="modal">
@@ -242,9 +235,9 @@ function MultimediaManagement() {
 
             {selectedRequest.status === 'UNASSIGNED' && (
               <div className="form-group">
-                <label>Select Multimedia Technician</label>
+                <label>Select Multimedia Staff</label>
                 <select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)}>
-                  <option value="">Choose a technician...</option>
+                  <option value="">Choose a Multimedia Staff</option>
                   {technicians.map((tech) => (
                     <option key={tech._id} value={tech._id}>{tech.first_name} {tech.last_name} (@{tech.username})</option>
                   ))}

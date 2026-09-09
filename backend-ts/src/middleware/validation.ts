@@ -68,7 +68,7 @@ const ALL_ROLES = ['ADMIN', 'TECHNICIAN', 'CLIENT', 'MULTIMEDIA', 'IT_ADMIN', 'M
 
 export const createUserSchema = z.object({
   username: z.string().min(1, 'Username is required'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().optional(),
   first_name: z.string().min(1, 'First name is required'),
   middle_name: z.string().optional(),
   last_name: z.string().min(1, 'Last name is required'),
@@ -86,7 +86,7 @@ export const updateUserSchema = z.object({
   roles: z.array(z.enum(ALL_ROLES)).min(1, 'At least one role is required'),
   primary_role: z.enum(ALL_ROLES),
   office: z.string().optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters').optional()
+  password: z.string().optional()
 });
 
 export const createSoftwareRequestSchema = z.object({

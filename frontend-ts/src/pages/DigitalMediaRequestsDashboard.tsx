@@ -4,6 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { initSocket, getSocket } from '../services/socket';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
+import RequestMobileCard from '../components/RequestMobileCard';
 
 interface DigitalMediaRequest {
   _id: string;
@@ -110,65 +112,104 @@ function DigitalMediaRequestsDashboard() {
       ) : requests.length === 0 ? (
         <div className="history-empty">No assigned digital media requests</div>
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Code</th>
-                <th>Form</th>
-                <th>Event / PPA</th>
-                <th>Target Date</th>
-                <th>Requestor</th>
-                <th>Requested By</th>
-                <th className="col-actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((request) => (
-                <tr key={request._id}>
-                  <td>
-                    <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
-                      <span className={`hstatus-dot ${request.status.toLowerCase().replace(/_/g, '-')}`} />
-                      {request.status.replace(/_/g, ' ')}
-                    </span>
-                  </td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{request.request_code}</td>
-                  <td>{request.form_of_digital_media}</td>
-                  <td style={{ fontSize: '12px' }}>{request.event_ppa_name}</td>
-                  <td style={{ fontSize: '12px' }}>{formatDate(request.target_date)}</td>
-                  <td style={{ fontSize: '12px' }}>{request.requestor_name}</td>
-                  <td style={{ fontSize: '12px' }}>
-                    {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
-                  </td>
-                  <td className="col-actions">
-                    <div className="history-actions">
-                      <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                        Files
-                      </button>
-                      {request.status === 'IN_PROGRESS' && (
-                        <button className="hbtn hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
-                          Done
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        <>
+          <div className="history-table-wrap">
+            <table className="history-table">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Code</th>
+                  <th>Form</th>
+                  <th>Event / PPA</th>
+                  <th>Target Date</th>
+                  <th>Requestor</th>
+                  <th>Requested By</th>
+                  <th className="col-actions">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {requests.map((request) => (
+                  <tr key={request._id}>
+                    <td>
+                      <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
+                        <span className={`hstatus-dot ${request.status.toLowerCase().replace(/_/g, '-')}`} />
+                        {request.status.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="td-code">{request.request_code}</td>
+                    <td>{request.form_of_digital_media}</td>
+                    <td className="td-cell">{request.event_ppa_name}</td>
+                    <td className="td-cell">{formatDate(request.target_date)}</td>
+                    <td className="td-cell">{request.requestor_name}</td>
+                    <td className="td-cell">
+                      {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
+                    </td>
+                    <td className="col-actions">
+                      <div className="history-actions">
+                        <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
+                          Files
+                        </button>
+                        {request.status === 'IN_PROGRESS' && (
+                          <button className="hbtn hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
+                            Done
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mobile-request-list">
+            {requests.map((request) => (
+              <RequestMobileCard
+                key={request._id}
+                title={request.form_of_digital_media}
+                subtitle={request.event_ppa_name}
+                thumbnailLabel={request.request_code}
+                typeLabel="Digital Media"
+                statusLabel={request.status.replace(/_/g, ' ')}
+                statusClass={request.status.toLowerCase().replace(/_/g, '-')}
+                metaItems={[
+                  { label: 'Target', value: formatDate(request.target_date) },
+                  { label: 'Requestor', value: request.requestor_name },
+                  { label: 'Requested by', value: request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown' },
+                ]}
+                details={(
+                  <>
+                    <p><strong>Title:</strong> {request.description}</p>
+                    <p><strong>Description:</strong> {request.digital_media_description}</p>
+                    <p><strong>Target Time:</strong> {request.target_time}</p>
+                    <p><strong>Contact:</strong> {request.requestor_contact}</p>
+                    {request.supporting_files?.length > 0 && (
+                      <div className="file-section">
+                        <p><strong>Supporting Files:</strong></p>
+                        <FileViewer files={request.supporting_files} requestId={request._id} type="digitalmedia" />
+                      </div>
+                    )}
+                  </>
+                )}
+                actions={(
+                  <>
+                    <button className="btn-primary" onClick={() => setSelectedRequest(request)}>
+                      View Files
+                    </button>
+                    {request.status === 'IN_PROGRESS' && (
+                      <button className="btn-secondary" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
+                        Mark Done
+                      </button>
+                    )}
+                  </>
+                )}
+              />
+            ))}
+          </div>
+        </>
       )}
 
-      {totalPages > 1 && (
-        <div className="history-pagination">
-          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
-          <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {selectedRequest && !showCompleteModal && (
         <div className="modal">

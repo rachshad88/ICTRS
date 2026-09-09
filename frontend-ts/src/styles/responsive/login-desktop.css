@@ -1,0 +1,213 @@
+/* ========== LOGIN PAGE - DESKTOP ========== */
+.login-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(16px, 2.4vw, 32px);
+  background: radial-gradient(circle at top right, rgba(108, 92, 231, 0.18), transparent 30%),
+    radial-gradient(circle at 10% 20%, rgba(124, 58, 237, 0.14), transparent 24%),
+    #0a111c;
+}
+
+.login-inner {
+  display: flex;
+  width: min(100%, 980px);
+  max-width: 980px;
+  min-height: min(82vh, 720px);
+  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.35);
+  border-radius: 32px;
+  overflow: hidden;
+  background: rgba(10, 15, 26, 0.96);
+  backdrop-filter: blur(8px);
+}
+
+.login-brand-panel {
+  flex: 0 0 46%;
+  min-height: 100%;
+  background: linear-gradient(180deg, rgba(22, 28, 44, 0.98), rgba(18, 24, 36, 0.98));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(28px, 3vw, 44px);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-brand-panel::after {
+  content: '';
+  position: absolute;
+  inset: auto -15% -25% auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(124, 58, 237, 0.2);
+  filter: blur(30px);
+}
+
+.login-brand-panel::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  inset: 0;
+  background: radial-gradient(circle at top left, rgba(124, 58, 237, 0.12), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(108, 92, 231, 0.1), transparent 25%);
+}
+
+.login-brand-content {
+  position: relative;
+  text-align: center;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 100%;
+}
+
+.login-brand-decoration {
+  margin-bottom: 4px;
+}
+
+.login-seal {
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  border-radius: 22px;
+  background: rgba(255,255,255,0.05);
+  padding: 12px;
+}
+
+.login-brand-title {
+  font-size: clamp(26px, 2.4vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 0;
+  color: #fff;
+}
+
+.login-brand-subtitle {
+  font-size: 14px;
+  line-height: 1.6;
+  opacity: 0.92;
+  margin: 0;
+  font-weight: 500;
+  max-width: 260px;
+}
+
+.login-brand-footer {
+  margin-top: 18px;
+  font-size: 12px;
+  opacity: 0.55;
+  white-space: nowrap;
+  color: #d1d5db;
+}
+
+.login-form-panel {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(28px, 3.5vw, 48px);
+  background: #0f1728;
+}
+
+.login-form-content {
+  width: min(100%, 400px);
+  padding: clamp(24px, 2.4vw, 32px);
+  border-radius: 28px;
+  background: rgba(18, 25, 40, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .login-inner {
+    max-width: 1080px;
+    min-height: 78vh;
+  }
+
+  .login-brand-panel {
+    flex-basis: 44%;
+    padding: clamp(36px, 3.4vw, 52px);
+  }
+
+  .login-brand-content {
+    align-items: flex-start;
+    text-align: left;
+    gap: 14px;
+  }
+
+  .login-brand-title {
+    font-size: clamp(30px, 2vw, 38px);
+  }
+
+  .login-brand-subtitle {
+    max-width: 100%;
+    font-size: 15px;
+  }
+
+  .login-form-panel {
+    padding: clamp(36px, 4vw, 56px);
+  }
+
+  .login-form-content {
+    max-width: 420px;
+  }
+}
+
+/* ========== LOGIN PAGE - LIGHT THEME ========== */
+[data-theme='light'] .login-container {
+  background: radial-gradient(circle at top right, rgba(79, 152, 214, 0.16), transparent 30%),
+    radial-gradient(circle at 10% 20%, rgba(79, 152, 214, 0.12), transparent 24%),
+    #eaf0f7;
+}
+
+[data-theme='light'] .login-inner {
+  background: #ffffff;
+  box-shadow: 0 34px 90px rgba(24, 34, 53, 0.16);
+}
+
+[data-theme='light'] .login-brand-panel {
+  background: linear-gradient(180deg, #f4f7fb, #e8eef6);
+}
+
+[data-theme='light'] .login-brand-panel::after,
+[data-theme='light'] .login-brand-panel::before {
+  background: rgba(47, 127, 196, 0.16);
+}
+
+[data-theme='light'] .login-brand-content {
+  color: #182235;
+}
+
+[data-theme='light'] .login-brand-title {
+  color: #182235;
+}
+
+[data-theme='light'] .login-brand-subtitle {
+  color: #33506b;
+  opacity: 1;
+}
+
+[data-theme='light'] .login-brand-footer {
+  color: #5d6b80;
+}
+
+[data-theme='light'] .login-seal {
+  background: rgba(24, 34, 53, 0.05);
+}
+
+[data-theme='light'] .login-form-panel {
+  background: #f5f8fc;
+}
+
+[data-theme='light'] .login-form-content {
+  background: #ffffff;
+  border-color: rgba(24, 34, 53, 0.08);
+  box-shadow: 0 22px 48px rgba(24, 34, 53, 0.12);
+}

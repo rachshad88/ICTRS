@@ -10,15 +10,27 @@ interface UnassignedCounts {
   printMaterials: number;
 }
 
-interface NotificationContextType {
-  counts: UnassignedCounts;
+export interface LiveNotification {
+  id: string;
+  type: 'success' | 'info' | 'warning' | 'error';
+  title: string;
+  message: string;
 }
 
-const NotificationContext = createContext<NotificationContextType>({ counts: { total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 } });
+interface NotificationContextType {
+  counts: UnassignedCounts;
+  notifications: LiveNotification[];
+}
+
+const NotificationContext = createContext<NotificationContextType>({
+  counts: { total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 },
+  notifications: []
+});
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [counts, setCounts] = useState<UnassignedCounts>({ total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 });
+  const [notifications, setNotifications] = useState<LiveNotification[]>([]);
 
   const fetchCounts = useCallback(async () => {
     if (!user) return;
@@ -30,8 +42,60 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  const pushNotification = useCallback((notification: Omit<LiveNotification, 'id'>) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    setNotifications((prev) => [...prev, { id, ...notification }]);
+
+    window.setTimeout(() => {
+      setNotifications((current) => current.filter((item) => item.id !== id));
+    }, 5500);
+  }, []);
+
+  const formatEventNotification = useCallback((event: string, payload: any): Omit<LiveNotification, 'id'> | null => {
+    const requestCode = payload?.request_code || payload?.requestId || payload?.request_id || 'Request';
+    const requestLabel = typeof requestCode === 'string' ? requestCode : 'Request';
+
+    if (event === 'request_update') {
+      const status = payload?.event;
+      if (status === 'created') {
+        return { title: 'New request', message: `${requestLabel} has been created.`, type: 'info' };
+      }
+      if (status === 'accepted') {
+        return { title: 'Request accepted', message: `${requestLabel} is now in progress.`, type: 'success' };
+      }
+      if (status === 'cancelled') {
+        return { title: 'Request cancelled', message: `${requestLabel} was cancelled.`, type: 'warning' };
+      }
+      return { title: 'Request updated', message: `${requestLabel} has new details.`, type: 'info' };
+    }
+
+    if (event === 'request_assigned_to_you') {
+      return { title: 'Assigned to you', message: `${requestLabel} was assigned to you.`, type: 'success' };
+    }
+
+    if (event === 'my_request_accepted') {
+      return { title: 'Request approved', message: `${requestLabel} has been accepted.`, type: 'success' };
+    }
+
+    if (event.includes('_created')) {
+      return { title: 'New request', message: `${requestLabel} was created.`, type: 'info' };
+    }
+    if (event.includes('_assigned')) {
+      return { title: 'Request assigned', message: `${requestLabel} has been assigned.`, type: 'success' };
+    }
+    if (event.includes('_completed')) {
+      return { title: 'Request completed', message: `${requestLabel} is complete.`, type: 'success' };
+    }
+    if (event.includes('_cancelled')) {
+      return { title: 'Request cancelled', message: `${requestLabel} was cancelled.`, type: 'warning' };
+    }
+
+    return null;
+  }, []);
+
   useEffect(() => {
     if (!user) return;
+
     const socket = getSocket();
     if (!socket) return;
 
@@ -43,26 +107,36 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       'print_materials_request_created', 'print_materials_request_assigned', 'print_materials_request_assigned_admin',
       'print_materials_request_completed', 'print_materials_request_cancelled',
       'request_update',
+      'request_assigned_to_you',
+      'my_request_accepted'
     ];
 
-    const handler = () => fetchCounts();
+    const handlers: Record<string, (data: any) => void> = {};
+
     for (const event of events) {
+      const handler = (data: any) => {
+        fetchCounts();
+        const notification = formatEventNotification(event, data);
+        if (notification) pushNotification(notification);
+      };
+      handlers[event] = handler;
       socket.on(event, handler);
     }
-    socket.on('connect', handler);
+
+    socket.on('connect', fetchCounts);
 
     fetchCounts();
 
     return () => {
       for (const event of events) {
-        socket.off(event, handler);
+        socket.off(event, handlers[event]);
       }
-      socket.off('connect', handler);
+      socket.off('connect', fetchCounts);
     };
-  }, [fetchCounts, user]);
+  }, [fetchCounts, formatEventNotification, pushNotification, user]);
 
   return (
-    <NotificationContext.Provider value={{ counts }}>
+    <NotificationContext.Provider value={{ counts, notifications }}>
       {children}
     </NotificationContext.Provider>
   );

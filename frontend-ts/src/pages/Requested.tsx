@@ -3,6 +3,8 @@ import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { initSocket, getSocket } from '../services/socket';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
+import { truncateCell } from '../lib/truncate';
 
 
 interface MyRequest {
@@ -55,7 +57,7 @@ function Requested() {
 
   const sendToCSF = (requestCode: string) => {
     try {
-      const ratingUrl = `${import.meta.env.VITE_RATING_SYSTEM_URL || 'http://localhost:3001/rate'}?request_code=${requestCode}&type=it_request`;
+      const ratingUrl = `${import.meta.env.VITE_RATING_SYSTEM_URL || 'http://192.168.110.19/'}?request_code=${requestCode}&type=it_request`;
       window.open(ratingUrl, '_blank');
     } catch (error) {
       console.error('Failed to send data to rating system:', error);
@@ -191,7 +193,7 @@ function Requested() {
                   return (
                     <tr key={req._id}>
                       <td className="request-code">{req.request_code}</td>
-                      <td className="issue-cell">{req.issue}</td>
+                      <td className="issue-cell">{truncateCell(req.issue)}</td>
                       <td>
                         <span className={`status-badge ${getStatusClass(req.status)}`}>
                           {req.status === 'PENDING' && 'Pending'}
@@ -234,15 +236,7 @@ function Requested() {
           </div>
         )}
 
-        {totalPages > 1 && (
-          <div className="history-pagination">
-            <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-              <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-            ))}
-            <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-          </div>
-        )}
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
 import { OFFICES } from '../data/offices';
 
 interface User {
@@ -13,7 +14,10 @@ interface User {
   roles: string[];
   primary_role: string;
   office?: string;
+  is_default_password?: boolean;
 }
+
+const DEFAULT_PASSWORD = '12345';
 
 function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -22,10 +26,11 @@ function UserManagement() {
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const [formData, setFormData] = useState({
     username: '',
-    password: '',
+    password: DEFAULT_PASSWORD,
     first_name: '',
     middle_name: '',
     last_name: '',
@@ -40,8 +45,12 @@ function UserManagement() {
   const fetchUsers = async () => {
     try {
       const response = await api.get('/users/get_users');
-      setUsers(response.data.users);
+      const fetchedUsers = response.data.users || [];
+      setUsers(fetchedUsers);
       setError('');
+      setNotice(fetchedUsers.some((user: User) => user.is_default_password)
+        ? `Some users are still using the default password ${DEFAULT_PASSWORD}.`
+        : '');
     } catch (error) {
       console.error('Failed to fetch users:', error);
     } finally { setLoading(false); }
@@ -117,6 +126,19 @@ function UserManagement() {
     }
   };
 
+  const handleResetPassword = async () => {
+    if (!editingUser) return;
+    if (!confirm(`Reset ${editingUser.username}'s password to ${DEFAULT_PASSWORD}?`)) return;
+    try {
+      await api.post('/users/reset_user_password', { user_id: editingUser._id });
+      setNotice(`${editingUser.username}'s password was reset to ${DEFAULT_PASSWORD}.`);
+      await fetchUsers();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setError(err.response?.data?.error || 'Failed to reset user password');
+    }
+  };
+
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
   const paginatedUsers = users.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
@@ -165,6 +187,11 @@ function UserManagement() {
       </div>
 
       {error && <div className="error-message">{error}</div>}
+      {notice && (
+        <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '6px', background: '#fff7e6', color: '#8a4b00', border: '1px solid #f0c36d' }}>
+          {notice}
+        </div>
+      )}
 
       {loading ? (
         <Skeleton variant="table" rows={5} />
@@ -182,8 +209,15 @@ function UserManagement() {
             <tbody>
               {paginatedUsers.map((user) => (
                 <tr key={user._id}>
-                  <td style={{ fontSize: '12px' }}>{user.username}</td>
-                  <td>{user.first_name} {user.middle_name} {user.last_name}</td>
+                  <td className="td-cell">{user.username}</td>
+                  <td>
+                    <div>{user.first_name} {user.middle_name} {user.last_name}</div>
+                    {user.is_default_password && (
+                      <div style={{ marginTop: '4px', fontSize: '10px', color: '#8a4b00', fontWeight: 600 }}>
+                        Default password
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                       {(user.roles || [user.role]).map(r => (
@@ -206,15 +240,7 @@ function UserManagement() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="history-pagination">
-          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
-          <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {showModal && (
         <div className="modal">
@@ -225,10 +251,14 @@ function UserManagement() {
                 <label>Username</label>
                 <input type="text" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} required />
               </div>
-              <div className="form-group">
-                <label>Password {editingUser && '(leave blank to keep current)'}</label>
-                <input type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} required={!editingUser} />
-              </div>
+              {!editingUser && (
+                <div className="form-group">
+                  <label>Password</label>
+                  <div style={{ padding: '8px 10px', borderRadius: '6px', background: '#f3f6ff', color: '#234a8c', fontSize: '13px' }}>
+                    New accounts will use the default password <strong>{DEFAULT_PASSWORD}</strong>.
+                  </div>
+                </div>
+              )}
               <div className="form-group">
                 <label>First Name</label>
                 <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
@@ -284,6 +314,11 @@ function UserManagement() {
                 </select>
               </div>
               <div className="modal-actions">
+                {editingUser && (
+                  <button type="button" onClick={handleResetPassword} className="btn-secondary">
+                    Reset Password
+                  </button>
+                )}
                 <button type="submit" className="btn-primary">Save</button>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
               </div>

@@ -9,6 +9,20 @@ import { loginSchema, changePasswordSchema, updateProfileSchema } from '../middl
 
 const router = Router();
 
+async function passwordMatchesDefault(userPassword: string): Promise<boolean> {
+  if (!userPassword) return false;
+
+  if (userPassword.startsWith('$2')) {
+    const hashToCheck = userPassword.startsWith('$2y$')
+      ? '$2b$' + userPassword.substring(4)
+      : userPassword;
+    return bcrypt.compare('12345', hashToCheck);
+  }
+
+  const md5Hash = crypto.createHash('md5').update('12345').digest('hex');
+  return md5Hash === userPassword;
+}
+
 function getRedirect(role: Role): string {
   switch (role) {
     case 'CLIENT': return '/request';
@@ -61,6 +75,7 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
 
     const roles = user.roles || [user.role];
     const primary_role = user.primary_role || user.role;
+    const isDefaultPassword = await passwordMatchesDefault(user.password);
 
     req.session.regenerate(async (err) => {
       if (err) {
@@ -77,6 +92,7 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
         req.session.roles = roles;
         req.session.primary_role = primary_role;
         req.session.office = user.office || '';
+        req.session.is_default_password = isDefaultPassword;
 
         await logAudit(user._id!, user.username, primary_role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
 
@@ -88,7 +104,8 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
           last_name: user.last_name,
           roles,
           primary_role,
-          office: user.office || ''
+          office: user.office || '',
+          is_default_password: isDefaultPassword
         };
 
         return res.json({ redirect: getRedirect(primary_role), user: userData });
@@ -133,7 +150,8 @@ router.get('/me', isAuthenticated, async (req: AuthenticatedRequest, res: Respon
     last_name: req.user?.last_name,
     roles: req.user?.roles,
     primary_role: req.user?.primary_role,
-    office: req.user?.office
+    office: req.user?.office,
+    is_default_password: req.user?.is_default_password || false
   });
 });
 
@@ -170,6 +188,8 @@ router.post('/change_password', isAuthenticated, validateBody(changePasswordSche
       { _id: user._id },
       { $set: { password: hashedPassword } }
     );
+
+    req.session.is_default_password = false;
 
     await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'CHANGE_PASSWORD', 'USER', userId, `User ${req.user!.username} changed their password`);
     res.json({ status: 'success', message: 'Password changed successfully' });

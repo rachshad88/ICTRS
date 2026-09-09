@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { api } from '../services/api';
 import FileViewer from './FileViewer';
 import Skeleton from './Skeleton';
+import Pagination from './Pagination';
+import { truncateCell } from '../lib/truncate';
 
 export interface ColumnDef {
   key: string;
@@ -36,7 +39,7 @@ export interface HistoryTableConfig {
   fileViewer?: FileViewerConfig;
 }
 
-const RATING_URL = import.meta.env.VITE_RATING_SYSTEM_URL || 'http://localhost:3001/rate';
+const RATING_URL = import.meta.env.VITE_RATING_SYSTEM_URL || 'http://192.168.110.19';
 const ITEMS_PER_PAGE = 10;
 
 export function formatDate(d: string) {
@@ -109,7 +112,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
     if (col.render) return col.render(row);
     const value = row[col.key];
     if (value === null || value === undefined) return '-';
-    return value;
+    return truncateCell(value);
   };
 
   return (
@@ -154,14 +157,19 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                 </tr>
               </thead>
               <tbody>
-                {requests.map((request) => (
-                  <tr key={request._id}>
+                {requests.map((request, idx) => (
+                  <motion.tr
+                    key={request._id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.26, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
+                  >
                     <td>{renderStatusBadge(request.status)}</td>
-                    <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{request.request_code}</td>
+                    <td className="td-code">{request.request_code}</td>
                     {config.columns.map(col => (
-                      <td key={col.key} style={{ fontSize: '12px' }}>{defaultRender(request, col)}</td>
+                      <td key={col.key} className="td-cell">{defaultRender(request, col)}</td>
                     ))}
-                    <td style={{ fontSize: '12px' }}>{renderAssignedTechnician(request.assignedTechnician)}</td>
+                    <td className="td-cell">{renderAssignedTechnician(request.assignedTechnician)}</td>
                     <td className="col-actions">
                       <div className="history-actions">
                         {request.status === config.cancelStatus && (
@@ -179,21 +187,13 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                         </button>
                       </div>
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          {totalPages > 1 && (
-            <div className="history-pagination">
-              <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-              ))}
-              <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-            </div>
-          )}
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </>
       )}
 

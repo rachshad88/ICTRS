@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { initSocket, getSocket } from '../services/socket';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
 
 interface PrintMaterialsRequest {
   _id: string;
@@ -147,15 +148,6 @@ function PrintMaterialsManagement() {
         </button>
       </div>
 
-      <div className="mgmt-tabs">
-        <button className={`mgmt-tab ${activeTab === 'unassigned' ? 'active' : ''}`} onClick={() => setActiveTab('unassigned')}>
-          Unassigned ({requests.length})
-        </button>
-        <button className={`mgmt-tab ${activeTab === 'all' ? 'active' : ''}`} onClick={() => setActiveTab('all')}>
-          All ({allRequests.length})
-        </button>
-      </div>
-
       <div className="filters-row">
         <input type="text" placeholder="Search by code, description, event, requestor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
       </div>
@@ -194,12 +186,12 @@ function PrintMaterialsManagement() {
                       {request.status.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{request.request_code}</td>
+                  <td className="td-code">{request.request_code}</td>
                   <td>{request.form_of_printed_media}</td>
-                  <td style={{ fontSize: '12px' }}>{request.size_of_printed_media}</td>
-                  <td style={{ fontSize: '12px' }}>{request.event_ppa_name}</td>
-                  <td style={{ fontSize: '12px' }}>{formatDate(request.target_date)}</td>
-                  <td style={{ fontSize: '12px' }}>
+                  <td className="td-cell">{request.size_of_printed_media}</td>
+                  <td className="td-cell">{request.event_ppa_name}</td>
+                  <td className="td-cell">{formatDate(request.target_date)}</td>
+                  <td className="td-cell">
                     {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
                   </td>
                   <td className="col-actions">
@@ -222,15 +214,7 @@ function PrintMaterialsManagement() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="history-pagination">
-          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
-          <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
       {selectedRequest && (
         <div className="modal">
@@ -259,9 +243,9 @@ function PrintMaterialsManagement() {
 
             {selectedRequest.status === 'PENDING' && !selectedRequest.assignedTechnician?.[0] && (
               <div className="form-group" style={{ marginTop: '1rem' }}>
-                <label>Assign Technician</label>
+                <label>Assign Multimedia Staff</label>
                 <select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)}>
-                  <option value="">Choose a technician...</option>
+                  <option value="">Choose a Multimedia Staff</option>
                   {technicians.map((tech) => (
                     <option key={tech._id} value={tech._id}>{tech.first_name} {tech.last_name} (@{tech.username})</option>
                   ))}

@@ -1,0 +1,105 @@
+/* ========== LOGIN PAGE - MOBILE ========== */
+@media (max-width: 640px) {
+  .login-container {
+    padding: 0 12px;
+    min-height: 100vh;
+  }
+
+  .login-inner {
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+  }
+
+  .login-brand-panel {
+    flex: none;
+    width: 100%;
+    padding: 28px 20px 24px;
+    min-height: auto;
+    border-radius: 0;
+    background: linear-gradient(180deg, rgba(22, 28, 44, 0.98), rgba(18, 24, 36, 0.98));
+  }
+
+  .login-brand-panel::after {
+    display: none;
+  }
+
+  .login-brand-panel::before {
+    background: radial-gradient(circle at top left, rgba(124, 58, 237, 0.1), transparent 35%),
+      radial-gradient(circle at bottom right, rgba(108, 92, 231, 0.06), transparent 25%);
+  }
+
+  .login-brand-content {
+    gap: 10px;
+    padding: 12px 0;
+  }
+
+  .login-brand-title {
+    font-size: 24px;
+  }
+
+  .login-brand-subtitle {
+    font-size: 13px;
+    max-width: 100%;
+    line-height: 1.5;
+  }
+
+  .login-form-panel {
+    width: 100%;
+    padding: 24px 18px 28px;
+  }
+
+  .login-form-content {
+    width: 100%;
+    max-width: 100%;
+    padding: 22px 18px;
+    border-radius: 22px;
+  }
+
+  .login-form-header {
+    margin-bottom: 18px;
+  }
+
+  .login-form-header h2 {
+    font-size: 24px;
+  }
+
+  .login-form-header p {
+    font-size: 13px;
+  }
+
+  .login-info-message {
+    font-size: 13px;
+    padding: 14px 16px;
+  }
+
+  .form-options {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .forgot-password {
+    text-align: right;
+    width: 100%;
+  }
+
+  .login-form-panel .btn-primary {
+    width: 100%;
+    padding: 16px 18px;
+    font-size: 16px;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+  }
+
+  .login-version {
+    margin-top: 24px;
+  }
+}

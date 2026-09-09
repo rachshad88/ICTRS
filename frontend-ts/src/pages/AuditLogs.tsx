@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
+import Pagination from '../components/Pagination';
 
 interface AuditEntry {
   _id: string;
@@ -68,7 +69,7 @@ function AuditLogs() {
         <h2>Audit Logs</h2>
       </div>
 
-      <div className="filters-row">
+      <div className="filters-row audit-filters">
         <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
           <option value="">All Actions</option>
           {Object.entries(actionLabels).map(([key, label]) => (
@@ -106,14 +107,14 @@ function AuditLogs() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log._id}>
-                  <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{formatDate(log.timestamp)}</td>
-                    <td style={{ fontSize: '12px' }}>{log.username || '-'}</td>
+                  <td className="td-cell" style={{ whiteSpace: 'nowrap' }}>{formatDate(log.timestamp)}</td>
+                    <td className="td-cell">{log.username || '-'}</td>
                   <td>
                     <span className={`role-badge ${(log.role || '').toLowerCase()}`}>{log.role ? log.role.charAt(0) + log.role.slice(1).toLowerCase() : '-'}</span>
                   </td>
-                  <td style={{ fontSize: '12px' }}>{actionLabels[log.action] || log.action || '-'}</td>
-                  <td style={{ fontSize: '12px' }}>{(log.entity_type || '').replace(/_/g, ' ') || '-'}</td>
-                  <td style={{ fontSize: '12px', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}</td>
+                  <td className="td-cell">{actionLabels[log.action] || log.action || '-'}</td>
+                  <td className="td-cell">{(log.entity_type || '').replace(/_/g, ' ') || '-'}</td>
+                  <td className="td-truncate" style={{ maxWidth: '400px' }}>{typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}</td>
                 </tr>
               ))}
             </tbody>
@@ -121,15 +122,7 @@ function AuditLogs() {
         </div>
       )}
 
-      {totalPages > 1 && (
-        <div className="history-pagination">
-          <button className="hbtn-page" disabled={currentPage === 1} onClick={() => setCurrentPage(currentPage - 1)}>Prev</button>
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-            <button key={page} className={`hbtn-page ${page === currentPage ? 'active' : ''}`} onClick={() => setCurrentPage(page)}>{page}</button>
-          ))}
-          <button className="hbtn-page" disabled={currentPage === totalPages} onClick={() => setCurrentPage(currentPage + 1)}>Next</button>
-        </div>
-      )}
+      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
     </div>
   );
 }

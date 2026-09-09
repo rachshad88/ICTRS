@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { MotionConfig } from 'framer-motion';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import Sidebar from './components/Sidebar';
+import ToastNotifications from './components/ToastNotifications';
+import PageTransition from './components/PageTransition';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Request from './pages/Request';
@@ -25,13 +28,9 @@ import PrintMaterialsManagement from './pages/PrintMaterialsManagement';
 import PrintMaterialsDashboard from './pages/PrintMaterialsDashboard';
 import AuditLogs from './pages/AuditLogs';
 import ItAdminDashboard from './pages/ItAdminDashboard';
-import SoftwareRequest from './pages/SoftwareRequest';
-import SoftwareManagement from './pages/SoftwareManagement';
-import ProgrammerDashboard from './pages/ProgrammerDashboard';
-import SoftwareHistory from './pages/SoftwareHistory';
 import AdminDashboard from './pages/AdminDashboard';
 
-function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSidebar }: { children: React.ReactNode; allowedRoles?: string[]; sidebarCollapsed: boolean; onToggleSidebar: () => void }) {
+function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSidebar, isMobile }: { children: React.ReactNode; allowedRoles?: string[]; sidebarCollapsed: boolean; onToggleSidebar: () => void; isMobile: boolean }) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -50,7 +49,7 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
     if (primary === 'MULTIMEDIA') return <Navigate to="/multimedia-dashboard" replace />;
     if (primary === 'IT_ADMIN') return <Navigate to="/it-dashboard" replace />;
     if (primary === 'MULTIMEDIA_ADMIN') return <Navigate to="/multimedia-management" replace />;
-    if (primary === 'PROGRAMMER') return <Navigate to="/programmer-dashboard" replace />;
+    if (primary === 'PROGRAMMER') return <Navigate to="/reports" replace />;
     if (primary === 'ADMIN') return <Navigate to="/admin-dashboard" replace />;
     return <Navigate to="/dashboard" replace />;
   }
@@ -59,7 +58,16 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
     <>
       <Sidebar collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
       <div className={`app-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-        {children}
+        {isMobile && (
+          <button className="mobile-menu-toggle" onClick={onToggleSidebar} aria-label="Toggle menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
+        )}
+        <PageTransition>{children}</PageTransition>
       </div>
     </>
   );
@@ -67,10 +75,17 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
 
 function AppRoutes() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const toggleSidebar = () => setSidebarCollapsed(prev => !prev);
 
-  const routeProps = { sidebarCollapsed, onToggleSidebar: toggleSidebar };
+  const routeProps = { sidebarCollapsed, onToggleSidebar: toggleSidebar, isMobile };
 
   return (
     <Routes>
@@ -88,38 +103,6 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['IT_ADMIN']} {...routeProps}>
             <ItAdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/software-request"
-        element={
-          <ProtectedRoute allowedRoles={['CLIENT']} {...routeProps}>
-            <SoftwareRequest />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/software-history"
-        element={
-          <ProtectedRoute allowedRoles={['CLIENT']} {...routeProps}>
-            <SoftwareHistory />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/software-management"
-        element={
-          <ProtectedRoute allowedRoles={['IT_ADMIN']} {...routeProps}>
-            <SoftwareManagement />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/programmer-dashboard"
-        element={
-          <ProtectedRoute allowedRoles={['PROGRAMMER']} {...routeProps}>
-            <ProgrammerDashboard />
           </ProtectedRoute>
         }
       />
@@ -281,15 +264,18 @@ function AppRoutes() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <NotificationProvider>
-            <AppRoutes />
-          </NotificationProvider>
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+    <MotionConfig reducedMotion="user">
+      <ThemeProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <NotificationProvider>
+              <ToastNotifications />
+              <AppRoutes />
+            </NotificationProvider>
+          </BrowserRouter>
+        </AuthProvider>
+      </ThemeProvider>
+    </MotionConfig>
   );
 }
 

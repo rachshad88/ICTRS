@@ -1,9 +1,11 @@
+const path = require('path');
+
 module.exports = {
   apps: [
     {
       name: 'backend',
       script: 'dist/index.js',
-      cwd: './',
+      cwd: path.resolve(__dirname),
       instances: 1,
       exec_mode: 'cluster',
       error: './logs/err.log',
