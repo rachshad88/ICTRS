@@ -6,6 +6,7 @@ import { initSocket, getSocket } from '../services/socket';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import AnimatedNumber from '../components/AnimatedNumber';
+import { NotesList, RequestNote } from '../components/RequestNotes';
 import { staggerContainer, staggerItem } from '../lib/motion';
 
 interface Request {
@@ -20,6 +21,7 @@ interface Request {
   created_at: string;
   completed_at: string;
   assigned_to: string | null;
+  notes?: RequestNote[];
 }
 
 interface Counts {
@@ -142,6 +144,9 @@ function Dashboard() {
     if (req.status === 'DONE') {
       return <span className="hstatus done"><span className="hstatus-dot done" />Done</span>;
     }
+    if (req.status === 'DECLINED') {
+      return <span className="hstatus declined"><span className="hstatus-dot declined" />Declined</span>;
+    }
     if (req.status === 'IN_PROGRESS') {
       return <button className="hbtn hbtn-view" onClick={() => openFinishModal(req)}>Mark Done</button>;
     }
@@ -210,7 +215,7 @@ function Dashboard() {
       ) : (
         <>
           <div className="history-table-wrap">
-            <table className="history-table">
+            <table className="history-table stack-mobile">
               <thead>
                 <tr>
                   <th>Code</th>
@@ -231,18 +236,23 @@ function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <td className="td-code">{req.request_code}</td>
-                    <td className="td-cell">{req.office}</td>
-                    <td className="td-cell">{req.client_name}</td>
-                    <td>{req.issue}</td>
-                    <td>
+                    <td className="td-code" data-label="Code">{req.request_code}</td>
+                    <td className="td-cell" data-label="Office">{req.office}</td>
+                    <td className="td-cell" data-label="Requested By">{req.client_name}</td>
+                    <td data-label="Issue">
+                      {req.issue}
+                      {req.notes && req.notes.length > 0 && (
+                        <span className="note-count" title="Notes from the client">{req.notes.length} {req.notes.length === 1 ? 'note' : 'notes'}</span>
+                      )}
+                    </td>
+                    <td data-label="Status">
                       <span className={`hstatus ${req.statusClass}`}>
                         <span className={`hstatus-dot ${req.statusClass}`} />
                         {req.status}
                       </span>
                     </td>
-                    <td className="td-cell">{req.created_at}</td>
-                    <td className="td-cell">{req.completed_at}</td>
+                    <td className="td-cell" data-label="Created">{req.created_at}</td>
+                    <td className="td-cell" data-label="Completed">{req.completed_at}</td>
                     <td className="col-actions">{getActionButtons(req)}</td>
                   </motion.tr>
                 ))}
@@ -261,6 +271,7 @@ function Dashboard() {
             <h3>Mark Request as Done</h3>
             <p><strong>Request:</strong> {selectedRequest?.request_code}</p>
             <p><strong>Issue:</strong> {selectedRequest?.issue}</p>
+            <NotesList notes={selectedRequest?.notes} />
 
             <div className="form-group">
               <label>Status *</label>

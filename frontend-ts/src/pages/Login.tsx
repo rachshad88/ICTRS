@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 
@@ -74,7 +74,7 @@ function Login() {
               <img src="/solano-logo.png" alt="Solano" className="login-seal" />
             </div>
             <h1 className="login-brand-title">ITRS</h1>
-            <p className="login-brand-subtitle">Information Technology<br />Request System</p>
+            <p className="login-brand-subtitle">Information Technology Request System</p>
             <div className="login-brand-footer"> 2026 © Dave Shadrach B. Lannu</div>
           </div>
         </div>
@@ -194,6 +194,10 @@ function Login() {
               </button>
               </motion.div>
             </form>
+
+            <p className="login-guide-link">
+              New to ITRS? <Link to="/guide">Read the client guide</Link>
+            </p>
 
             <div className="login-version">v1.0.0</div>
           </motion.div>

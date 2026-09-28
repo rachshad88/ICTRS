@@ -5,6 +5,7 @@ import { initSocket, getSocket } from '../services/socket';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
+import { NotesList, RequestNote } from '../components/RequestNotes';
 import RequestMobileCard from '../components/RequestMobileCard';
 
 interface MultimediaRequest {
@@ -19,6 +20,7 @@ interface MultimediaRequest {
   contact_number: string;
   program_file: string | null;
   status: string;
+  notes?: RequestNote[];
   remarks?: string;
   recommendation?: string;
   requester?: Array<{ first_name: string; last_name: string }>;
@@ -77,10 +79,12 @@ function MultimediaRequestsDashboard() {
     socket.on('multimedia_request_assigned', handler);
     socket.on('multimedia_request_completed', handler);
     socket.on('multimedia_request_cancelled', handler);
+    socket.on('multimedia_request_note_added', handler);
     return () => {
       socket.off('multimedia_request_assigned', handler);
       socket.off('multimedia_request_completed', handler);
       socket.off('multimedia_request_cancelled', handler);
+      socket.off('multimedia_request_note_added', handler);
     };
   }, [user]);
 
@@ -124,7 +128,7 @@ function MultimediaRequestsDashboard() {
         <div className="history-empty">No assigned multimedia requests</div>
       ) : (
         <>
-          <div className="history-table-wrap">
+          <div className="history-table-wrap hide-on-mobile">
             <table className="history-table">
               <thead>
                 <tr>
@@ -238,6 +242,7 @@ function MultimediaRequestsDashboard() {
                   <FileViewer files={[selectedRequest.program_file]} requestId={selectedRequest._id} type="multimedia" />
                 </div>
               )}
+              <NotesList notes={selectedRequest.notes} />
             </div>
             <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
           </div>
@@ -249,6 +254,7 @@ function MultimediaRequestsDashboard() {
           <div className="modal-content">
             <h3>Complete Multimedia Request</h3>
             <p><strong>Event:</strong> {selectedRequest.event_title}</p>
+            <NotesList notes={selectedRequest.notes} />
             <div className="form-group">
               <label>Remarks</label>
               <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Any additional remarks about the event" rows={3} />

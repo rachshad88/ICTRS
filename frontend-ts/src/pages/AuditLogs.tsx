@@ -93,7 +93,7 @@ function AuditLogs() {
         <div className="history-empty">No audit logs found</div>
       ) : (
         <div className="history-table-wrap">
-          <table className="history-table">
+          <table className="history-table stack-mobile">
             <thead>
               <tr>
                 <th>Timestamp</th>
@@ -107,14 +107,14 @@ function AuditLogs() {
             <tbody>
               {logs.map((log) => (
                 <tr key={log._id}>
-                  <td className="td-cell" style={{ whiteSpace: 'nowrap' }}>{formatDate(log.timestamp)}</td>
-                    <td className="td-cell">{log.username || '-'}</td>
-                  <td>
+                  <td className="td-cell" style={{ whiteSpace: 'nowrap' }} data-label="Timestamp">{formatDate(log.timestamp)}</td>
+                    <td className="td-cell" data-label="User">{log.username || '-'}</td>
+                  <td data-label="Role">
                     <span className={`role-badge ${(log.role || '').toLowerCase()}`}>{log.role ? log.role.charAt(0) + log.role.slice(1).toLowerCase() : '-'}</span>
                   </td>
-                  <td className="td-cell">{actionLabels[log.action] || log.action || '-'}</td>
-                  <td className="td-cell">{(log.entity_type || '').replace(/_/g, ' ') || '-'}</td>
-                  <td className="td-truncate" style={{ maxWidth: '400px' }}>{typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}</td>
+                  <td className="td-cell" data-label="Action">{actionLabels[log.action] || log.action || '-'}</td>
+                  <td className="td-cell" data-label="Type">{(log.entity_type || '').replace(/_/g, ' ') || '-'}</td>
+                  <td className="td-truncate" style={{ maxWidth: '400px' }} data-label="Details">{typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}</td>
                 </tr>
               ))}
             </tbody>

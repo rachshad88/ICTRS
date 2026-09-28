@@ -4,6 +4,7 @@ const config: HistoryTableConfig = {
   title: 'Multimedia Request History',
   fetchEndpoint: '/multimedia/my_history',
   cancelEndpoint: '/multimedia/cancel_request',
+  noteEndpoint: '/multimedia/add_note',
   exportEndpoint: '/api/multimedia/export_excel',
   columns: [
     { key: 'event_title', label: 'Event' },
@@ -14,6 +15,7 @@ const config: HistoryTableConfig = {
   searchPlaceholder: 'Search by code, event, location...',
   emptyMessage: 'No multimedia requests yet',
   cancelStatus: 'UNASSIGNED',
+  socketPrefix: 'multimedia',
   rateType: 'multimedia',
   modalTitleKey: 'event_title',
   modalFields: [

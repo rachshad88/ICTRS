@@ -5,6 +5,7 @@ import { initSocket, getSocket } from '../services/socket';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
+import { NotesList, RequestNote } from '../components/RequestNotes';
 import RequestMobileCard from '../components/RequestMobileCard';
 
 interface PrintMaterialsRequest {
@@ -20,6 +21,7 @@ interface PrintMaterialsRequest {
   requestor_contact: string;
   supporting_files: string[];
   status: string;
+  notes?: RequestNote[];
   remarks?: string;
   requester?: Array<{ first_name: string; last_name: string }>;
   created_at: string;
@@ -76,10 +78,12 @@ function PrintMaterialsDashboard() {
     socket.on('print_materials_request_assigned', handler);
     socket.on('print_materials_request_completed', handler);
     socket.on('print_materials_request_cancelled', handler);
+    socket.on('print_materials_request_note_added', handler);
     return () => {
       socket.off('print_materials_request_assigned', handler);
       socket.off('print_materials_request_completed', handler);
       socket.off('print_materials_request_cancelled', handler);
+      socket.off('print_materials_request_note_added', handler);
     };
   }, [user]);
 
@@ -113,7 +117,7 @@ function PrintMaterialsDashboard() {
         <div className="history-empty">No assigned print materials requests</div>
       ) : (
         <>
-          <div className="history-table-wrap">
+          <div className="history-table-wrap hide-on-mobile">
             <table className="history-table">
               <thead>
                 <tr>
@@ -230,6 +234,7 @@ function PrintMaterialsDashboard() {
                   <FileViewer files={selectedRequest.supporting_files} requestId={selectedRequest._id} type="printmaterials" />
                 </div>
               )}
+              <NotesList notes={selectedRequest.notes} />
             </div>
             <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
           </div>
@@ -241,6 +246,7 @@ function PrintMaterialsDashboard() {
           <div className="modal-content">
             <h3>Complete Print Materials Request</h3>
             <p><strong>Request:</strong> {selectedRequest.form_of_printed_media}</p>
+            <NotesList notes={selectedRequest.notes} />
             <div className="form-group">
               <label>Remarks</label>
               <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Any additional remarks" rows={3} />

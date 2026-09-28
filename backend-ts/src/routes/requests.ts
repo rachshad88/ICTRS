@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb';
 import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isTechnicianOnly, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema } from '../middleware/validation';
+import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema } from '../middleware/validation';
 
 const router = Router();
 
@@ -142,7 +142,7 @@ router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(f
 
     let filter: Record<string, unknown>;
     if (req.user!.roles.includes('ADMIN')) {
-      filter = { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED'] } };
+      filter = { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } };
     } else if (req.user!.roles.includes('TECHNICIAN')) {
       // Technician can only finish requests assigned to them
       filter = { 
@@ -203,7 +203,7 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
     let result;
     if (req.user!.roles.includes('ADMIN') || req.user!.roles.includes('TECHNICIAN') || req.user!.roles.includes('IT_ADMIN')) {
       result = await requestsCollection.findOneAndUpdate(
-        { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED'] } },
+        { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } },
         { $set: { status: 'CANCELLED', assigned_to: null } },
         { returnDocument: 'after' }
       );
@@ -236,6 +236,105 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
   } catch (error) {
     console.error('Cancel request error:', error);
     res.status(500).json({ status: 'error', message: 'Failed to cancel request' });
+  }
+});
+
+// Decline and note text is stored as plain text, not through sanitizeInput: React escapes it
+// on render, and HTML-escaping here would show entities such as &#x27; to users.
+router.post('/decline_request', isAuthenticated, isItAdmin, validateBody(declineRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { request_id } = req.body;
+    const reason = String(req.body.reason).trim();
+
+    const requestsCollection = getRequestsCollection();
+    const result = await requestsCollection.findOneAndUpdate(
+      { _id: new ObjectId(request_id), status: 'PENDING', assigned_to: null },
+      { $set: { status: 'DECLINED', decline_reason: reason, declined_by: new ObjectId(req.user!.user_id), declined_at: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!result || !result.value) {
+      return res.status(404).json({ status: 'error', message: 'Request not found or already assigned' });
+    }
+
+    const requestCode = result.value.request_code || 'unknown';
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'DECLINE_REQUEST', 'IT_REQUEST', request_id, `IT Admin ${req.user!.username} declined request ${requestCode}: ${reason}`, { reason });
+
+    const io = req.app.get('io');
+    if (io) {
+      // 'technicians' holds IT admins and technicians; the owner is told separately below.
+      io.to('technicians').emit('request_update', {
+        event: 'declined',
+        request_id,
+        status: 'DECLINED',
+        timestamp: new Date()
+      });
+      io.to(`user_${result.value.created_by?.toString()}`).emit('my_request_declined', {
+        request_id,
+        request_code: requestCode,
+        reason
+      });
+    }
+
+    res.json({ status: 'success' });
+  } catch (error) {
+    console.error('Decline request error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to decline request' });
+  }
+});
+
+const MAX_NOTES_PER_REQUEST = 20;
+
+router.post('/add_note', isAuthenticated, validateBody(addNoteSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { request_id } = req.body;
+    const userId = req.user!.user_id;
+    const note = {
+      _id: new ObjectId(),
+      text: String(req.body.text).trim(),
+      author_id: new ObjectId(userId),
+      author_name: `${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username,
+      created_at: new Date()
+    };
+
+    const requestsCollection = getRequestsCollection();
+    const result = await requestsCollection.findOneAndUpdate(
+      {
+        _id: new ObjectId(request_id),
+        created_by: new ObjectId(userId),
+        status: { $in: ['PENDING', 'IN_PROGRESS'] },
+        [`notes.${MAX_NOTES_PER_REQUEST - 1}`]: { $exists: false }
+      },
+      { $push: { notes: note } },
+      { returnDocument: 'after' }
+    );
+
+    if (!result || !result.value) {
+      return res.status(400).json({ status: 'error', message: 'Notes can only be added to your own open requests (up to 20 per request)' });
+    }
+
+    const requestCode = result.value.request_code || 'unknown';
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'ADD_NOTE', 'IT_REQUEST', request_id, `User ${req.user!.username} added a note to request ${requestCode}`);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to('technicians').emit('request_update', {
+        event: 'note_added',
+        request_id,
+        timestamp: new Date()
+      });
+      if (result.value.assigned_to) {
+        io.to(`user_${result.value.assigned_to.toString()}`).emit('request_note_added', {
+          request_id,
+          request_code: requestCode
+        });
+      }
+    }
+
+    res.json({ status: 'success', note });
+  } catch (error) {
+    console.error('Add note error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to add note' });
   }
 });
 
@@ -328,6 +427,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
                   pending_count: { $sum: { $cond: [{ $eq: ['$status', 'PENDING'] }, 1, 0] } },
                   progress_count: { $sum: { $cond: [{ $eq: ['$status', 'IN_PROGRESS'] }, 1, 0] } },
                   done_count: { $sum: { $cond: [{ $eq: ['$status', 'DONE'] }, 1, 0] } },
+                  declined_count: { $sum: { $cond: [{ $eq: ['$status', 'DECLINED'] }, 1, 0] } },
                   repaired_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'repaired'] }] }, 1, 0] } },
                   beyond_repair_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'beyond repair'] }] }, 1, 0] } }
                 }
@@ -347,6 +447,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
       pending_count: meta.pending_count || 0,
       progress_count: meta.progress_count || 0,
       done_count: meta.done_count || 0,
+      declined_count: meta.declined_count || 0,
       repaired_count: meta.repaired_count || 0,
       beyond_repair_count: meta.beyond_repair_count || 0
     };
@@ -371,7 +472,9 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
         statusClass,
         created_at: createdAtStr,
         completed_at: completedAtStr,
-        assigned_to: r.assigned_to?.toString() || null
+        assigned_to: r.assigned_to?.toString() || null,
+        decline_reason: r.decline_reason || null,
+        notes: r.notes || []
       };
     });
 
@@ -421,7 +524,9 @@ router.get('/check_status/:requestCode', isAuthenticated, async (req: Authentica
         remarks: request.remarks,
         recommendation: request.recommendation,
         created_at: request.created_at,
-        completed_at: request.completed_at
+        completed_at: request.completed_at,
+        decline_reason: request.decline_reason || null,
+        notes: request.notes || []
       }
     });
   } catch (error) {
@@ -516,7 +621,8 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
     const counts = {
       pending_count: countsResult.find(c => c._id === 'PENDING')?.count || 0,
       progress_count: countsResult.find(c => c._id === 'IN_PROGRESS')?.count || 0,
-      done_count: countsResult.find(c => c._id === 'DONE')?.count || 0
+      done_count: countsResult.find(c => c._id === 'DONE')?.count || 0,
+      declined_count: countsResult.find(c => c._id === 'DECLINED')?.count || 0
     };
     
     const total = countsResult.reduce((sum, c) => sum + c.count, 0);

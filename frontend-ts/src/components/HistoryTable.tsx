@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { initSocket, getSocket } from '../services/socket';
 import FileViewer from './FileViewer';
 import Skeleton from './Skeleton';
 import Pagination from './Pagination';
 import { truncateCell } from '../lib/truncate';
+import { NotesList, DeclineReason, AddNoteForm, RequestNote } from './RequestNotes';
 
 export interface ColumnDef {
   key: string;
@@ -28,11 +31,14 @@ export interface HistoryTableConfig {
   title: string;
   fetchEndpoint: string;
   cancelEndpoint: string;
+  noteEndpoint: string;
   exportEndpoint: string;
   columns: ColumnDef[];
   searchPlaceholder: string;
   emptyMessage: string;
   cancelStatus: string;
+  /** Prefix of this request type's socket events, e.g. 'multimedia' for multimedia_request_declined. */
+  socketPrefix: string;
   rateType: string;
   modalTitleKey: string;
   modalFields: ModalField[];
@@ -63,6 +69,7 @@ export function renderStatusBadge(status: string) {
 }
 
 export function HistoryTable({ config }: { config: HistoryTableConfig }) {
+  const { user } = useAuth();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -73,13 +80,19 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
+  const searchTermRef = useRef(searchTerm);
+  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
+
   const fetchRequests = useCallback(async (search?: string) => {
     try {
       const params: Record<string, string | number> = { page: currentPage, limit: ITEMS_PER_PAGE };
       if (search) params.search = search;
       const response = await api.get(config.fetchEndpoint, { params });
-      setRequests(response.data.requests);
+      const fresh: any[] = response.data.requests;
+      setRequests(fresh);
       setTotal(response.data.total || 0);
+      // Keep an open details modal in sync, e.g. when the request is declined while it is being viewed.
+      setSelectedRequest((prev: any) => (prev ? fresh.find((r) => r._id === prev._id) || prev : prev));
       setError('');
     } catch (error) {
       console.error(`Failed to fetch ${config.title.toLowerCase()}:`, error);
@@ -91,6 +104,23 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
     return () => clearTimeout(timer);
   }, [searchTerm, fetchRequests]);
 
+  useEffect(() => {
+    if (user) {
+      initSocket(user.user_id, user.roles || [user.role]);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return;
+    const handler = () => fetchRequests(searchTermRef.current || undefined);
+    const events = ['assigned', 'completed', 'cancelled', 'declined'].map((e) => `${config.socketPrefix}_request_${e}`);
+    events.forEach((e) => socket.on(e, handler));
+    return () => {
+      events.forEach((e) => socket.off(e, handler));
+    };
+  }, [user, fetchRequests, config.socketPrefix]);
+
   const handleCancel = async (requestId: string) => {
     if (!window.confirm('Are you sure you want to cancel this request?')) return;
     try {
@@ -101,6 +131,15 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
       setError('Failed to cancel request');
     }
   };
+
+  const handleNoteAdded = (note: RequestNote) => {
+    if (!selectedRequest) return;
+    const updated = { ...selectedRequest, notes: [...(selectedRequest.notes || []), note] };
+    setSelectedRequest(updated);
+    setRequests((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
+  };
+
+  const canAddNote = (status: string) => status === config.cancelStatus || status === 'IN_PROGRESS';
 
   const handleExport = () => {
     window.location.href = config.exportEndpoint;
@@ -144,7 +183,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
       ) : (
         <>
           <div className="history-table-wrap">
-            <table className="history-table">
+            <table className="history-table stack-mobile">
               <thead>
                 <tr>
                   <th>Status</th>
@@ -164,12 +203,12 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.26, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <td>{renderStatusBadge(request.status)}</td>
-                    <td className="td-code">{request.request_code}</td>
+                    <td data-label="Status">{renderStatusBadge(request.status)}</td>
+                    <td className="td-code" data-label="Code">{request.request_code}</td>
                     {config.columns.map(col => (
-                      <td key={col.key} className="td-cell">{defaultRender(request, col)}</td>
+                      <td key={col.key} className="td-cell" data-label={col.label}>{defaultRender(request, col)}</td>
                     ))}
-                    <td className="td-cell">{renderAssignedTechnician(request.assignedTechnician)}</td>
+                    <td className="td-cell" data-label="Assigned To">{renderAssignedTechnician(request.assignedTechnician)}</td>
                     <td className="col-actions">
                       <div className="history-actions">
                         {request.status === config.cancelStatus && (
@@ -183,7 +222,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                           </button>
                         )}
                         <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                          View
+                          {canAddNote(request.status) ? 'View / Add note' : 'View'}
                         </button>
                       </div>
                     </td>
@@ -223,6 +262,11 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                 </div>
               )}
             </div>
+            <DeclineReason reason={selectedRequest.decline_reason} />
+            <NotesList notes={selectedRequest.notes} heading="Your notes" />
+            {canAddNote(selectedRequest.status) && (
+              <AddNoteForm endpoint={config.noteEndpoint} requestId={selectedRequest._id} onAdded={handleNoteAdded} />
+            )}
             <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
           </div>
         </div>

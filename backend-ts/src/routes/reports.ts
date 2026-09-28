@@ -134,8 +134,11 @@ async function queryType(
   const dateFilter = { $gte: startDate, $lte: endDate };
   const filter = buildFilter(dateFilter, showDone, search, typeKey);
 
-  const isAdmin = roles.includes('ADMIN');
-  if (config.filterAssigned && !isAdmin) {
+  // ADMIN sees everything. A type-specific admin (IT_ADMIN, MULTIMEDIA_ADMIN) sees every request of the
+  // types they have access to; they assign work rather than being assigned it, so filtering by
+  // assigned_to would leave their reports empty. Technicians and staff still see only their own.
+  const seesAll = roles.some(r => config.roleAccess.includes(r as Role) && r.includes('ADMIN'));
+  if (config.filterAssigned && !seesAll) {
     filter.assigned_to = new ObjectId(userId);
   }
 
@@ -228,8 +231,17 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
       return;
     }
 
-    const internalFields = new Set(['_id', 'created_by', 'assigned_to', 'created_at']);
-    const headers = Object.keys(reports[0]).filter(k => !internalFields.has(k));
+    // notes and declined_by hold objects and ids, so they are left out of the spreadsheet.
+    const internalFields = new Set(['_id', 'created_by', 'assigned_to', 'created_at', 'notes', 'declined_by']);
+    // Union of every row's keys, in first-seen order. Using only the first row would drop columns
+    // such as decline_reason whenever that row was not declined.
+    const headerSet = new Set<string>();
+    for (const r of reports) {
+      for (const k of Object.keys(r)) {
+        if (!internalFields.has(k)) headerSet.add(k);
+      }
+    }
+    const headers = [...headerSet];
     const excelRows = reports.map(r => {
       const row: Record<string, unknown> = {};
       for (const h of headers) {

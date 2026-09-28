@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { AuthenticatedRequest, isAuthenticated, isMultimediaAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { assignMultimediaSchema, completeMultimediaSchema } from '../middleware/validation';
+import { assignMultimediaSchema, completeMultimediaSchema, declineRequestSchema, addNoteSchema } from '../middleware/validation';
 import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId } from '../config/database';
 import { getIO } from '../config/socket';
 import * as XLSX from 'xlsx';
@@ -48,6 +48,8 @@ interface RouteConfig {
   fileFieldPath: string;
   fileIsArray: boolean;
 }
+
+const MAX_NOTES_PER_REQUEST = 20;
 
 export function createRequestRouter(config: RouteConfig): Router {
   const router = Router();
@@ -358,7 +360,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       }
 
       const result = await collection.findOneAndUpdate(
-        { _id: new ObjectId(request_id) },
+        { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } },
         { $set: { assigned_to: new ObjectId(technician_id), status: 'IN_PROGRESS' } },
         { returnDocument: 'after' }
       );
@@ -451,7 +453,8 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const filter: Record<string, any> = {
         _id: new ObjectId(request_id),
-        assigned_to: userId
+        assigned_to: userId,
+        status: { $nin: ['CANCELLED', 'DECLINED'] }
       };
 
       const updateDoc: Record<string, any> = {
@@ -588,7 +591,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       }
 
       const result = await collection.findOneAndUpdate(
-        { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED'] } },
+        { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } },
         { $set: { status: 'CANCELLED' } },
         { returnDocument: 'after' }
       );
@@ -617,6 +620,100 @@ export function createRequestRouter(config: RouteConfig): Router {
     } catch (error) {
       console.error(`Cancel ${config.entity} request error:`, error);
       res.status(500).json({ error: 'Failed to cancel request' });
+    }
+  });
+
+  // POST /decline
+  // Decline and note text is stored as plain text, not through sanitizeInput: React escapes it
+  // on render, and HTML-escaping here would show entities such as &#x27; to users.
+  router.post('/decline', isAuthenticated, isMultimediaAdmin, validateBody(declineRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { request_id } = req.body;
+      const reason = String(req.body.reason).trim();
+      const collection = config.getCollection();
+
+      const result = await collection.findOneAndUpdate(
+        { _id: new ObjectId(request_id), status: config.initialStatus, assigned_to: null },
+        { $set: { status: 'DECLINED', decline_reason: reason, declined_by: new ObjectId(req.user!.user_id), declined_at: new Date() } },
+        { returnDocument: 'after' }
+      );
+
+      if (!result || !result.value) {
+        return res.status(404).json({ error: 'Request not found or already assigned' });
+      }
+
+      const requestCode = result.value.request_code || 'unknown';
+      await logAudit(
+        new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
+        'DECLINE_REQUEST', config.auditEntityType, request_id,
+        `Admin ${req.user!.username} declined ${config.entity} request ${requestCode}: ${reason}`,
+        { reason }
+      );
+
+      const io = getIO();
+      if (io) {
+        const payload = { request_id, request_code: requestCode, status: 'DECLINED', reason };
+        io.to(`user_${result.value.created_by?.toString()}`).emit(`${config.socketPrefix}_request_declined`, payload);
+        io.to('admins').emit(`${config.socketPrefix}_request_declined`, payload);
+        io.to('multimedia_staff').emit(`${config.socketPrefix}_request_declined`, payload);
+      }
+
+      res.json({ status: 'success' });
+    } catch (error) {
+      console.error(`Decline ${config.entity} request error:`, error);
+      res.status(500).json({ error: 'Failed to decline request' });
+    }
+  });
+
+  // POST /add_note
+  router.post('/add_note', isAuthenticated, validateBody(addNoteSchema), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { request_id } = req.body;
+      const userId = req.user!.user_id;
+      const note = {
+        _id: new ObjectId(),
+        text: String(req.body.text).trim(),
+        author_id: new ObjectId(userId),
+        author_name: `${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username,
+        created_at: new Date()
+      };
+      const collection = config.getCollection();
+
+      const result = await collection.findOneAndUpdate(
+        {
+          _id: new ObjectId(request_id),
+          created_by: new ObjectId(userId),
+          status: { $in: [config.initialStatus, 'IN_PROGRESS'] },
+          [`notes.${MAX_NOTES_PER_REQUEST - 1}`]: { $exists: false }
+        },
+        { $push: { notes: note } },
+        { returnDocument: 'after' }
+      );
+
+      if (!result || !result.value) {
+        return res.status(400).json({ error: `Notes can only be added to your own open requests (up to ${MAX_NOTES_PER_REQUEST} per request)` });
+      }
+
+      const requestCode = result.value.request_code || 'unknown';
+      await logAudit(
+        new ObjectId(userId), req.user!.username, req.user!.primary_role,
+        'ADD_NOTE', config.auditEntityType, request_id,
+        `User ${req.user!.username} added a note to ${config.entity} request ${requestCode}`
+      );
+
+      const io = getIO();
+      if (io) {
+        const payload = { request_id, request_code: requestCode };
+        if (result.value.assigned_to) {
+          io.to(`user_${result.value.assigned_to.toString()}`).emit(`${config.socketPrefix}_request_note_added`, payload);
+        }
+        io.to('admins').emit(`${config.socketPrefix}_request_note_added`, payload);
+      }
+
+      res.json({ status: 'success', note });
+    } catch (error) {
+      console.error(`Add note to ${config.entity} request error:`, error);
+      res.status(500).json({ error: 'Failed to add note' });
     }
   });
 

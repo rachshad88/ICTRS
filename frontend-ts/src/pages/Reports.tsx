@@ -3,22 +3,25 @@ import { motion } from 'framer-motion';
 import {
   AlignmentType,
   BorderStyle,
+  BuilderElement,
   Document,
   Footer,
   Header,
   HeightRule,
+  HorizontalPositionRelativeFrom,
   ImageRun,
-  PageNumber,
+  LineRuleType,
   PageOrientation,
   Packer,
   Paragraph,
-  ShadingType,
+  StringContainer,
   Table,
   TableCell,
   TableLayoutType,
   TableRow,
   TextRun,
   VerticalAlign,
+  VerticalPositionRelativeFrom,
   WidthType,
 } from 'docx';
 import { api } from '../services/api';
@@ -33,7 +36,7 @@ interface Column {
 }
 
 type TabKey = 'it' | 'multimedia' | 'digital-media' | 'print-materials';
-type ReportPrintFilter = 'all' | 'daily' | 'weekly' | 'monthly' | 'calendar';
+type ReportPrintFilter = 'range' | 'all' | 'daily' | 'weekly' | 'monthly' | 'calendar';
 type ReportStatusScope = 'all' | 'done' | 'not-done';
 
 interface TabConfig {
@@ -191,6 +194,13 @@ interface DarMeta {
   filter: string;
   status: string;
   date: string;
+  from?: string;
+  to?: string;
+}
+
+// Parse a YYYY-MM-DD input value as a local date (new Date('YYYY-MM-DD') would be UTC).
+function parseLocalDay(value: string): Date {
+  return new Date(`${value}T00:00:00`);
 }
 
 const GRAY: [number, number, number] = [110, 110, 110];
@@ -214,7 +224,12 @@ function fmtLongDate(d: Date): string {
     .toUpperCase();
 }
 
-function computePeriod(filter: string, date: string, rows: DarRow[]): string {
+function computePeriod(filter: string, date: string, rows: DarRow[], from?: string, to?: string): string {
+  if (filter === 'range' && from && to) {
+    const s = fmtLongDate(parseLocalDay(from));
+    const e = fmtLongDate(parseLocalDay(to));
+    return s === e ? s : `${s} TO ${e}`;
+  }
   const d = date ? new Date(date) : new Date();
   if (filter === 'daily' || filter === 'calendar') {
     return isNaN(d.getTime()) ? fmtLongDate(new Date()) : fmtLongDate(d);
@@ -249,7 +264,17 @@ function computePeriod(filter: string, date: string, rows: DarRow[]): string {
   return fmtLongDate(d);
 }
 
-function listPeriodDays(filter: string, date: string, rows: DarRow[]): Date[] {
+function listPeriodDays(filter: string, date: string, rows: DarRow[], from?: string, to?: string): Date[] {
+  if (filter === 'range' && from && to) {
+    const days: Date[] = [];
+    const cursor = parseLocalDay(from);
+    const end = parseLocalDay(to);
+    while (cursor.getTime() <= end.getTime()) {
+      days.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return days;
+  }
   const d = date ? new Date(date) : new Date();
   const safeDay = isNaN(d.getTime()) ? new Date() : d;
   if (filter === 'daily' || filter === 'calendar') return [safeDay];
@@ -316,6 +341,7 @@ interface DarImages {
   logo2: string | null;
   logo3: string | null;
   footerLogo: string | null;
+  footerGradient: string | null;
 }
 
 const GDL_CLUSTER =
@@ -323,6 +349,7 @@ const GDL_CLUSTER =
 
 const mmToDxa = (mm: number): number => Math.round((mm / 25.4) * 1440);
 const mmToPx = (mm: number): number => Math.round((mm / 25.4) * 96);
+const mmToEmu = (mm: number): number => Math.round(mm * 36000);
 
 function dataUrlToBytes(dataUrl: string): Uint8Array {
   const base64 = dataUrl.split(',')[1] || '';
@@ -332,7 +359,7 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-type DarFont = 'Times New Roman' | 'Arial';
+type DarFont = 'Times New Roman' | 'Arial' | 'Bookman Old Style' | 'Balthazar';
 
 interface TrOpts {
   bold?: boolean;
@@ -352,6 +379,26 @@ function tr(text: string, halfPoints: number, opts: TrOpts = {}): TextRun {
     color: opts.color ?? '000000',
     ...(opts.charSpace ? { characterSpacing: opts.charSpace } : {}),
   });
+}
+
+function fieldChar(type: 'begin' | 'separate' | 'end'): BuilderElement<{ type: string }> {
+  return new BuilderElement({ name: 'w:fldChar', attributes: { type: { key: 'w:fldCharType', value: type } } });
+}
+
+// PAGE/NUMPAGES via a bare `children: [PageNumber.CURRENT]` run leaves the field with no
+// cached result, so viewers that don't recalculate fields with the run's own styling
+// (e.g. LibreOffice) render the page number in a default font/size instead of ours.
+// Building begin/instrText/separate/<styled cached value>/end as their own runs keeps a
+// styled result in place until Word (or anything else) recalculates it.
+function styledPageField(instr: 'PAGE' | 'NUMPAGES', cachedText: string, opts: TrOpts & { size: number }): TextRun[] {
+  const rPr = { font: opts.font, size: opts.size, bold: opts.bold, color: opts.color };
+  return [
+    new TextRun({ ...rPr, children: [fieldChar('begin')] }),
+    new TextRun({ ...rPr, children: [new StringContainer('w:instrText', instr)] }),
+    new TextRun({ ...rPr, children: [fieldChar('separate')] }),
+    new TextRun({ ...rPr, text: cachedText }),
+    new TextRun({ ...rPr, children: [fieldChar('end')] }),
+  ];
 }
 
 function darImage(dataUrl: string | null, wMm: number, hMm: number): ImageRun[] {
@@ -383,10 +430,7 @@ const gridBorders = {
 };
 
 const DAR_BLUE_HEX = '1F4E79';
-const TITLE_GRAY_HEX = '464646';
 const DIVIDER_GRAYBLUE_HEX = '96AAC8';
-const NOTE_GRAY_HEX = '6E6E6E';
-const BAND_BLUE_HEX = 'CDE9F6';
 const PAGE_BLUE_HEX = '9CC3E5';
 
 function buildDarHeader(imgs: DarImages, period: string): Header {
@@ -399,7 +443,7 @@ function buildDarHeader(imgs: DarImages, period: string): Header {
 
   const headerTable = new Table({
     width: { size: 15398, type: WidthType.DXA },
-    columnWidths: [1191, 4300, 5500, 4407],
+    columnWidths: [1191, 4300, 5900, 4007],
     layout: TableLayoutType.FIXED,
     borders: noTableBorders,
     rows: [
@@ -420,35 +464,36 @@ function buildDarHeader(imgs: DarImages, period: string): Header {
             verticalAlign: VerticalAlign.CENTER,
             margins: { left: 100 },
             children: [
-              new Paragraph({ children: [tr('Republic of the Philippines', 17)] }),
-              new Paragraph({ spacing: { before: 40 }, children: [tr('Province of Nueva Vizcaya', 17)] }),
-              new Paragraph({ spacing: { before: 60 }, children: [tr('MUNICIPALITY OF SOLANO', 25, { bold: true })] }),
-              new Paragraph({ spacing: { before: 60 }, children: [tr(DAR_ADDRESS, 13)] }),
+              new Paragraph({ spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO }, children: [tr('Republic of the Philippines', 17, { font: 'Bookman Old Style' })] }),
+              new Paragraph({ spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO }, children: [tr('Province of Nueva Vizcaya', 17, { font: 'Bookman Old Style' })] }),
+              new Paragraph({ spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO }, children: [tr('MUNICIPALITY OF SOLANO', 22, { bold: true, font: 'Bookman Old Style' })] }),
+              new Paragraph({ spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO }, children: [tr(DAR_ADDRESS, 13, { font: 'Bookman Old Style' })] }),
             ],
           }),
           new TableCell({
-            width: { size: 5500, type: WidthType.DXA },
+            width: { size: 5900, type: WidthType.DXA },
             borders: noCellBorders,
             verticalAlign: VerticalAlign.CENTER,
             children: [
               new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [tr('OFFICE OF THE MUNICIPAL MAYOR', 23, { bold: true, color: DAR_BLUE_HEX })],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { before: 160 },
-                children: [tr(GDL_CLUSTER, 11, { bold: true, color: DAR_BLUE_HEX })],
+                alignment: AlignmentType.LEFT,
+                spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO },
+                children: [tr('OFFICE OF THE MUNICIPAL MAYOR', 28, { bold: true, color: DAR_BLUE_HEX, font: 'Balthazar' })],
               }),
               new Paragraph({
                 alignment: AlignmentType.LEFT,
-                spacing: { before: 60 },
-                children: [tr(DAR_UNIT, 14, { bold: true })],
+                spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO },
+                children: [tr(GDL_CLUSTER, 10, { bold: true, color: DAR_BLUE_HEX, font: 'Bookman Old Style' })],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.LEFT,
+                spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO },
+                children: [tr(DAR_UNIT, 18, { color: DAR_BLUE_HEX, font: 'Bookman Old Style' })],
               }),
             ],
           }),
           new TableCell({
-            width: { size: 4407, type: WidthType.DXA },
+            width: { size: 4007, type: WidthType.DXA },
             borders: noCellBorders,
             verticalAlign: VerticalAlign.CENTER,
             margins: { top: 0, bottom: 0, left: 0, right: 0 },
@@ -525,8 +570,7 @@ function buildDarHeader(imgs: DarImages, period: string): Header {
         children: [
           tr(`DAILY ACCOMPLISHMENT REPORT FOR THE PERIOD ${period}`, 22, {
             bold: true,
-            color: TITLE_GRAY_HEX,
-            charSpace: 8,
+            font: 'Bookman Old Style',
           }),
         ],
       }),
@@ -540,9 +584,11 @@ function contactPara(label: string, value: string): Paragraph {
   });
 }
 
-function bandCell(opts: {
+function footerCell(opts: {
   width: number;
   columnSpan?: number;
+  marginLeft?: number;
+  marginRight?: number;
   children: Paragraph[];
 }): TableCell {
   return new TableCell({
@@ -550,16 +596,40 @@ function bandCell(opts: {
     borders: noCellBorders,
     columnSpan: opts.columnSpan,
     verticalAlign: VerticalAlign.CENTER,
-    shading: { fill: BAND_BLUE_HEX, type: ShadingType.CLEAR, color: 'auto' },
+    margins:
+      opts.marginLeft || opts.marginRight
+        ? { left: opts.marginLeft, right: opts.marginRight }
+        : undefined,
     children: opts.children,
   });
 }
 
 function buildDarFooter(imgs: DarImages): Footer {
   const footerLogoImg = darImage(imgs.footerLogo, 25.1, 7.6);
+  // Page is landscape 16838x11906 dxa (see page.size below); pin the band to the
+  // full page width and to the bottom edge so it renders consistently across viewers.
+  const gradientWidthMm = (16838 / 1440) * 25.4;
+  const gradientHeightMm = 62.1;
+  const gradientTopMm = (11906 / 1440) * 25.4 - gradientHeightMm;
+  const gradientImg = imgs.footerGradient
+    ? [
+        new ImageRun({
+          type: 'png',
+          data: dataUrlToBytes(imgs.footerGradient),
+          transformation: { width: mmToPx(gradientWidthMm), height: mmToPx(gradientHeightMm) },
+          floating: {
+            horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 },
+            verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: mmToEmu(gradientTopMm) },
+            behindDocument: true,
+            allowOverlap: true,
+          },
+        }),
+      ]
+    : [];
 
   return new Footer({
     children: [
+      new Paragraph({ children: gradientImg }),
       new Table({
         width: { size: 16838, type: WidthType.DXA },
         columnWidths: [1696, 2694, 3260, 7445, 1743],
@@ -568,59 +638,49 @@ function buildDarFooter(imgs: DarImages): Footer {
         borders: noTableBorders,
         rows: [
           new TableRow({
-            height: { value: 1587, rule: HeightRule.EXACT },
-            children: [
-              bandCell({
-                width: 16838,
-                columnSpan: 5,
-                children: [new Paragraph({ children: [] })],
-              }),
-            ],
-          }),
-          new TableRow({
             height: { value: 466, rule: HeightRule.EXACT },
             children: [
-              bandCell({
+              footerCell({
                 width: 1696,
+                marginLeft: 300,
                 children:
                   footerLogoImg.length > 0
                     ? [new Paragraph({ children: footerLogoImg })]
                     : [new Paragraph({ children: [] })],
               }),
-              bandCell({
+              footerCell({
                 width: 2694,
+                marginLeft: 250,
                 children: [
                   contactPara('Mobile Number', ': 0917-595-1931'),
                   contactPara('Telephone Number', ': (078) 321-2440'),
                 ],
               }),
-              bandCell({
+              footerCell({
                 width: 3260,
                 children: [
                   contactPara('Email Address', ': lgusolanonv@gmail.com'),
                   contactPara('Website', ': solano.gov.ph'),
                 ],
               }),
-              bandCell({
+              footerCell({
                 width: 7445,
                 children: [
                   contactPara('LGU Facebook Page:', ' Facebook.com/OfficialLguSolanoFanpage'),
                   contactPara('Office Facebook Page:', ' facebook.com/LguSolanoOfficialPage'),
                 ],
               }),
-              bandCell({
+              footerCell({
                 width: 1743,
+                marginRight: 300,
                 children: [
                   new Paragraph({
                     alignment: AlignmentType.RIGHT,
                     children: [
-                      new TextRun({
-                        font: 'Arial',
-                        size: 16,
-                        bold: true,
-                        color: PAGE_BLUE_HEX,
-                        children: ['Page ', PageNumber.CURRENT, ' of ', PageNumber.TOTAL_PAGES],
-                      }),
+                      tr('Page ', 16, { bold: true, font: 'Arial', color: PAGE_BLUE_HEX }),
+                      ...styledPageField('PAGE', '1', { font: 'Arial', size: 16, bold: true, color: PAGE_BLUE_HEX }),
+                      tr(' of ', 16, { bold: true, font: 'Arial', color: PAGE_BLUE_HEX }),
+                      ...styledPageField('NUMPAGES', '1', { font: 'Arial', size: 16, bold: true, color: PAGE_BLUE_HEX }),
                     ],
                   }),
                 ],
@@ -629,6 +689,7 @@ function buildDarFooter(imgs: DarImages): Footer {
           }),
         ],
       }),
+      new Paragraph({ spacing: { line: 940, lineRule: LineRuleType.EXACT }, children: [] }),
     ],
   });
 }
@@ -640,9 +701,10 @@ async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<Blob> {
     logo2: await loadImageDataUrl('/dar-hdr-logo2.png'),
     logo3: await loadImageDataUrl('/dar-hdr-logo3.png'),
     footerLogo: await loadImageDataUrl('/dar-footer-logo.png'),
+    footerGradient: await loadImageDataUrl('/dar-footer-gradient.png'),
   };
-  const period = computePeriod(meta.filter, meta.date, rows);
-  const days = listPeriodDays(meta.filter, meta.date, rows);
+  const period = computePeriod(meta.filter, meta.date, rows, meta.from, meta.to);
+  const days = listPeriodDays(meta.filter, meta.date, rows, meta.from, meta.to);
 
   const entriesByDay = new Map<string, string[]>();
   rows.forEach((row) => {
@@ -706,7 +768,7 @@ async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<Blob> {
 
   const notePara = new Paragraph({
     spacing: { before: 300 },
-    children: [tr(DAR_NOTE, 17, { italic: true, color: NOTE_GRAY_HEX })],
+    children: [tr(DAR_NOTE, 18)],
   });
 
   const sigNameLine = '_______________________';
@@ -786,6 +848,7 @@ const COLUMNS: Record<TabKey, Column[]> = {
     { key: 'status', label: 'Status' },
     { key: 'finished', label: 'Finished' },
     { key: 'remarks', label: 'Remarks' },
+    { key: 'decline_reason', label: 'Decline Reason', render: truncateCell },
     { key: 'recommendation', label: 'Recommendation' },
     { key: 'completed_at', label: 'Completed', render: fmtDateTime },
   ],
@@ -802,6 +865,7 @@ const COLUMNS: Record<TabKey, Column[]> = {
     { key: 'technician_name', label: 'Technician' },
     { key: 'status', label: 'Status' },
     { key: 'remarks', label: 'Remarks' },
+    { key: 'decline_reason', label: 'Decline Reason', render: truncateCell },
     { key: 'completed_at', label: 'Completed', render: fmtDateTime },
   ],
   'digital-media': [
@@ -817,6 +881,7 @@ const COLUMNS: Record<TabKey, Column[]> = {
     { key: 'technician_name', label: 'Technician' },
     { key: 'status', label: 'Status' },
     { key: 'remarks', label: 'Remarks' },
+    { key: 'decline_reason', label: 'Decline Reason', render: truncateCell },
     { key: 'completed_at', label: 'Completed', render: fmtDateTime },
   ],
   'print-materials': [
@@ -833,6 +898,7 @@ const COLUMNS: Record<TabKey, Column[]> = {
     { key: 'technician_name', label: 'Technician' },
     { key: 'status', label: 'Status' },
     { key: 'remarks', label: 'Remarks' },
+    { key: 'decline_reason', label: 'Decline Reason', render: truncateCell },
     { key: 'completed_at', label: 'Completed', render: fmtDateTime },
   ],
 };
@@ -865,8 +931,14 @@ function Reports() {
   const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printFilterType, setPrintFilterType] = useState<ReportPrintFilter>('all');
+  const [printFilterType, setPrintFilterType] = useState<ReportPrintFilter>('range');
   const [printDate, setPrintDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [printFrom, setPrintFrom] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-CA');
+  });
+  const [printTo, setPrintTo] = useState(new Date().toLocaleDateString('en-CA'));
+  const printRangeInvalid = printFilterType === 'range' && (!printFrom || !printTo || printFrom > printTo);
   const [printStatusScope, setPrintStatusScope] = useState<ReportStatusScope>('all');
   const [printLoading, setPrintLoading] = useState(false);
 
@@ -904,8 +976,11 @@ function Reports() {
   const downloadCombinedReport = async () => {
     try {
       setPrintLoading(true);
-      const activeFilter = printFilterType === 'calendar' ? 'daily' : printFilterType;
-      const effectiveDate = printFilterType === 'all' ? new Date().toLocaleDateString('en-CA') : printDate;
+      const isRange = printFilterType === 'range';
+      const activeFilter =
+        printFilterType === 'calendar' ? 'daily' : isRange ? 'all' : printFilterType;
+      const effectiveDate =
+        printFilterType === 'all' ? new Date().toLocaleDateString('en-CA') : isRange ? printFrom : printDate;
       const paramsBase = {
         filter: activeFilter,
         date: effectiveDate,
@@ -938,6 +1013,8 @@ function Reports() {
 
         rows.forEach((row) => {
           const status = String(row.status || '');
+          // A declined request was never worked on, so it is neither an accomplishment nor outstanding work.
+          if (status === 'DECLINED') return;
           const matchesStatus =
             printStatusScope === 'all'
               ? true
@@ -953,6 +1030,13 @@ function Reports() {
             if (typeKey === 'print-materials') return String(row.target_date || row.event_date || row.created_at || row.completed_at || '-');
             return String(row.created_at || row.completed_at || '-');
           })();
+
+          if (isRange) {
+            const parsed = new Date(dateValue);
+            if (Number.isNaN(parsed.getTime())) return;
+            const day = parsed.toLocaleDateString('en-CA');
+            if (day < printFrom || day > printTo) return;
+          }
 
           const detailValue = (() => {
             if (typeKey === 'it') return String(row.issue || '-');
@@ -977,12 +1061,13 @@ function Reports() {
         filter: printFilterType,
         status: printStatusScope,
         date: effectiveDate,
+        ...(isRange ? { from: printFrom, to: printTo } : {}),
       });
 
       const objectUrl = URL.createObjectURL(docxBlob);
       const downloadLink = document.createElement('a');
       downloadLink.href = objectUrl;
-      const normalizedDate = effectiveDate.replace(/\//g, '-');
+      const normalizedDate = isRange ? `${printFrom}_to_${printTo}` : effectiveDate.replace(/\//g, '-');
       const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
       downloadLink.download = `DAR-${normalizedDate}-${stamp}.docx`;
       document.body.appendChild(downloadLink);
@@ -999,7 +1084,7 @@ function Reports() {
 
   const renderStatus = (status: unknown) => {
     const s = String(status || '');
-    const cls = s === 'DONE' ? 'done' : s === 'CANCELLED' ? 'cancelled' : 'pending';
+    const cls = s === 'DONE' ? 'done' : s === 'CANCELLED' ? 'cancelled' : s === 'DECLINED' ? 'declined' : 'pending';
     return (
       <span className={`hstatus ${cls}`}>
         <span className={`hstatus-dot ${cls}`} />
@@ -1089,7 +1174,7 @@ function Reports() {
         </div>
       ) : (
         <div className="history-table-wrap">
-          <table className="history-table">
+          <table className="history-table stack-mobile">
             <thead>
               <tr>
                 {columns.map(col => (
@@ -1106,7 +1191,7 @@ function Reports() {
                   transition={{ duration: 0.26, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
                 >
                   {columns.map(col => (
-                    <td key={col.key} className={col.key === 'request_code' ? 'td-code' : 'td-cell'}>
+                    <td key={col.key} className={col.key === 'request_code' ? 'td-code' : 'td-cell'} data-label={col.label}>
                       {col.key === 'status' ? renderStatus(report[col.key]) : col.render ? col.render(report[col.key]) : fmt(report[col.key])}
                     </td>
                   ))}
@@ -1130,6 +1215,7 @@ function Reports() {
               <div className="form-group">
                 <label>Filter range</label>
                 <select value={printFilterType} onChange={(e) => setPrintFilterType(e.target.value as ReportPrintFilter)}>
+                  <option value="range">Date range (From – To)</option>
                   <option value="all">All</option>
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
@@ -1138,7 +1224,25 @@ function Reports() {
                 </select>
               </div>
 
-              {printFilterType !== 'all' && (
+              {printFilterType === 'range' && (
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: '1 1 180px' }}>
+                    <label>From</label>
+                    <input type="date" value={printFrom} max={printTo || undefined} onChange={(e) => setPrintFrom(e.target.value)} />
+                  </div>
+                  <div className="form-group" style={{ flex: '1 1 180px' }}>
+                    <label>To</label>
+                    <input type="date" value={printTo} min={printFrom || undefined} onChange={(e) => setPrintTo(e.target.value)} />
+                  </div>
+                  {printRangeInvalid && (
+                    <p style={{ color: '#dc2626', fontSize: 13, margin: 0, width: '100%' }}>
+                      Pick a From date that is on or before the To date.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {printFilterType !== 'all' && printFilterType !== 'range' && (
                 <div className="form-group">
                   <label>Date</label>
                   <input type="date" value={printDate} onChange={(e) => setPrintDate(e.target.value)} />
@@ -1159,7 +1263,7 @@ function Reports() {
               <button type="button" className="btn-primary" onClick={async () => {
                 setShowPrintModal(false);
                 await downloadCombinedReport();
-              }} disabled={printLoading}>
+              }} disabled={printLoading || printRangeInvalid}>
                 {printLoading ? 'Preparing...' : 'Download .docx'}
               </button>
             </div>

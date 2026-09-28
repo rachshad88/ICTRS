@@ -1,0 +1,139 @@
+import { useState } from 'react';
+import { api } from '../services/api';
+
+export interface RequestNote {
+  _id?: string;
+  text: string;
+  author_name: string;
+  created_at: string;
+}
+
+const TEXT_MAX = 500;
+
+function apiErrorMessage(error: unknown, fallback: string) {
+  const err = error as { response?: { data?: { message?: string; error?: string; details?: Array<{ message: string }> } } };
+  const data = err.response?.data;
+  return data?.details?.[0]?.message || data?.message || data?.error || fallback;
+}
+
+function formatNoteDate(d: string) {
+  return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/** Shows why a request was declined. Renders nothing when there is no reason. */
+export function DeclineReason({ reason }: { reason?: string | null }) {
+  if (!reason) return null;
+  return (
+    <div className="decline-reason">
+      <p className="decline-reason-title">Reason for declining</p>
+      <p>{reason}</p>
+    </div>
+  );
+}
+
+/** Read-only list of client notes. Renders nothing when there are none. */
+export function NotesList({ notes, heading = 'Notes from the client' }: { notes?: RequestNote[]; heading?: string }) {
+  if (!notes || notes.length === 0) return null;
+  return (
+    <div className="request-notes">
+      <p className="request-notes-title">{heading} ({notes.length})</p>
+      <ul>
+        {notes.map((n, i) => (
+          <li key={n._id || i}>
+            <p>{n.text}</p>
+            <span>{n.author_name}, {formatNoteDate(n.created_at)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Lets the request owner add a note to an open request. */
+export function AddNoteForm({ endpoint, requestId, onAdded }: { endpoint: string; requestId: string; onAdded: (note: RequestNote) => void }) {
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    if (!text.trim() || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const res = await api.post(endpoint, { request_id: requestId, text: text.trim() });
+      onAdded(res.data.note);
+      setText('');
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Failed to add note'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="form-group add-note">
+      <label htmlFor={`note-${requestId}`}>Add a note</label>
+      <textarea
+        id={`note-${requestId}`}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={3}
+        maxLength={TEXT_MAX}
+        placeholder="Extra details for the team, for example a property number or a changed event time"
+      />
+      <div className="add-note-footer">
+        <span className="char-count">{text.length}/{TEXT_MAX}</span>
+        <button type="button" className="hbtn hbtn-assign" onClick={submit} disabled={saving || !text.trim()}>
+          {saving ? 'Adding...' : 'Add note'}
+        </button>
+      </div>
+      {error && <p className="add-note-error">{error}</p>}
+    </div>
+  );
+}
+
+/** Reason prompt an admin fills in before declining an unassigned request. */
+export function DeclineForm({ endpoint, requestId, onDeclined, onBack }: { endpoint: string; requestId: string; onDeclined: () => void; onBack: () => void }) {
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const valid = reason.trim().length >= 3;
+
+  const submit = async () => {
+    if (!valid || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api.post(endpoint, { request_id: requestId, reason: reason.trim() });
+      onDeclined();
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Failed to decline request'));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="decline-form">
+      <div className="form-group">
+        <label htmlFor={`decline-${requestId}`}>Reason for declining *</label>
+        <textarea
+          id={`decline-${requestId}`}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          maxLength={TEXT_MAX}
+          placeholder="The client will see this, for example: schedule conflicts with another event"
+          autoFocus
+        />
+        <span className="char-count">{reason.length}/{TEXT_MAX}</span>
+      </div>
+      {error && <div className="error-message">{error}</div>}
+      <div className="modal-actions">
+        <button type="button" className="btn-danger" onClick={submit} disabled={!valid || saving}>
+          {saving ? 'Declining...' : 'Decline request'}
+        </button>
+        <button type="button" className="btn-secondary" onClick={onBack} disabled={saving}>Back</button>
+      </div>
+    </div>
+  );
+}

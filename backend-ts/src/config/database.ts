@@ -18,7 +18,23 @@ export interface User {
   created_at?: Date;
 }
 
-export interface Request {
+export interface RequestNote {
+  _id: ObjectId;
+  text: string;
+  author_id: ObjectId;
+  author_name: string;
+  created_at: Date;
+}
+
+// Fields shared by every request type for declining and client follow-up notes.
+export interface DeclineAndNotes {
+  decline_reason?: string | null;
+  declined_by?: ObjectId | null;
+  declined_at?: Date | null;
+  notes?: RequestNote[];
+}
+
+export interface Request extends DeclineAndNotes {
   _id?: ObjectId;
   request_code: string;
   created_by: ObjectId;
@@ -26,7 +42,7 @@ export interface Request {
   unit: string;
   semester: string;
   issue: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'DECLINED';
   assigned_to: ObjectId | null;
   finished: 'repaired' | 'beyond repair' | null;
   remarks: string | null;
@@ -36,7 +52,7 @@ export interface Request {
   completed_at: Date | null;
 }
 
-export interface MultimediaRequest {
+export interface MultimediaRequest extends DeclineAndNotes {
   _id?: ObjectId;
   request_code: string;
   created_by: ObjectId;
@@ -49,14 +65,14 @@ export interface MultimediaRequest {
   location_type: 'Within the LGU Solano Compound' | 'Within Solano, but outside the LGU Solano Compound' | 'Within Nueva Vizcaya, but outside Solano' | 'Outside of Nueva Vizcaya';
   contact_number: string;
   program_file: string | null;
-  status: 'UNASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+  status: 'UNASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'DECLINED';
   remarks: string | null;
   recommendation: string | null;
   created_at: Date;
   completed_at: Date | null;
 }
 
-export interface DigitalMediaRequest {
+export interface DigitalMediaRequest extends DeclineAndNotes {
   _id?: ObjectId;
   request_code: string;
   created_by: ObjectId;
@@ -70,7 +86,7 @@ export interface DigitalMediaRequest {
   requestor_name: string;
   requestor_contact: string;
   supporting_files: string[];
-  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'DECLINED';
   remarks: string | null;
   created_at: Date;
   completed_at: Date | null;
@@ -89,7 +105,7 @@ export interface AuditLog {
   metadata?: Record<string, unknown>;
 }
 
-export interface PrintMaterialsRequest {
+export interface PrintMaterialsRequest extends DeclineAndNotes {
   _id?: ObjectId;
   request_code: string;
   created_by: ObjectId;
@@ -103,7 +119,7 @@ export interface PrintMaterialsRequest {
   requestor_name: string;
   requestor_contact: string;
   supporting_files: string[];
-  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'DECLINED';
   remarks: string | null;
   created_at: Date;
   completed_at: Date | null;

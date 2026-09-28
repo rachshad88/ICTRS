@@ -32,6 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
   DONE: 'Completed',
   NOT_APPROVED: 'Not Approved',
   CANCELLED: 'Cancelled',
+  DECLINED: 'Declined',
   UNASSIGNED: 'Unassigned',
 };
 
@@ -109,7 +110,7 @@ function AdminDashboard() {
     const map: Record<string, string> = {
       PENDING: 'pending', ASSIGNED: 'pending',
       IN_PROGRESS: 'in-progress', DONE: 'done',
-      NOT_APPROVED: 'cancelled', CANCELLED: 'cancelled',
+      NOT_APPROVED: 'cancelled', CANCELLED: 'cancelled', DECLINED: 'declined',
       UNASSIGNED: 'pending',
     };
     return map[s] || 'pending';
@@ -175,7 +176,7 @@ function AdminDashboard() {
         <div className="empty-state">No requests yet</div>
       ) : (
         <div className="history-table-wrap">
-          <table className="history-table">
+          <table className="history-table stack-mobile">
             <thead>
               <tr>
                 <th>Type</th>
@@ -187,15 +188,15 @@ function AdminDashboard() {
             <tbody>
               {data.recent_requests.map((r, i) => (
                 <tr key={i}>
-                  <td><span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-secondary)' }}>{r.type}</span></td>
-                  <td className="td-code">{r.request_code}</td>
-                  <td>
+                  <td data-label="Type"><span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-secondary)' }}>{r.type}</span></td>
+                  <td className="td-code" data-label="Code">{r.request_code}</td>
+                  <td data-label="Status">
                     <span className={`hstatus ${getStatusClass(r.status)}`}>
                       <span className={`hstatus-dot ${getStatusClass(r.status)}`} />
                       {STATUS_LABELS[r.status] || r.status}
                     </span>
                   </td>
-                  <td className="td-cell">{fmtDateTime(r.created_at)}</td>
+                  <td className="td-cell" data-label="Created">{fmtDateTime(r.created_at)}</td>
                 </tr>
               ))}
             </tbody>
@@ -211,7 +212,7 @@ function AdminDashboard() {
         <div className="empty-state">No recent activity</div>
       ) : (
         <div className="history-table-wrap">
-          <table className="history-table">
+          <table className="history-table stack-mobile">
             <thead>
               <tr>
                 <th>User</th>
@@ -224,11 +225,11 @@ function AdminDashboard() {
             <tbody>
               {data.recent_audit.map((a, i) => (
                 <tr key={i}>
-                  <td style={{ fontWeight: 500 }}>{a.username}</td>
-                  <td><code style={{ fontSize: '11px', padding: '2px 4px', background: 'var(--bg-secondary)', borderRadius: '3px' }}>{a.action}</code></td>
-                  <td className="td-cell">{a.entity_type}</td>
-                  <td className="td-truncate" style={{ maxWidth: '300px' }}>{a.details}</td>
-                  <td className="td-cell">{fmtDateTime(a.timestamp)}</td>
+                  <td style={{ fontWeight: 500 }} data-label="User">{a.username}</td>
+                  <td data-label="Action"><code style={{ fontSize: '11px', padding: '2px 4px', background: 'var(--bg-secondary)', borderRadius: '3px' }}>{a.action}</code></td>
+                  <td className="td-cell" data-label="Entity">{a.entity_type}</td>
+                  <td className="td-truncate" style={{ maxWidth: '300px' }} data-label="Details">{a.details}</td>
+                  <td className="td-cell" data-label="Time">{fmtDateTime(a.timestamp)}</td>
                 </tr>
               ))}
             </tbody>

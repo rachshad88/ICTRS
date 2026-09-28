@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,6 +17,7 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const { counts } = useNotification();
   const { theme, toggleTheme } = useTheme();
   const isOpen = !collapsed;
+  const shouldReduceMotion = useReducedMotion();
 
   const badgeFor = (path: string): number | null => {
     if (path.includes('multimedia')) return counts.multimedia;
@@ -105,7 +106,9 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className={`sidebar-overlay ${isOpen ? 'open' : ''}`} onClick={onToggle} />
       <aside className={`sidebar ${collapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-brand">
-          <img src="/solano-logo.png" alt="Solano" className="sidebar-logo" />
+          <div className="sidebar-logo-frame">
+            <img src="/solano-logo.png" alt="Solano" className="sidebar-logo" />
+          </div>
           <div className="sidebar-brand-info">
             <span className="sidebar-brand-text">IT Request System</span>
             {!collapsed && user && (
@@ -123,12 +126,12 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
             const isActive = location.pathname === item.to;
             const badge = item.to ? badgeFor(item.to) : null;
             return (
-              <Link key={i} to={item.to!} className={`sidebar-item ${isActive ? 'active' : ''}`}>
+              <Link key={i} to={item.to!} className={`sidebar-item ${isActive ? 'active' : ''}`} aria-current={isActive ? 'page' : undefined}>
                 {isActive && (
                   <motion.span
                     layoutId="sidebar-active-pill"
                     className="sidebar-active-pill"
-                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                    transition={shouldReduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 420, damping: 34 }}
                   />
                 )}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -142,7 +145,7 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </nav>
 
         <div className="sidebar-footer">
-          <Link to="/profile" className={`sidebar-item ${location.pathname === '/profile' ? 'active' : ''}`}>
+          <Link to="/profile" className={`sidebar-item ${location.pathname === '/profile' ? 'active' : ''}`} aria-current={location.pathname === '/profile' ? 'page' : undefined}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />

@@ -5,6 +5,7 @@ import { initSocket, getSocket } from '../services/socket';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
+import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
 
 interface DigitalMediaRequest {
   _id: string;
@@ -19,6 +20,8 @@ interface DigitalMediaRequest {
   requestor_contact: string;
   supporting_files: string[];
   status: string;
+  notes?: RequestNote[];
+  decline_reason?: string | null;
   requester?: Array<{ first_name: string; last_name: string }>;
   assignedTechnician?: Array<{ first_name: string; last_name: string }>;
   created_at: string;
@@ -39,6 +42,7 @@ function DigitalMediaManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<DigitalMediaRequest | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState('');
+  const [declining, setDeclining] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'unassigned' | 'all'>('unassigned');
   const [currentPage, setCurrentPage] = useState(1);
@@ -99,12 +103,16 @@ function DigitalMediaManagement() {
     socket.on('digital_media_request_assigned_admin', handler);
     socket.on('digital_media_request_completed', handler);
     socket.on('digital_media_request_cancelled', handler);
+    socket.on('digital_media_request_declined', handler);
+    socket.on('digital_media_request_note_added', handler);
     return () => {
       socket.off('digital_media_request_created', handler);
       socket.off('digital_media_request_assigned', handler);
       socket.off('digital_media_request_assigned_admin', handler);
       socket.off('digital_media_request_completed', handler);
       socket.off('digital_media_request_cancelled', handler);
+      socket.off('digital_media_request_declined', handler);
+      socket.off('digital_media_request_note_added', handler);
     };
   }, [user, fetchData]);
 
@@ -164,7 +172,7 @@ function DigitalMediaManagement() {
         <div className="history-empty">No {activeTab === 'unassigned' ? 'unassigned ' : ''}digital media requests</div>
       ) : (
         <div className="history-table-wrap">
-          <table className="history-table">
+          <table className="history-table stack-mobile">
             <thead>
               <tr>
                 <th>Status</th>
@@ -180,18 +188,18 @@ function DigitalMediaManagement() {
             <tbody>
               {displayRequests.map((request) => (
                 <tr key={request._id}>
-                  <td>
+                  <td data-label="Status">
                     <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
                       <span className={`hstatus-dot ${request.status.toLowerCase().replace(/_/g, '-')}`} />
                       {request.status.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td className="td-code">{request.request_code}</td>
-                  <td>{request.form_of_digital_media}</td>
-                  <td className="td-cell">{request.event_ppa_name}</td>
-                  <td className="td-cell">{formatDate(request.target_date)}</td>
-                  <td className="td-cell">{request.requestor_name}</td>
-                  <td className="td-cell">
+                  <td className="td-code" data-label="Code">{request.request_code}</td>
+                  <td data-label="Form">{request.form_of_digital_media}</td>
+                  <td className="td-cell" data-label="Event / PPA">{request.event_ppa_name}</td>
+                  <td className="td-cell" data-label="Target Date">{formatDate(request.target_date)}</td>
+                  <td className="td-cell" data-label="Requestor">{request.requestor_name}</td>
+                  <td className="td-cell" data-label="Requested By">
                     {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
                   </td>
                   <td className="col-actions">
@@ -241,7 +249,10 @@ function DigitalMediaManagement() {
               )}
             </div>
 
-            {selectedRequest.status === 'PENDING' && !selectedRequest.assignedTechnician?.[0] && (
+            <DeclineReason reason={selectedRequest.decline_reason} />
+            <NotesList notes={selectedRequest.notes} />
+
+            {!declining && selectedRequest.status === 'PENDING' && !selectedRequest.assignedTechnician?.[0] && (
               <div className="form-group" style={{ marginTop: '1rem' }}>
                 <label>Assign Multimedia Staff</label>
                 <select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)}>
@@ -253,14 +264,33 @@ function DigitalMediaManagement() {
               </div>
             )}
 
-            <div className="modal-actions">
-              {selectedRequest.status === 'PENDING' && !selectedRequest.assignedTechnician?.[0] && (
-                <button onClick={handleAssign} className="btn-primary" disabled={!selectedTechnician}>
-                  Assign Request
-                </button>
-              )}
-              <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
-            </div>
+            {declining ? (
+              <DeclineForm
+                endpoint="/digitalmedia/decline"
+                requestId={selectedRequest._id}
+                onBack={() => setDeclining(false)}
+                onDeclined={() => {
+                  setDeclining(false);
+                  setSelectedRequest(null);
+                  setMessage('Request declined successfully');
+                  setTimeout(() => { setMessage(''); fetchData(searchTermRef.current); }, 1500);
+                }}
+              />
+            ) : (
+              <div className="modal-actions">
+                {selectedRequest.status === 'PENDING' && !selectedRequest.assignedTechnician?.[0] && (
+                  <>
+                    <button onClick={handleAssign} className="btn-primary" disabled={!selectedTechnician}>
+                      Assign Request
+                    </button>
+                    <button onClick={() => setDeclining(true)} className="btn-danger">
+                      Decline
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
+              </div>
+            )}
           </div>
         </div>
       )}

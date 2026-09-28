@@ -31,8 +31,9 @@ function Profile() {
       return;
     }
 
-    if (newPassword.length < 4) {
-      setError('New password must be at least 4 characters');
+    // Matches changePasswordSchema on the backend.
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters');
       return;
     }
 

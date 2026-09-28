@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { initSocket, getSocket } from '../services/socket';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
+import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
 
 interface Request {
   _id: string;
@@ -17,6 +18,8 @@ interface Request {
   created_at: string;
   completed_at: string;
   assigned_to: string | null;
+  decline_reason?: string | null;
+  notes?: RequestNote[];
 }
 
 interface Technician {
@@ -29,6 +32,7 @@ interface Counts {
   pending_count: number;
   progress_count: number;
   done_count: number;
+  declined_count: number;
   repaired_count: number;
   beyond_repair_count: number;
 }
@@ -40,6 +44,7 @@ function ItAdminDashboard() {
     pending_count: 0,
     progress_count: 0,
     done_count: 0,
+    declined_count: 0,
     repaired_count: 0,
     beyond_repair_count: 0
   });
@@ -53,6 +58,8 @@ function ItAdminDashboard() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [selectedTechnician, setSelectedTechnician] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [declineTarget, setDeclineTarget] = useState<Request | null>(null);
+  const [viewTarget, setViewTarget] = useState<Request | null>(null);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -145,8 +152,16 @@ function ItAdminDashboard() {
     if (req.status === 'DONE') {
       return <span className="hstatus done"><span className="hstatus-dot done" />Done</span>;
     }
+    if (req.status === 'DECLINED') {
+      return <button className="hbtn hbtn-view" onClick={() => setViewTarget(req)}>View reason</button>;
+    }
     if (!req.assigned_to) {
-      return <button className="hbtn hbtn-assign" onClick={() => openAssignModal(req)}>Assign</button>;
+      return (
+        <div className="history-actions">
+          <button className="hbtn hbtn-assign" onClick={() => openAssignModal(req)}>Assign</button>
+          <button className="hbtn hbtn-cancel" onClick={() => setDeclineTarget(req)}>Decline</button>
+        </div>
+      );
     }
     if (req.status === 'IN_PROGRESS') {
       return <span className="hstatus in-progress"><span className="hstatus-dot in-progress" />In Progress</span>;
@@ -194,6 +209,10 @@ function ItAdminDashboard() {
           <p className="stat-num">{counts.done_count}</p>
         </div>
         <div className="stat-card-sm">
+          <h4>Declined</h4>
+          <p className="stat-num">{counts.declined_count}</p>
+        </div>
+        <div className="stat-card-sm">
           <h4>Repaired</h4>
           <p className="stat-num">{counts.repaired_count}</p>
         </div>
@@ -207,7 +226,7 @@ function ItAdminDashboard() {
         <Skeleton variant="table" rows={5} />
       ) : (
         <div className="history-table-wrap">
-          <table className="history-table">
+          <table className="history-table stack-mobile">
             <thead>
               <tr>
                 <th>Code</th>
@@ -223,18 +242,23 @@ function ItAdminDashboard() {
             <tbody>
               {requests.map((req) => (
                 <tr key={req.request_code}>
-                  <td className="td-code">{req.request_code}</td>
-                  <td className="td-cell">{req.office}</td>
-                  <td className="td-cell">{req.client_name}</td>
-                  <td>{req.issue}</td>
-                  <td>
+                  <td className="td-code" data-label="Code">{req.request_code}</td>
+                  <td className="td-cell" data-label="Office">{req.office}</td>
+                  <td className="td-cell" data-label="Requested By">{req.client_name}</td>
+                  <td data-label="Issue">
+                    {req.issue}
+                    {req.notes && req.notes.length > 0 && (
+                      <span className="note-count" title="Notes from the client">{req.notes.length} {req.notes.length === 1 ? 'note' : 'notes'}</span>
+                    )}
+                  </td>
+                  <td data-label="Status">
                     <span className={`hstatus ${req.statusClass}`}>
                       <span className={`hstatus-dot ${req.statusClass}`} />
                       {req.status}
                     </span>
                   </td>
-                  <td className="td-cell">{req.created_at}</td>
-                  <td className="td-cell">{req.completed_at}</td>
+                  <td className="td-cell" data-label="Created">{req.created_at}</td>
+                  <td className="td-cell" data-label="Completed">{req.completed_at}</td>
                   <td className="col-actions">{getActionButtons(req)}</td>
                 </tr>
               ))}
@@ -251,6 +275,7 @@ function ItAdminDashboard() {
             <h3>Assign Request</h3>
             <p><strong>Request:</strong> {selectedRequest?.request_code}</p>
             <p><strong>Issue:</strong> {selectedRequest?.issue}</p>
+            <NotesList notes={selectedRequest?.notes} />
 
             <div className="form-group">
               <label>Technician *</label>
@@ -269,6 +294,40 @@ function ItAdminDashboard() {
                 {submitting ? 'Assigning...' : 'Assign'}
               </button>
               <button className="btn-secondary" onClick={() => setShowAssignModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {declineTarget && (
+        <div className="modal">
+          <div className="modal-content">
+            <h3>Decline Request</h3>
+            <p><strong>Request:</strong> {declineTarget.request_code}</p>
+            <p><strong>Requested By:</strong> {declineTarget.client_name}</p>
+            <p><strong>Issue:</strong> {declineTarget.issue}</p>
+            <NotesList notes={declineTarget.notes} />
+            <DeclineForm
+              endpoint="/requests/decline_request"
+              requestId={declineTarget._id}
+              onBack={() => setDeclineTarget(null)}
+              onDeclined={() => { setDeclineTarget(null); fetchData(searchTerm); }}
+            />
+          </div>
+        </div>
+      )}
+
+      {viewTarget && (
+        <div className="modal">
+          <div className="modal-content">
+            <h3>Declined Request</h3>
+            <p><strong>Request:</strong> {viewTarget.request_code}</p>
+            <p><strong>Requested By:</strong> {viewTarget.client_name}</p>
+            <p><strong>Issue:</strong> {viewTarget.issue}</p>
+            <DeclineReason reason={viewTarget.decline_reason} />
+            <NotesList notes={viewTarget.notes} />
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setViewTarget(null)}>Close</button>
             </div>
           </div>
         </div>

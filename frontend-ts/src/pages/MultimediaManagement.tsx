@@ -5,12 +5,15 @@ import { initSocket, getSocket } from '../services/socket';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
+import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
 
 interface MultimediaRequest {
   _id: string;
   request_code: string;
   event_title: string;
   status: string;
+  notes?: RequestNote[];
+  decline_reason?: string | null;
   contact_number: string;
   event_date: string;
   event_start_time: string;
@@ -37,6 +40,7 @@ function MultimediaManagement() {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<MultimediaRequest | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState('');
+  const [declining, setDeclining] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'unassigned' | 'all'>('unassigned');
   const [currentPage, setCurrentPage] = useState(1);
@@ -98,12 +102,16 @@ function MultimediaManagement() {
     socket.on('multimedia_request_assigned_admin', handler);
     socket.on('multimedia_request_completed', handler);
     socket.on('multimedia_request_cancelled', handler);
+    socket.on('multimedia_request_declined', handler);
+    socket.on('multimedia_request_note_added', handler);
     return () => {
       socket.off('multimedia_request_created', handler);
       socket.off('multimedia_request_assigned', handler);
       socket.off('multimedia_request_assigned_admin', handler);
       socket.off('multimedia_request_completed', handler);
       socket.off('multimedia_request_cancelled', handler);
+      socket.off('multimedia_request_declined', handler);
+      socket.off('multimedia_request_note_added', handler);
     };
   }, [user, fetchData]);
 
@@ -163,7 +171,7 @@ function MultimediaManagement() {
         <div className="history-empty">No {activeTab === 'unassigned' ? 'unassigned ' : ''}multimedia requests</div>
       ) : (
         <div className="history-table-wrap">
-          <table className="history-table">
+          <table className="history-table stack-mobile">
             <thead>
               <tr>
                 <th>Status</th>
@@ -179,18 +187,18 @@ function MultimediaManagement() {
             <tbody>
               {displayRequests.map((request) => (
                 <tr key={request._id}>
-                  <td>
+                  <td data-label="Status">
                     <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
                       <span className={`hstatus-dot ${request.status.toLowerCase().replace(/_/g, '-')}`} />
                       {request.status.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td className="td-code">{request.request_code}</td>
-                  <td>{request.event_title}</td>
-                  <td>{formatDate(request.event_date)}</td>
-                  <td className="td-cell">{request.event_start_time} - {request.event_end_time}</td>
-                  <td className="td-cell">{request.location_type}</td>
-                  <td className="td-cell">
+                  <td className="td-code" data-label="Code">{request.request_code}</td>
+                  <td data-label="Event">{request.event_title}</td>
+                  <td data-label="Date">{formatDate(request.event_date)}</td>
+                  <td className="td-cell" data-label="Time">{request.event_start_time} - {request.event_end_time}</td>
+                  <td className="td-cell" data-label="Location">{request.location_type}</td>
+                  <td className="td-cell" data-label="Requested By">
                     {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
                   </td>
                   <td className="col-actions">
@@ -233,7 +241,10 @@ function MultimediaManagement() {
               </div>
             )}
 
-            {selectedRequest.status === 'UNASSIGNED' && (
+            <DeclineReason reason={selectedRequest.decline_reason} />
+            <NotesList notes={selectedRequest.notes} />
+
+            {!declining && selectedRequest.status === 'UNASSIGNED' && (
               <div className="form-group">
                 <label>Select Multimedia Staff</label>
                 <select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)}>
@@ -245,14 +256,33 @@ function MultimediaManagement() {
               </div>
             )}
 
-            <div className="modal-actions">
-              {selectedRequest.status === 'UNASSIGNED' && (
-                <button onClick={handleAssign} className="btn-primary" disabled={!selectedTechnician}>
-                  Assign Request
-                </button>
-              )}
-              <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
-            </div>
+            {declining ? (
+              <DeclineForm
+                endpoint="/multimedia/decline"
+                requestId={selectedRequest._id}
+                onBack={() => setDeclining(false)}
+                onDeclined={() => {
+                  setDeclining(false);
+                  setSelectedRequest(null);
+                  setMessage('Request declined successfully');
+                  setTimeout(() => { setMessage(''); fetchData(searchTermRef.current); }, 1500);
+                }}
+              />
+            ) : (
+              <div className="modal-actions">
+                {selectedRequest.status === 'UNASSIGNED' && (
+                  <>
+                    <button onClick={handleAssign} className="btn-primary" disabled={!selectedTechnician}>
+                      Assign Request
+                    </button>
+                    <button onClick={() => setDeclining(true)} className="btn-danger">
+                      Decline
+                    </button>
+                  </>
+                )}
+                <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
+              </div>
+            )}
           </div>
         </div>
       )}

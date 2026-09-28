@@ -4,6 +4,7 @@ const config: HistoryTableConfig = {
   title: 'Digital Media Request History',
   fetchEndpoint: '/digitalmedia/my_history',
   cancelEndpoint: '/digitalmedia/cancel_request',
+  noteEndpoint: '/digitalmedia/add_note',
   exportEndpoint: '/api/digitalmedia/export_excel',
   columns: [
     { key: 'form_of_digital_media', label: 'Form' },
@@ -14,6 +15,7 @@ const config: HistoryTableConfig = {
   searchPlaceholder: 'Search by code, description, event, requestor...',
   emptyMessage: 'No digital media requests yet',
   cancelStatus: 'PENDING',
+  socketPrefix: 'digital_media',
   rateType: 'digital_media',
   modalTitleKey: 'form_of_digital_media',
   modalFields: [

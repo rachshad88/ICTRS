@@ -66,6 +66,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       if (status === 'cancelled') {
         return { title: 'Request cancelled', message: `${requestLabel} was cancelled.`, type: 'warning' };
       }
+      if (status === 'declined') {
+        return { title: 'Request declined', message: `${requestLabel} was declined.`, type: 'warning' };
+      }
+      // Assigned technicians get their own request_note_added toast; this broadcast only refreshes lists.
+      if (status === 'note_added') {
+        return null;
+      }
       return { title: 'Request updated', message: `${requestLabel} has new details.`, type: 'info' };
     }
 
@@ -75,6 +82,15 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     if (event === 'my_request_accepted') {
       return { title: 'Request approved', message: `${requestLabel} has been accepted.`, type: 'success' };
+    }
+
+    if (event === 'my_request_declined' || event.endsWith('_request_declined')) {
+      const reason = typeof payload?.reason === 'string' ? ` Reason: ${payload.reason}` : '';
+      return { title: 'Request declined', message: `${requestLabel} was declined.${reason}`, type: 'warning' };
+    }
+
+    if (event === 'request_note_added' || event.endsWith('_request_note_added')) {
+      return { title: 'New note', message: `The client added a note to ${requestLabel}.`, type: 'info' };
     }
 
     if (event.includes('_created')) {
@@ -102,13 +118,18 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const events = [
       'multimedia_request_created', 'multimedia_request_assigned', 'multimedia_request_assigned_admin',
       'multimedia_request_completed', 'multimedia_request_cancelled',
+      'multimedia_request_declined', 'multimedia_request_note_added',
       'digital_media_request_created', 'digital_media_request_assigned', 'digital_media_request_assigned_admin',
       'digital_media_request_completed', 'digital_media_request_cancelled',
+      'digital_media_request_declined', 'digital_media_request_note_added',
       'print_materials_request_created', 'print_materials_request_assigned', 'print_materials_request_assigned_admin',
       'print_materials_request_completed', 'print_materials_request_cancelled',
+      'print_materials_request_declined', 'print_materials_request_note_added',
       'request_update',
       'request_assigned_to_you',
-      'my_request_accepted'
+      'my_request_accepted',
+      'my_request_declined',
+      'request_note_added'
     ];
 
     const handlers: Record<string, (data: any) => void> = {};

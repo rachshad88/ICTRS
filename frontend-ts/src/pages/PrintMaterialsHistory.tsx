@@ -4,6 +4,7 @@ const config: HistoryTableConfig = {
   title: 'Print Materials Request History',
   fetchEndpoint: '/printmaterials/my_history',
   cancelEndpoint: '/printmaterials/cancel_request',
+  noteEndpoint: '/printmaterials/add_note',
   exportEndpoint: '/api/printmaterials/export_excel',
   columns: [
     { key: 'form_of_printed_media', label: 'Form' },
@@ -14,6 +15,7 @@ const config: HistoryTableConfig = {
   searchPlaceholder: 'Search by code, description, event, requestor...',
   emptyMessage: 'No print materials requests yet',
   cancelStatus: 'PENDING',
+  socketPrefix: 'print_materials',
   rateType: 'print_materials',
   modalTitleKey: 'form_of_printed_media',
   modalFields: [

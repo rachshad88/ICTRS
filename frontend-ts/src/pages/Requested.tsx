@@ -5,6 +5,7 @@ import { initSocket, getSocket } from '../services/socket';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { truncateCell } from '../lib/truncate';
+import { NotesList, DeclineReason, AddNoteForm, RequestNote } from '../components/RequestNotes';
 
 
 interface MyRequest {
@@ -19,23 +20,37 @@ interface MyRequest {
   finished: string | null;
   created_at: string;
   completed_at: string | null;
+  decline_reason?: string | null;
+  notes?: RequestNote[];
 }
 
 interface Counts {
   pending_count: number;
   progress_count: number;
   done_count: number;
+  declined_count: number;
 }
+
+const OPEN_STATUSES = ['PENDING', 'IN_PROGRESS'];
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending',
+  IN_PROGRESS: 'In Progress',
+  DONE: 'Completed',
+  CANCELLED: 'Cancelled',
+  DECLINED: 'Declined',
+};
 
 function Requested() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<MyRequest[]>([]);
-  const [counts, setCounts] = useState<Counts>({ pending_count: 0, progress_count: 0, done_count: 0 });
+  const [counts, setCounts] = useState<Counts>({ pending_count: 0, progress_count: 0, done_count: 0, declined_count: 0 });
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
+  const [selectedRequest, setSelectedRequest] = useState<MyRequest | null>(null);
 
   const fetchData = useCallback(async (search?: string, page?: number) => {
     try {
@@ -44,7 +59,10 @@ function Requested() {
       params.page = page || currentPage;
       params.limit = 10;
       const response = await api.get('/requests/my_requests', { params });
-      setRequests(response.data.requests);
+      const fresh: MyRequest[] = response.data.requests;
+      setRequests(fresh);
+      // Keep an open details modal in sync, e.g. when the request is declined while it is being viewed.
+      setSelectedRequest((prev) => (prev ? fresh.find((r) => r._id === prev._id) || prev : prev));
       setCounts(response.data.counts);
       setTotal(response.data.total);
       setError('');
@@ -95,10 +113,12 @@ function Requested() {
     const handler = () => fetchData(searchTermRef.current, pageRef.current);
     socket.on('my_request_accepted', handler);
     socket.on('my_request_finished', handler);
+    socket.on('my_request_declined', handler);
     socket.on('request_update', handler);
     return () => {
       socket.off('my_request_accepted', handler);
       socket.off('my_request_finished', handler);
+      socket.off('my_request_declined', handler);
       socket.off('request_update', handler);
     };
   }, [user, fetchData]);
@@ -130,7 +150,14 @@ function Requested() {
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const getStatusClass = (status: string) => {
-    return 'status-' + status.toLowerCase().replace(' ', '-');
+    return 'badge-' + status.toLowerCase().replace(/_/g, '-');
+  };
+
+  const handleNoteAdded = (note: RequestNote) => {
+    if (!selectedRequest) return;
+    const updated = { ...selectedRequest, notes: [...(selectedRequest.notes || []), note] };
+    setSelectedRequest(updated);
+    setRequests((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
   };
 
   return (
@@ -155,6 +182,10 @@ function Requested() {
             <div className="stat-label">Completed</div>
             <div className="stat-number">{counts.done_count}</div>
           </div>
+          <div className="stat-card">
+            <div className="stat-label">Declined</div>
+            <div className="stat-number">{counts.declined_count}</div>
+          </div>
         </div>
 
         <div className="filters-row">
@@ -176,7 +207,7 @@ function Requested() {
           </div>
         ) : (
           <div className="table-container">
-            <table className="requests-table">
+            <table className="requests-table stack-mobile">
               <thead>
                 <tr>
                   <th>Request ID</th>
@@ -192,19 +223,20 @@ function Requested() {
                   const isAssigned = req.assigned_to !== null;
                   return (
                     <tr key={req._id}>
-                      <td className="request-code">{req.request_code}</td>
-                      <td className="issue-cell">{truncateCell(req.issue)}</td>
-                      <td>
+                      <td className="request-code" data-label="Request ID">{req.request_code}</td>
+                      <td className="issue-cell" data-label="Issue">{truncateCell(req.issue)}</td>
+                      <td data-label="Status">
                         <span className={`status-badge ${getStatusClass(req.status)}`}>
-                          {req.status === 'PENDING' && 'Pending'}
-                          {req.status === 'IN_PROGRESS' && 'In Progress'}
-                          {req.status === 'DONE' && 'Completed'}
-                          {req.status === 'CANCELLED' && 'Cancelled'}
+                          {STATUS_LABELS[req.status] || req.status}
                         </span>
                       </td>
-                      <td className="date-cell">{formatDate(req.created_at)}</td>
-                      <td className="date-cell">{formatDate(req.completed_at)}</td>
-                      <td>
+                      <td className="date-cell" data-label="Created">{formatDate(req.created_at)}</td>
+                      <td className="date-cell" data-label="Completed">{formatDate(req.completed_at)}</td>
+                      <td className="col-actions">
+                        <span style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button className="btn btn-sm btn-view" onClick={() => setSelectedRequest(req)}>
+                          {OPEN_STATUSES.includes(req.status) ? 'Details / Add note' : 'Details'}
+                        </button>
                         {req.status === 'PENDING' && user?.roles?.includes('CLIENT') && (
                           <button 
                             onClick={() => handleCancel(req._id)}
@@ -227,6 +259,7 @@ function Requested() {
                             </button>
                           </span>
                         )}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -237,6 +270,29 @@ function Requested() {
         )}
 
         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+
+        {selectedRequest && (
+          <div className="modal" role="dialog" aria-modal="true">
+            <div className="modal-content">
+              <h3>Request {selectedRequest.request_code}</h3>
+              <div className="detail-section">
+                <p><strong>Status:</strong> {STATUS_LABELS[selectedRequest.status] || selectedRequest.status}</p>
+                <p><strong>Unit:</strong> {selectedRequest.unit || '-'}</p>
+                <p><strong>Issue:</strong> {selectedRequest.issue}</p>
+                <p><strong>Created:</strong> {formatDate(selectedRequest.created_at)}</p>
+                {selectedRequest.completed_at && <p><strong>Completed:</strong> {formatDate(selectedRequest.completed_at)}</p>}
+              </div>
+              <DeclineReason reason={selectedRequest.decline_reason} />
+              <NotesList notes={selectedRequest.notes} heading="Your notes" />
+              {OPEN_STATUSES.includes(selectedRequest.status) && (
+                <AddNoteForm endpoint="/requests/add_note" requestId={selectedRequest._id} onAdded={handleNoteAdded} />
+              )}
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={() => setSelectedRequest(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

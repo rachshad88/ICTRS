@@ -1,4 +1,16 @@
-/* ========== LOGIN PAGE - DESKTOP ========== */
+/* ========== LOGIN PAGE ========== */
+/* Single source of truth for login styling. Colors come from tokens.css so
+   both themes work without per-theme overrides. */
+
+@keyframes loginFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes loginSpin {
+  to { transform: rotate(360deg); }
+}
+
 .login-container {
   min-height: 100vh;
   min-height: 100dvh;
@@ -6,9 +18,7 @@
   align-items: center;
   justify-content: center;
   padding: clamp(16px, 2.4vw, 32px);
-  background: radial-gradient(circle at top right, rgba(108, 92, 231, 0.18), transparent 30%),
-    radial-gradient(circle at 10% 20%, rgba(124, 58, 237, 0.14), transparent 24%),
-    #0a111c;
+  background: var(--bg-primary);
 }
 
 .login-inner {
@@ -16,49 +26,38 @@
   width: min(100%, 980px);
   max-width: 980px;
   min-height: min(82vh, 720px);
-  box-shadow: 0 34px 90px rgba(0, 0, 0, 0.35);
-  border-radius: 32px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--elevation-3);
   overflow: hidden;
-  background: rgba(10, 15, 26, 0.96);
-  backdrop-filter: blur(8px);
+  background: var(--bg-card);
 }
 
+/* ----- Brand panel ----- */
 .login-brand-panel {
   flex: 0 0 46%;
   min-height: 100%;
-  background: linear-gradient(180deg, rgba(22, 28, 44, 0.98), rgba(18, 24, 36, 0.98));
   display: flex;
   align-items: center;
   justify-content: center;
   padding: clamp(28px, 3vw, 44px);
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border-light);
   position: relative;
-  overflow: hidden;
-}
-
-.login-brand-panel::after {
-  content: '';
-  position: absolute;
-  inset: auto -15% -25% auto;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: rgba(124, 58, 237, 0.2);
-  filter: blur(30px);
 }
 
 .login-brand-panel::before {
   content: '';
   position: absolute;
-  pointer-events: none;
-  inset: 0;
-  background: radial-gradient(circle at top left, rgba(124, 58, 237, 0.12), transparent 35%),
-    radial-gradient(circle at bottom right, rgba(108, 92, 231, 0.1), transparent 25%);
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--purple);
 }
 
 .login-brand-content {
   position: relative;
   text-align: center;
-  color: #fff;
+  color: var(--text-primary);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -75,8 +74,9 @@
   width: 84px;
   height: 84px;
   object-fit: contain;
-  border-radius: 22px;
-  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   padding: 12px;
 }
 
@@ -85,26 +85,26 @@
   font-weight: 800;
   letter-spacing: -0.5px;
   margin-bottom: 0;
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .login-brand-subtitle {
   font-size: 14px;
   line-height: 1.6;
-  opacity: 0.92;
   margin: 0;
   font-weight: 500;
   max-width: 260px;
+  color: var(--text-secondary);
 }
 
 .login-brand-footer {
   margin-top: 18px;
   font-size: 12px;
-  opacity: 0.55;
   white-space: nowrap;
-  color: #d1d5db;
+  color: var(--text-secondary);
 }
 
+/* ----- Form panel ----- */
 .login-form-panel {
   flex: 1 1 0;
   min-width: 0;
@@ -112,17 +112,138 @@
   align-items: center;
   justify-content: center;
   padding: clamp(28px, 3.5vw, 48px);
-  background: #0f1728;
+  background: var(--bg-card);
 }
 
 .login-form-content {
   width: min(100%, 400px);
-  padding: clamp(24px, 2.4vw, 32px);
-  border-radius: 28px;
-  background: rgba(18, 25, 40, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(14px);
+}
+
+.login-form-header {
+  margin-bottom: 24px;
+}
+
+.login-form-header h2 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.login-form-header p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin: 0;
+  font-weight: 500;
+}
+
+.login-info-message {
+  background: color-mix(in srgb, var(--purple) 14%, transparent);
+  color: var(--text-primary);
+  border-left: 3px solid var(--purple);
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 22px;
+  font-size: 13px;
+  font-weight: 600;
+  animation: loginFadeIn 0.3s ease;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+  z-index: 1;
+}
+
+.password-toggle:hover {
+  color: var(--purple);
+  background: color-mix(in srgb, var(--purple) 12%, transparent);
+}
+
+.capslock-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--yellow);
+  font-weight: 600;
+  animation: loginFadeIn 0.2s ease;
+}
+
+.form-options {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+
+.forgot-password {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.forgot-password:hover {
+  color: var(--purple);
+  text-decoration: underline;
+}
+
+/* Rectangular primary action. Overrides the global pill .btn-primary for login only. */
+.login-form-panel .btn-primary {
+  background: var(--purple);
+  color: #0b1a26;
+  border: none;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+  font-weight: 700;
+}
+
+.login-form-panel .btn-primary:hover {
+  background: var(--purple-light);
+  transform: none;
+  box-shadow: var(--elevation-1);
+}
+
+.login-form-panel .btn-primary:focus-visible {
+  outline: 2px solid var(--purple-light);
+  outline-offset: 2px;
+}
+
+.login-form-panel .btn-primary:disabled {
+  background: color-mix(in srgb, var(--purple) 35%, transparent);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(11, 26, 38, 0.3);
+  border-top-color: #0b1a26;
+  border-radius: 50%;
+  animation: loginSpin 0.6s linear infinite;
+}
+
+.login-version {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 @media (min-width: 900px) and (orientation: landscape) {
@@ -161,53 +282,34 @@
 }
 
 /* ========== LOGIN PAGE - LIGHT THEME ========== */
-[data-theme='light'] .login-container {
-  background: radial-gradient(circle at top right, rgba(79, 152, 214, 0.16), transparent 30%),
-    radial-gradient(circle at 10% 20%, rgba(79, 152, 214, 0.12), transparent 24%),
-    #eaf0f7;
+/* Only what tokens cannot express: white text on the darker light-mode blue. */
+[data-theme='light'] .login-form-panel .btn-primary {
+  color: #fff;
 }
 
-[data-theme='light'] .login-inner {
-  background: #ffffff;
-  box-shadow: 0 34px 90px rgba(24, 34, 53, 0.16);
+[data-theme='light'] .login-form-panel .btn-primary:hover {
+  background: color-mix(in srgb, var(--purple) 88%, #000);
 }
 
-[data-theme='light'] .login-brand-panel {
-  background: linear-gradient(180deg, #f4f7fb, #e8eef6);
+[data-theme='light'] .spinner {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
 }
 
-[data-theme='light'] .login-brand-panel::after,
-[data-theme='light'] .login-brand-panel::before {
-  background: rgba(47, 127, 196, 0.16);
+/* ----- Link to the client guide ----- */
+.login-guide-link {
+  margin: 24px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
 }
 
-[data-theme='light'] .login-brand-content {
-  color: #182235;
+.login-guide-link a {
+  color: var(--purple);
+  font-weight: 700;
+  text-decoration: none;
 }
 
-[data-theme='light'] .login-brand-title {
-  color: #182235;
-}
-
-[data-theme='light'] .login-brand-subtitle {
-  color: #33506b;
-  opacity: 1;
-}
-
-[data-theme='light'] .login-brand-footer {
-  color: #5d6b80;
-}
-
-[data-theme='light'] .login-seal {
-  background: rgba(24, 34, 53, 0.05);
-}
-
-[data-theme='light'] .login-form-panel {
-  background: #f5f8fc;
-}
-
-[data-theme='light'] .login-form-content {
-  background: #ffffff;
-  border-color: rgba(24, 34, 53, 0.08);
-  box-shadow: 0 22px 48px rgba(24, 34, 53, 0.12);
+.login-guide-link a:hover {
+  text-decoration: underline;
 }

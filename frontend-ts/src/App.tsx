@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -8,6 +8,7 @@ import Sidebar from './components/Sidebar';
 import ToastNotifications from './components/ToastNotifications';
 import PageTransition from './components/PageTransition';
 import Login from './pages/Login';
+import ClientGuide from './pages/ClientGuide';
 import Dashboard from './pages/Dashboard';
 import Request from './pages/Request';
 import Requested from './pages/Requested';
@@ -59,13 +60,17 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
       <Sidebar collapsed={sidebarCollapsed} onToggle={onToggleSidebar} />
       <div className={`app-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         {isMobile && (
-          <button className="mobile-menu-toggle" onClick={onToggleSidebar} aria-label="Toggle menu">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-          </button>
+          <header className="mobile-topbar">
+            <button className="mobile-menu-toggle" onClick={onToggleSidebar} aria-label="Open menu" aria-expanded={!sidebarCollapsed}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <img src="/solano-logo.png" alt="" className="mobile-topbar-logo" />
+            <span className="mobile-topbar-title">IT Request System</span>
+          </header>
         )}
         <PageTransition>{children}</PageTransition>
       </div>
@@ -73,15 +78,23 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
   );
 }
 
+const MOBILE_QUERY = '(max-width: 768px)';
+
 function AppRoutes() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const location = useLocation();
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(isMobile);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    const mql = window.matchMedia(MOBILE_QUERY);
+    const handleChange = () => setIsMobile(mql.matches);
+    mql.addEventListener('change', handleChange);
+    return () => mql.removeEventListener('change', handleChange);
   }, []);
+
+  useEffect(() => {
+    if (isMobile) setSidebarCollapsed(true);
+  }, [isMobile, location.pathname]);
 
   const toggleSidebar = () => setSidebarCollapsed(prev => !prev);
 
@@ -90,6 +103,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+      <Route path="/guide" element={<ClientGuide />} />
       <Route
         path="/dashboard"
         element={

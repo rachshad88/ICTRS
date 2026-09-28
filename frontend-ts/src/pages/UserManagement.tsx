@@ -197,7 +197,7 @@ function UserManagement() {
         <Skeleton variant="table" rows={5} />
       ) : (
         <div className="history-table-wrap">
-          <table className="history-table">
+          <table className="history-table stack-mobile">
             <thead>
               <tr>
                 <th>Username</th>
@@ -209,8 +209,8 @@ function UserManagement() {
             <tbody>
               {paginatedUsers.map((user) => (
                 <tr key={user._id}>
-                  <td className="td-cell">{user.username}</td>
-                  <td>
+                  <td className="td-cell" data-label="Username">{user.username}</td>
+                  <td data-label="Name">
                     <div>{user.first_name} {user.middle_name} {user.last_name}</div>
                     {user.is_default_password && (
                       <div style={{ marginTop: '4px', fontSize: '10px', color: '#8a4b00', fontWeight: 600 }}>
@@ -218,7 +218,7 @@ function UserManagement() {
                       </div>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Role">
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                       {(user.roles || [user.role]).map(r => (
                         <span key={r} className={`role-badge ${getRoleClass(r)}`} style={{ fontSize: '10px' }}>
