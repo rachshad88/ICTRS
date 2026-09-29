@@ -1,5 +1,6 @@
 import { sanitizeInput, getPrintMaterialsRequestsCollection } from '../config/database';
 import { createRequestRouter } from './multimediaFactory';
+import { createPrintMaterialsSchema } from '../middleware/validation';
 
 export default createRequestRouter({
   entity: 'print_materials',
@@ -27,22 +28,14 @@ export default createRequestRouter({
   socketPrefix: 'print_materials',
   hasRecommendation: false,
   summaryField: 'form_of_printed_media',
+  dueField: 'target_date',
   searchFields: {
     getAll: ['request_code', 'printed_media_description', 'event_ppa_name'],
     getUnassigned: ['request_code', 'printed_media_description', 'event_ppa_name'],
     myRequests: ['request_code', 'event_ppa_name', 'requestor_name', 'form_of_printed_media'],
     myHistory: ['request_code', 'printed_media_description', 'event_ppa_name', 'requestor_name']
   },
-  createFields: [
-    { name: 'form_of_printed_media', required: true },
-    { name: 'size_of_printed_media', required: true },
-    { name: 'printed_media_description', required: true },
-    { name: 'event_ppa_name', required: true },
-    { name: 'target_date', required: true },
-    { name: 'target_time', required: true },
-    { name: 'requestor_name', required: true },
-    { name: 'requestor_contact', required: true }
-  ],
+  createSchema: createPrintMaterialsSchema,
   buildCreateDoc: (body, userId, requestCode, fileData) => ({
     request_code: requestCode,
     created_by: userId,
@@ -69,7 +62,8 @@ export default createRequestRouter({
     { header: 'Size', field: 'size_of_printed_media', width: 15 },
     { header: 'Description', field: 'printed_media_description', width: 25 },
     { header: 'Event/PPA', field: 'event_ppa_name', width: 20 },
-    { header: 'Target Date', field: 'date', width: 15 },
+    { header: 'Date Requested', field: 'date', width: 15 },
+    { header: 'Target Date', field: 'target_date', width: 15 },
     { header: 'Requestor', field: 'requestor_name', width: 20 },
     { header: 'Contact', field: 'requestor_contact', width: 15 },
     { header: 'Status', field: 'status', width: 15 },

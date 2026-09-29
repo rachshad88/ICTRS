@@ -51,7 +51,7 @@ function Login() {
         const status = err.response.status;
         const msg = err.response.data?.error;
         if (status === 429) {
-          setError('Too many attempts. Please wait before trying again.');
+          setError(msg || 'Too many attempts. Please wait before trying again.');
         } else if (msg) {
           setError(msg);
         } else {

@@ -1,5 +1,6 @@
 import { sanitizeInput, getMultimediaRequestsCollection } from '../config/database';
 import { createRequestRouter } from './multimediaFactory';
+import { createMultimediaSchema } from '../middleware/validation';
 
 export default createRequestRouter({
   entity: 'multimedia',
@@ -22,21 +23,14 @@ export default createRequestRouter({
   socketPrefix: 'multimedia',
   hasRecommendation: true,
   summaryField: 'event_title',
+  dueField: 'event_date',
   searchFields: {
     getAll: ['request_code', 'event_title', 'specific_location'],
     getUnassigned: ['request_code', 'event_title', 'specific_location'],
     myRequests: ['request_code', 'event_title', 'location_type'],
     myHistory: ['request_code', 'event_title', 'specific_location', 'contact_number']
   },
-  createFields: [
-    { name: 'event_title', required: true },
-    { name: 'event_date', required: true },
-    { name: 'event_start_time', required: true },
-    { name: 'event_end_time', required: true },
-    { name: 'specific_location', required: true },
-    { name: 'location_type', required: true },
-    { name: 'contact_number', required: true }
-  ],
+  createSchema: createMultimediaSchema,
   buildCreateDoc: (body, userId, requestCode, fileData) => ({
     request_code: requestCode,
     created_by: userId,
@@ -60,7 +54,8 @@ export default createRequestRouter({
   excelColumns: [
     { header: 'Request Code', field: 'request_code', width: 15 },
     { header: 'Event Title', field: 'event_title', width: 25 },
-    { header: 'Event Date', field: 'date', width: 15 },
+    { header: 'Date Requested', field: 'date', width: 15 },
+    { header: 'Event Date', field: 'event_date', width: 15 },
     { header: 'Start Time', field: 'event_start_time', width: 12 },
     { header: 'End Time', field: 'event_end_time', width: 12 },
     { header: 'Specific Location', field: 'specific_location', width: 30 },

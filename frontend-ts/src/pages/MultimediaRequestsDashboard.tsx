@@ -7,9 +7,12 @@ import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, RequestNote } from '../components/RequestNotes';
 import RequestMobileCard from '../components/RequestMobileCard';
+import { RequestFlags, priorityLabel } from '../components/Priority';
 
 interface MultimediaRequest {
   _id: string;
+  priority?: string;
+  overdue?: boolean;
   request_code: string;
   event_title: string;
   event_date: string;
@@ -62,7 +65,7 @@ function MultimediaRequestsDashboard() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 
@@ -80,11 +83,15 @@ function MultimediaRequestsDashboard() {
     socket.on('multimedia_request_completed', handler);
     socket.on('multimedia_request_cancelled', handler);
     socket.on('multimedia_request_note_added', handler);
+    socket.on('multimedia_request_reassigned', handler);
+    socket.on('multimedia_request_priority_changed', handler);
     return () => {
       socket.off('multimedia_request_assigned', handler);
       socket.off('multimedia_request_completed', handler);
       socket.off('multimedia_request_cancelled', handler);
       socket.off('multimedia_request_note_added', handler);
+      socket.off('multimedia_request_reassigned', handler);
+      socket.off('multimedia_request_priority_changed', handler);
     };
   }, [user]);
 
@@ -151,7 +158,10 @@ function MultimediaRequestsDashboard() {
                         {request.status.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    <td className="td-code">{request.request_code}</td>
+                    <td className="td-code">
+                      {request.request_code}
+                      <RequestFlags priority={request.priority} overdue={request.overdue} />
+                    </td>
                     <td>{request.event_title}</td>
                     <td>{formatDate(request.event_date)}</td>
                     <td className="td-cell">{request.event_start_time} - {request.event_end_time}</td>
@@ -188,6 +198,7 @@ function MultimediaRequestsDashboard() {
                 statusLabel={request.status.replace(/_/g, ' ')}
                 statusClass={request.status.toLowerCase().replace(/_/g, '-')}
                 metaItems={[
+                  { label: 'Priority', value: <>{priorityLabel(request.priority)}<RequestFlags overdue={request.overdue} /></> },
                   { label: 'Date', value: formatDate(request.event_date) },
                   { label: 'Time', value: `${request.event_start_time} - ${request.event_end_time}` },
                   { label: 'Contact', value: request.contact_number },

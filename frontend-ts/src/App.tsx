@@ -30,9 +30,11 @@ import PrintMaterialsDashboard from './pages/PrintMaterialsDashboard';
 import AuditLogs from './pages/AuditLogs';
 import ItAdminDashboard from './pages/ItAdminDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import AllRequests from './pages/AllRequests';
 
 function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSidebar, isMobile }: { children: React.ReactNode; allowedRoles?: string[]; sidebarCollapsed: boolean; onToggleSidebar: () => void; isMobile: boolean }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return <div className="loading">Loading...</div>;
@@ -40,6 +42,11 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
 
   if (!user) {
     return <Navigate to="/" replace />;
+  }
+
+  // Accounts on the default password must change it before using anything else.
+  if (user.is_default_password && location.pathname !== '/profile') {
+    return <Navigate to="/profile" replace />;
   }
 
   const userRoles = user.roles || [user.role];
@@ -253,6 +260,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['MULTIMEDIA_ADMIN']} {...routeProps}>
             <PrintMaterialsManagement />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/all-requests"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'IT_ADMIN', 'MULTIMEDIA_ADMIN']} {...routeProps}>
+            <AllRequests />
           </ProtectedRoute>
         }
       />

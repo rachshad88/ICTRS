@@ -5,6 +5,7 @@ import { initSocket, getSocket } from '../services/socket';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
+import { RequestFlags, PriorityForm, ReassignForm, PRIORITY_OPTIONS, suggestedDueDate, priorityLabel, formatDay } from '../components/Priority';
 
 interface Request {
   _id: string;
@@ -18,6 +19,10 @@ interface Request {
   created_at: string;
   completed_at: string;
   assigned_to: string | null;
+  assigned_name?: string | null;
+  priority?: string;
+  due_date?: string | null;
+  overdue?: boolean;
   decline_reason?: string | null;
   notes?: RequestNote[];
 }
@@ -35,6 +40,8 @@ interface Counts {
   declined_count: number;
   repaired_count: number;
   beyond_repair_count: number;
+  urgent_count: number;
+  overdue_count: number;
 }
 
 function ItAdminDashboard() {
@@ -46,10 +53,12 @@ function ItAdminDashboard() {
     done_count: 0,
     declined_count: 0,
     repaired_count: 0,
-    beyond_repair_count: 0
+    beyond_repair_count: 0,
+    urgent_count: 0,
+    overdue_count: 0
   });
   const [filterType, setFilterType] = useState('all');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [showDone, setShowDone] = useState('1');
   const [loading, setLoading] = useState(true);
 
@@ -57,6 +66,9 @@ function ItAdminDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [selectedTechnician, setSelectedTechnician] = useState('');
+  const [assignPriority, setAssignPriority] = useState('NORMAL');
+  const [assignDue, setAssignDue] = useState('');
+  const [manageTarget, setManageTarget] = useState<Request | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [declineTarget, setDeclineTarget] = useState<Request | null>(null);
   const [viewTarget, setViewTarget] = useState<Request | null>(null);
@@ -69,7 +81,7 @@ function ItAdminDashboard() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 
@@ -82,7 +94,7 @@ function ItAdminDashboard() {
       if (search) params.search = search;
       const response = await api.get('/requests/get_dashboard', { params });
       setRequests(response.data.requests);
-      setCounts(response.data.counts);
+      setCounts((prev) => ({ ...prev, ...response.data.counts }));
       setTotal(response.data.total || 0);
       setError('');
     } catch (error) {
@@ -118,10 +130,29 @@ function ItAdminDashboard() {
   };
 
   const openAssignModal = async (req: Request) => {
+    const priority = req.priority || 'NORMAL';
     setSelectedRequest(req);
     setSelectedTechnician('');
+    setAssignPriority(priority);
+    setAssignDue(req.due_date || suggestedDueDate(priority));
     setShowAssignModal(true);
     await fetchTechnicians();
+  };
+
+  // Keep the suggested due date in step with priority until the admin picks a date themselves.
+  const changeAssignPriority = (priority: string) => {
+    if (assignDue === suggestedDueDate(assignPriority)) setAssignDue(suggestedDueDate(priority));
+    setAssignPriority(priority);
+  };
+
+  const openManageModal = async (req: Request) => {
+    setManageTarget(req);
+    await fetchTechnicians();
+  };
+
+  const closeManageModal = () => {
+    setManageTarget(null);
+    fetchData(searchTermRef.current);
   };
 
   const handleAssign = async () => {
@@ -130,7 +161,9 @@ function ItAdminDashboard() {
     try {
       await api.post('/requests/accept_request', {
         request_id: selectedRequest._id,
-        technician_id: selectedTechnician
+        technician_id: selectedTechnician,
+        priority: assignPriority,
+        due_date: assignDue
       });
       setShowAssignModal(false);
       setSelectedRequest(null);
@@ -164,7 +197,7 @@ function ItAdminDashboard() {
       );
     }
     if (req.status === 'IN_PROGRESS') {
-      return <span className="hstatus in-progress"><span className="hstatus-dot in-progress" />In Progress</span>;
+      return <button className="hbtn hbtn-view" onClick={() => openManageModal(req)}>Manage</button>;
     }
     return null;
   };
@@ -213,6 +246,14 @@ function ItAdminDashboard() {
           <p className="stat-num">{counts.declined_count}</p>
         </div>
         <div className="stat-card-sm">
+          <h4>Urgent (open)</h4>
+          <p className="stat-num">{counts.urgent_count}</p>
+        </div>
+        <div className="stat-card-sm">
+          <h4>Overdue</h4>
+          <p className="stat-num">{counts.overdue_count}</p>
+        </div>
+        <div className="stat-card-sm">
           <h4>Repaired</h4>
           <p className="stat-num">{counts.repaired_count}</p>
         </div>
@@ -230,22 +271,29 @@ function ItAdminDashboard() {
             <thead>
               <tr>
                 <th>Code</th>
-                <th>Office</th>
                 <th>Requested By</th>
+                <th>Assigned To</th>
                 <th>Issue</th>
                 <th>Status</th>
                 <th>Created</th>
-                <th>Completed</th>
                 <th className="col-actions">Action</th>
               </tr>
             </thead>
             <tbody>
               {requests.map((req) => (
                 <tr key={req.request_code}>
-                  <td className="td-code" data-label="Code">{req.request_code}</td>
-                  <td className="td-cell" data-label="Office">{req.office}</td>
-                  <td className="td-cell" data-label="Requested By">{req.client_name}</td>
-                  <td data-label="Issue">
+                  <td className="td-code" data-label="Code">
+                    {req.request_code}
+                    <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} />
+                  </td>
+                  <td className="td-cell td-wrap" data-label="Requested By">
+                    <span className="td-stack">
+                      {req.client_name}
+                      <span className="td-sub">{req.office}</span>
+                    </span>
+                  </td>
+                  <td className="td-cell" data-label="Assigned To">{req.assigned_name || '-'}</td>
+                  <td className="td-wrap" data-label="Issue">
                     {req.issue}
                     {req.notes && req.notes.length > 0 && (
                       <span className="note-count" title="Notes from the client">{req.notes.length} {req.notes.length === 1 ? 'note' : 'notes'}</span>
@@ -257,8 +305,12 @@ function ItAdminDashboard() {
                       {req.status}
                     </span>
                   </td>
-                  <td className="td-cell" data-label="Created">{req.created_at}</td>
-                  <td className="td-cell" data-label="Completed">{req.completed_at}</td>
+                  <td className="td-cell" data-label="Created">
+                    <span className="td-stack">
+                      {req.created_at}
+                      {req.completed_at !== '-' && <span className="td-sub">Completed {req.completed_at}</span>}
+                    </span>
+                  </td>
                   <td className="col-actions">{getActionButtons(req)}</td>
                 </tr>
               ))}
@@ -289,11 +341,59 @@ function ItAdminDashboard() {
               </select>
             </div>
 
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="assign-priority">Priority</label>
+                <select id="assign-priority" value={assignPriority} onChange={(e) => changeAssignPriority(e.target.value)}>
+                  {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label htmlFor="assign-due">Due date</label>
+                <input id="assign-due" type="date" value={assignDue} onChange={(e) => setAssignDue(e.target.value)} />
+              </div>
+            </div>
+
             <div className="modal-actions">
               <button className="btn-primary" onClick={handleAssign} disabled={submitting || !selectedTechnician}>
                 {submitting ? 'Assigning...' : 'Assign'}
               </button>
               <button className="btn-secondary" onClick={() => setShowAssignModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {manageTarget && (
+        <div className="modal">
+          <div className="modal-content">
+            <h3>Manage Request</h3>
+            <p><strong>Request:</strong> {manageTarget.request_code}</p>
+            <p><strong>Issue:</strong> {manageTarget.issue}</p>
+            <p><strong>Assigned To:</strong> {manageTarget.assigned_name || '-'}</p>
+            <p>
+              <strong>Priority:</strong> {priorityLabel(manageTarget.priority)}
+              {manageTarget.due_date && <>, due {formatDay(manageTarget.due_date)}</>}
+              <RequestFlags overdue={manageTarget.overdue} />
+            </p>
+            <NotesList notes={manageTarget.notes} />
+            <ReassignForm
+              endpoint="/requests/reassign"
+              requestId={manageTarget._id}
+              currentId={manageTarget.assigned_to}
+              staff={technicians}
+              onDone={closeManageModal}
+            />
+            <PriorityForm
+              endpoint="/requests/set_priority"
+              requestId={manageTarget._id}
+              priority={manageTarget.priority}
+              dueDate={manageTarget.due_date}
+              withDueDate
+              onDone={closeManageModal}
+            />
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={() => setManageTarget(null)}>Close</button>
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import {
   getPrintMaterialsRequestsCollection, getUsersCollection, getCache, setCache
 } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
+import { formatDateTime, todayString } from '../utils/dates';
 
 const router = Router();
 
@@ -174,7 +175,7 @@ router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, re
 
     const typeKey = (req.query.type as string) || 'it';
     const filterType = (req.query.filter as string) || 'daily';
-    const selectedDate = (req.query.date as string) || new Date().toLocaleDateString('en-CA');
+    const selectedDate = (req.query.date as string) || todayString();
     const showDone = req.query.show_done !== '0';
     const search = req.query.search as string | undefined;
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
@@ -215,7 +216,7 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
 
     const typeKey = (req.query.type as string) || 'it';
     const filterType = (req.query.filter as string) || 'daily';
-    const selectedDate = (req.query.date as string) || new Date().toLocaleDateString('en-CA');
+    const selectedDate = (req.query.date as string) || todayString();
     const showDone = req.query.show_done !== '0';
     const search = req.query.search as string | undefined;
 
@@ -247,7 +248,7 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
       for (const h of headers) {
         let val = r[h];
         if (val instanceof Date) {
-          val = val.toISOString().replace('T', ' ').substring(0, 16);
+          val = formatDateTime(val);
         }
         row[h] = val ?? '-';
       }

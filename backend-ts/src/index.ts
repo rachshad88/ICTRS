@@ -1,12 +1,17 @@
 import 'dotenv/config';
+
+// Users are in the Philippines. Day filters ("today", "this week") and displayed times are
+// computed in this timezone rather than the server's (UTC). Set before any date is handled.
+process.env.TZ = process.env.APP_TIMEZONE || 'Asia/Manila';
 import express, { Express } from 'express';
-import session from 'express-session';
+import session, { SessionData } from 'express-session';
 import MongoStore from 'connect-mongo';
 import cors from 'cors';
-import { createServer } from 'http';
+import { createServer, IncomingMessage } from 'http';
+import { Socket } from 'socket.io';
 import helmet from 'helmet';
 import { ObjectId } from 'mongodb';
-import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection } from './config/database';
+import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection, isSessionCurrent } from './config/database';
 import { initSocket } from './config/socket';
 
 import authRoutes from './routes/auth';
@@ -19,23 +24,40 @@ import printMaterialsRoutes from './routes/printMaterials';
 import fileRoutes from './routes/files';
 import auditRoutes from './routes/audit';
 import notificationRoutes from './routes/notifications';
-import softwareRoutes from './routes/software';
 import csfRoutes from './routes/csf_route';
 import dashboardRoutes from './routes/dashboard';
+import overviewRoutes from './routes/overview';
 
 const app: Express = express();
+// nginx and the Vite dev proxy run on this machine; trust their X-Forwarded-* headers only.
+app.set('trust proxy', 'loopback');
+// Query strings are parsed flat: "?office[$ne]=x" stays the literal key "office[$ne]" instead of
+// becoming a MongoDB operator, and a repeated key keeps only its first value, so every
+// req.query value is a plain string. Must be set before any app.use(), which fixes the parser.
+app.set('query parser', 'simple');
+app.use((req, _res, next) => {
+  for (const [key, value] of Object.entries(req.query)) {
+    if (Array.isArray(value)) req.query[key] = value[0];
+  }
+  next();
+});
 const httpServer = createServer(app);
 
-const isProduction = process.env.NODE_ENV === 'production';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+// The app itself is same-origin (nginx or the Vite proxy forward /api and /socket.io), so it needs no
+// CORS. Other sites may only read the API from these origins, and never with the user's cookies;
+// by default that is the CSF rating site, which may use /api/csf.
+const CORS_ORIGINS = (process.env.CORS_ORIGINS || 'http://192.168.110.19')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
-const io = initSocket(httpServer, isProduction ? FRONTEND_URL : true);
+const io = initSocket(httpServer, false);
 
 app.set('io', io);
 
 app.use(cors({
-  origin: isProduction ? FRONTEND_URL : true,
-  credentials: true
+  origin: CORS_ORIGINS,
+  credentials: false
 }));
 app.use(helmet({
   contentSecurityPolicy: false
@@ -48,7 +70,7 @@ if (!sessionSecret) {
   throw new Error('SESSION_SECRET environment variable is required');
 }
 
-app.use(session({
+const sessionMiddleware = session({
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
@@ -60,59 +82,85 @@ app.use(session({
     autoRemove: 'native'
   }),
   cookie: {
-    secure: isProduction,
+    // HTTPS-only whenever the request arrived over HTTPS (nginx sets X-Forwarded-Proto), while
+    // still working over plain HTTP on the LAN dev port.
+    secure: 'auto',
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000,
-    sameSite: isProduction ? 'strict' : 'lax'
+    sameSite: 'lax'
   }
-}));
+});
 
-const connectedUsers = new Map<string, string>();
+app.use(sessionMiddleware);
+
+// Sockets use the same login session as the API. The user comes from the session cookie,
+// never from anything the client sends, so a socket can only join its own rooms.
+io.engine.use(sessionMiddleware);
+
+function socketSession(socket: Socket): Partial<SessionData> | undefined {
+  return (socket.request as IncomingMessage & { session?: Partial<SessionData> }).session;
+}
+
+function socketUserId(socket: Socket): string | undefined {
+  return socketSession(socket)?.user_id;
+}
+
+io.use(async (socket, next) => {
+  try {
+    const session = socketSession(socket);
+    if (!(await isSessionCurrent(session?.user_id, session?.session_version))) {
+      next(new Error('Unauthorized'));
+      return;
+    }
+    next();
+  } catch (error) {
+    console.error('Socket session check error:', error);
+    next(new Error('Unauthorized'));
+  }
+});
+
 const userRoles = new Map<string, string[]>();
 
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+io.on('connection', async (socket) => {
+  const userId = socketUserId(socket)!;
 
-  socket.on('register_user', async (data: { user_id: string; role: string }) => {
-    try {
-      const userId = data.user_id;
-      if (!userId || !/^[a-fA-F0-9]{24}$/.test(userId)) return;
-
-      const usersCollection = getUsersCollection();
-      const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
-      if (!user) return;
-
-      const roles = user.roles || [user.role];
-      connectedUsers.set(socket.id, userId);
-      userRoles.set(socket.id, roles);
-      socket.join(`user_${userId}`);
-      
-      if (roles.includes('ADMIN') || roles.includes('MULTIMEDIA_ADMIN')) {
-        socket.join('admins');
-      }
-      if (roles.includes('MULTIMEDIA')) {
-        socket.join('multimedia_staff');
-      }
-      if (roles.includes('TECHNICIAN') || roles.includes('IT_ADMIN')) {
-        socket.join('technicians');
-      }
-      if (roles.includes('PROGRAMMER')) {
-        socket.join('programmers');
-      }
-      if (roles.includes('CLIENT')) {
-        socket.join('clients');
-      }
-      
-      console.log(`User ${userId} (${roles.join(', ')}) registered with socket ${socket.id}`);
-    } catch (error) {
-      console.error('Error registering user:', error);
+  try {
+    // Roles are read fresh from the database so role changes apply on the next connection.
+    const user = await getUsersCollection().findOne({ _id: new ObjectId(userId) }, { projection: { role: 1, roles: 1 } });
+    if (!user) {
+      socket.disconnect(true);
+      return;
     }
-  });
+
+    const roles = user.roles || [user.role];
+    userRoles.set(socket.id, roles);
+    socket.join(`user_${userId}`);
+
+    if (roles.includes('ADMIN') || roles.includes('MULTIMEDIA_ADMIN')) {
+      socket.join('admins');
+    }
+    if (roles.includes('MULTIMEDIA')) {
+      socket.join('multimedia_staff');
+    }
+    if (roles.includes('TECHNICIAN') || roles.includes('IT_ADMIN')) {
+      socket.join('technicians');
+    }
+    if (roles.includes('PROGRAMMER')) {
+      socket.join('programmers');
+    }
+    if (roles.includes('CLIENT')) {
+      socket.join('clients');
+    }
+
+    console.log(`User ${userId} (${roles.join(', ')}) connected with socket ${socket.id}`);
+  } catch (error) {
+    console.error('Error registering socket user:', error);
+    socket.disconnect(true);
+    return;
+  }
 
   socket.on('disconnect', () => {
-    const userId = connectedUsers.get(socket.id);
     const roles = userRoles.get(socket.id);
-    connectedUsers.delete(socket.id);
     userRoles.delete(socket.id);
     console.log(`Client disconnected: ${socket.id} (User: ${userId}, Roles: ${roles?.join(', ')})`);
   });
@@ -132,9 +180,10 @@ app.use('/api/printmaterials', printMaterialsRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
-app.use('/api/software', softwareRoutes);
+// Software development requests (routes/software.ts) have no screens yet, so their routes are not mounted.
 app.use('/api/csf', csfRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/overview', overviewRoutes);
 
 const rawPort = process.env.PORT || '3000';
 const PORT = parseInt(rawPort, 10);
@@ -142,6 +191,11 @@ if (isNaN(PORT) || PORT < 1 || PORT > 65535) {
   console.error(`Invalid PORT value: "${rawPort}". Must be a number between 1 and 65535.`);
   process.exit(1);
 }
+
+// Everything reaches the backend through nginx or the Vite proxy on this machine, so it can listen on
+// 127.0.0.1 only. The default stays 0.0.0.0 until it is confirmed nothing (e.g. the CSF system)
+// calls port 3000 directly; then set BIND_HOST=127.0.0.1 in .env.
+const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
 
 async function startServer() {
   try {
@@ -172,7 +226,7 @@ async function startServer() {
           }
           setTimeout(() => {
             httpServer.close();
-            httpServer.listen(PORT, '0.0.0.0');
+            httpServer.listen(PORT, BIND_HOST);
           }, 1000);
         });
       } catch {
@@ -184,8 +238,8 @@ async function startServer() {
     throw err;
   });
 
-  httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+  httpServer.listen(PORT, BIND_HOST, () => {
+    console.log(`Server running on ${BIND_HOST}:${PORT}`);
   });
 }
 

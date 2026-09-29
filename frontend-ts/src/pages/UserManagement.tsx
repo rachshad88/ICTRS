@@ -255,7 +255,7 @@ function UserManagement() {
                 <div className="form-group">
                   <label>Password</label>
                   <div style={{ padding: '8px 10px', borderRadius: '6px', background: '#f3f6ff', color: '#234a8c', fontSize: '13px' }}>
-                    New accounts will use the default password <strong>{DEFAULT_PASSWORD}</strong>.
+                    New accounts will use the default password <strong>{DEFAULT_PASSWORD}</strong> and must change it when they first log in.
                   </div>
                 </div>
               )}

@@ -21,7 +21,7 @@ router.get('/logs', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, 
 
     if (req.query.date_from || req.query.date_to) {
       filter.timestamp = {};
-      if (req.query.date_from && typeof req.query.date_from === 'string') (filter.timestamp as Record<string, unknown>).$gte = new Date(req.query.date_from);
+      if (req.query.date_from && typeof req.query.date_from === 'string') (filter.timestamp as Record<string, unknown>).$gte = new Date(req.query.date_from + 'T00:00:00');
       if (req.query.date_to && typeof req.query.date_to === 'string') (filter.timestamp as Record<string, unknown>).$lte = new Date(req.query.date_to + 'T23:59:59');
     }
 

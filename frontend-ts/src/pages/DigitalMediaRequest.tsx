@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { PriorityField, Priority } from '../components/Priority';
 
 
 const FORM_OF_DIGITAL_MEDIA = [
@@ -14,6 +15,7 @@ function DigitalMediaRequest() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [priority, setPriority] = useState<Priority>('NORMAL');
   const [files, setFiles] = useState<FileList | null>(null);
   
   const [formData, setFormData] = useState({
@@ -80,6 +82,7 @@ function DigitalMediaRequest() {
       submitData.append('target_time', formData.target_time);
       submitData.append('requestor_name', formData.requestor_name);
       submitData.append('requestor_contact', formData.requestor_contact);
+      submitData.append('priority', priority);
       
       if (files) {
         for (let i = 0; i < files.length; i++) {
@@ -181,6 +184,7 @@ function DigitalMediaRequest() {
               <label>Target Date of Posting or Use *</label>
               <input
                 type="date"
+                min={new Date().toLocaleDateString('en-CA')}
                 name="target_date"
                 value={formData.target_date}
                 onChange={handleInputChange}
@@ -228,13 +232,15 @@ function DigitalMediaRequest() {
             </div>
           </div>
 
+          <PriorityField value={priority} onChange={setPriority} />
+
           <div className="form-group">
             <label>Supporting Files (Optional)</label>
             <input
               type="file"
               onChange={handleFileChange}
               multiple
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.ppt,.pptx,.mp4,.webm"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.pptx,.mp4,.webm"
             />
             {files && files.length > 0 && (
               <div className="file-list">
@@ -245,7 +251,7 @@ function DigitalMediaRequest() {
                 ))}
               </div>
             )}
-            <small>Max 10 files. Allowed: PDF, images, Word, PowerPoint, videos (max 10MB each)</small>
+            <small>Max 10 files. Allowed: PDF, JPG, PNG, Word, PowerPoint (.pptx), MP4, WebM (max 10MB each)</small>
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading}>

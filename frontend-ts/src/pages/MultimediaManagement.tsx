@@ -6,9 +6,13 @@ import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
+import { RequestFlags, PriorityForm, ReassignForm } from '../components/Priority';
 
 interface MultimediaRequest {
   _id: string;
+  priority?: string;
+  overdue?: boolean;
+  assigned_to?: string | null;
   request_code: string;
   event_title: string;
   status: string;
@@ -22,6 +26,7 @@ interface MultimediaRequest {
   specific_location: string;
   program_file?: string;
   requester?: Array<{ first_name: string; last_name: string }>;
+  assignedTechnician?: Array<{ first_name: string; last_name: string }>;
   created_at: string;
 }
 
@@ -89,7 +94,7 @@ function MultimediaManagement() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 
@@ -104,6 +109,7 @@ function MultimediaManagement() {
     socket.on('multimedia_request_cancelled', handler);
     socket.on('multimedia_request_declined', handler);
     socket.on('multimedia_request_note_added', handler);
+    socket.on('multimedia_request_priority_changed', handler);
     return () => {
       socket.off('multimedia_request_created', handler);
       socket.off('multimedia_request_assigned', handler);
@@ -112,6 +118,7 @@ function MultimediaManagement() {
       socket.off('multimedia_request_cancelled', handler);
       socket.off('multimedia_request_declined', handler);
       socket.off('multimedia_request_note_added', handler);
+      socket.off('multimedia_request_priority_changed', handler);
     };
   }, [user, fetchData]);
 
@@ -129,9 +136,17 @@ function MultimediaManagement() {
       setSelectedRequest(null);
       setSelectedTechnician('');
       setTimeout(() => { setMessage(''); fetchData(searchTerm); }, 1500);
-    } catch (error) {
-      setMessage('Failed to assign request');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setMessage(err.response?.data?.error || 'Failed to assign request');
     }
+  };
+
+  // Shared follow-up for reassigning and reprioritizing: close the modal, confirm, refresh.
+  const handleAdminChange = (text: string) => {
+    setSelectedRequest(null);
+    setMessage(text);
+    setTimeout(() => { setMessage(''); fetchData(searchTermRef.current); }, 1500);
   };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -193,7 +208,10 @@ function MultimediaManagement() {
                       {request.status.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td className="td-code" data-label="Code">{request.request_code}</td>
+                  <td className="td-code" data-label="Code">
+                    {request.request_code}
+                    <RequestFlags priority={request.priority} overdue={request.overdue} />
+                  </td>
                   <td data-label="Event">{request.event_title}</td>
                   <td data-label="Date">{formatDate(request.event_date)}</td>
                   <td className="td-cell" data-label="Time">{request.event_start_time} - {request.event_end_time}</td>
@@ -209,7 +227,7 @@ function MultimediaManagement() {
                         </button>
                       ) : (
                         <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                          View
+                          {request.status === 'IN_PROGRESS' ? 'Manage' : 'View'}
                         </button>
                       )}
                     </div>
@@ -226,13 +244,16 @@ function MultimediaManagement() {
       {selectedRequest && (
         <div className="modal">
           <div className="modal-content">
-            <h3>Assign Multimedia Request</h3>
+            <h3>{selectedRequest.status === 'UNASSIGNED' ? 'Assign Multimedia Request' : 'Multimedia Request'}</h3>
             <p><strong>Event:</strong> {selectedRequest.event_title}</p>
             <p><strong>Request Code:</strong> {selectedRequest.request_code}</p>
             <p><strong>Requested By:</strong> {selectedRequest.requester?.[0] ? `${selectedRequest.requester[0].first_name} ${selectedRequest.requester[0].last_name}` : 'Unknown'}</p>
             <p><strong>Date:</strong> {formatDate(selectedRequest.event_date)}</p>
             <p><strong>Time:</strong> {selectedRequest.event_start_time} - {selectedRequest.event_end_time}</p>
             <p><strong>Contact:</strong> {selectedRequest.contact_number}</p>
+            {selectedRequest.assignedTechnician?.[0] && (
+              <p><strong>Assigned To:</strong> {selectedRequest.assignedTechnician[0].first_name} {selectedRequest.assignedTechnician[0].last_name}</p>
+            )}
 
             {selectedRequest.program_file && (
               <div className="file-section">
@@ -243,6 +264,25 @@ function MultimediaManagement() {
 
             <DeclineReason reason={selectedRequest.decline_reason} />
             <NotesList notes={selectedRequest.notes} />
+
+            {!declining && selectedRequest.status === 'IN_PROGRESS' && (
+              <ReassignForm
+                endpoint="/multimedia/reassign"
+                requestId={selectedRequest._id}
+                currentId={selectedRequest.assigned_to}
+                staff={technicians}
+                staffLabel="staff member"
+                onDone={() => handleAdminChange('Request reassigned successfully')}
+              />
+            )}
+            {!declining && ['UNASSIGNED', 'IN_PROGRESS'].includes(selectedRequest.status) && (
+              <PriorityForm
+                endpoint="/multimedia/set_priority"
+                requestId={selectedRequest._id}
+                priority={selectedRequest.priority}
+                onDone={() => handleAdminChange('Priority updated successfully')}
+              />
+            )}
 
             {!declining && selectedRequest.status === 'UNASSIGNED' && (
               <div className="form-group">

@@ -60,6 +60,8 @@ function AuditLogs() {
     FINISH_REQUEST: 'Finish Request',
     COMPLETE_REQUEST: 'Complete Request',
     CANCEL_REQUEST: 'Cancel Request',
+    REASSIGN_REQUEST: 'Reassign Request',
+    SET_PRIORITY: 'Set Priority',
     SHARED_ACCESS: 'Share Access'
   };
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { PriorityField, Priority } from '../components/Priority';
 
 
 const LOCATION_TYPES = [
@@ -14,6 +15,7 @@ function MultimediaRequest() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [priority, setPriority] = useState<Priority>('NORMAL');
   const [file, setFile] = useState<File | null>(null);
   
   const [formData, setFormData] = useState({
@@ -47,8 +49,10 @@ function MultimediaRequest() {
       }
       
       // Check file type
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
-      if (!allowedTypes.includes(selectedFile.type)) {
+      // Checked by extension, as the server does; browsers report inconsistent MIME types.
+      const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
+      const extension = selectedFile.name.split('.').pop()?.toLowerCase() || '';
+      if (!allowedExtensions.includes(extension)) {
         setMessage('Only PDF, images, and Word documents are allowed');
         return;
       }
@@ -66,6 +70,10 @@ function MultimediaRequest() {
       setLoading(false);
       return;
     }
+    if (formData.event_end_time <= formData.event_start_time) {
+      setMessage('End time must be after the start time');
+      return;
+    }
     setLoading(true);
     setMessage('');
 
@@ -78,6 +86,7 @@ function MultimediaRequest() {
       submitData.append('specific_location', formData.specific_location);
       submitData.append('location_type', formData.location_type);
       submitData.append('contact_number', formData.contact_number);
+      submitData.append('priority', priority);
       
       if (file) {
         submitData.append('program_file', file);
@@ -132,6 +141,7 @@ function MultimediaRequest() {
               <label>Event Date *</label>
               <input
                 type="date"
+                min={new Date().toLocaleDateString('en-CA')}
                 name="event_date"
                 value={formData.event_date}
                 onChange={handleInputChange}
@@ -205,6 +215,8 @@ function MultimediaRequest() {
             />
           </div>
           
+          <PriorityField value={priority} onChange={setPriority} />
+
           <div className="form-group">
             <label>Program/Schedule of Event (Optional)</label>
             <input

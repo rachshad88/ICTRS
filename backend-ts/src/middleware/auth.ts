@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Role } from '../config/database';
+import { Role, isSessionCurrent } from '../config/database';
 
 declare module 'express-session' {
   interface SessionData {
@@ -12,6 +12,7 @@ declare module 'express-session' {
     primary_role?: Role;
     office?: string;
     is_default_password?: boolean;
+    session_version?: number;
   }
 }
 
@@ -29,11 +30,35 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-export function isAuthenticated(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+// The frontend sends the user back to the login page when it sees this code.
+const SESSION_EXPIRED = { error: 'Unauthorized', code: 'SESSION_EXPIRED' };
+
+export async function isAuthenticated(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   if (!req.session || !req.session.user_id) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json(SESSION_EXPIRED);
     return;
   }
+
+  // The session is checked against the database on every request, so a deleted user, or one whose
+  // roles or password an admin changed, is logged out on their next request instead of up to 24h later.
+  try {
+    if (!(await isSessionCurrent(req.session.user_id, req.session.session_version))) {
+      req.session.destroy(() => res.status(401).json(SESSION_EXPIRED));
+      return;
+    }
+  } catch (error) {
+    console.error('Session check error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+    return;
+  }
+
+  // Accounts still on the default password may only use the account routes (profile, change
+  // password, logout) until they change it; the frontend sends them to the Profile page.
+  if (req.session.is_default_password && !req.originalUrl.startsWith('/api/auth/')) {
+    res.status(403).json({ error: 'Change your default password to continue', code: 'PASSWORD_CHANGE_REQUIRED' });
+    return;
+  }
+
   req.user = {
     user_id: req.session.user_id,
     username: req.session.username || '',

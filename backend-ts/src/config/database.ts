@@ -1,5 +1,6 @@
 import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
 import { RedisClientType, createClient } from 'redis';
+import { Priority } from '../utils/priority';
 
 export const ALL_ROLE_VALUES = ['ADMIN', 'TECHNICIAN', 'CLIENT', 'MULTIMEDIA', 'IT_ADMIN', 'MULTIMEDIA_ADMIN', 'PROGRAMMER'] as const;
 export type Role = typeof ALL_ROLE_VALUES[number];
@@ -16,6 +17,9 @@ export interface User {
   primary_role: Role;
   office?: string;
   created_at?: Date;
+  // Bumped when an admin changes the user's access or password; sessions started under an
+  // older version are rejected (see isAuthenticated).
+  session_version?: number;
 }
 
 export interface RequestNote {
@@ -34,7 +38,14 @@ export interface DeclineAndNotes {
   notes?: RequestNote[];
 }
 
-export interface Request extends DeclineAndNotes {
+// Urgency set by the client and adjustable by admins. Only IT requests store a due date;
+// the media types use their event or target date instead.
+export interface PriorityAndDue {
+  priority?: Priority;
+  due_date?: Date | null;
+}
+
+export interface Request extends DeclineAndNotes, PriorityAndDue {
   _id?: ObjectId;
   request_code: string;
   created_by: ObjectId;
@@ -52,7 +63,7 @@ export interface Request extends DeclineAndNotes {
   completed_at: Date | null;
 }
 
-export interface MultimediaRequest extends DeclineAndNotes {
+export interface MultimediaRequest extends DeclineAndNotes, PriorityAndDue {
   _id?: ObjectId;
   request_code: string;
   created_by: ObjectId;
@@ -72,7 +83,7 @@ export interface MultimediaRequest extends DeclineAndNotes {
   completed_at: Date | null;
 }
 
-export interface DigitalMediaRequest extends DeclineAndNotes {
+export interface DigitalMediaRequest extends DeclineAndNotes, PriorityAndDue {
   _id?: ObjectId;
   request_code: string;
   created_by: ObjectId;
@@ -105,7 +116,7 @@ export interface AuditLog {
   metadata?: Record<string, unknown>;
 }
 
-export interface PrintMaterialsRequest extends DeclineAndNotes {
+export interface PrintMaterialsRequest extends DeclineAndNotes, PriorityAndDue {
   _id?: ObjectId;
   request_code: string;
   created_by: ObjectId;
@@ -303,6 +314,13 @@ export async function logAudit(
   }
 }
 
+// Whether a session still belongs to an existing user and was started under their current session version.
+export async function isSessionCurrent(userId: string | undefined, sessionVersion: number | undefined): Promise<boolean> {
+  if (!userId || !isValidObjectId(userId)) return false;
+  const user = await getUsersCollection().findOne({ _id: new ObjectId(userId) }, { projection: { session_version: 1 } });
+  return !!user && (user.session_version || 0) === (sessionVersion || 0);
+}
+
 export function getRedisClient(): RedisClientType | null {
   return redisClient;
 }
@@ -341,13 +359,11 @@ export async function generateRequestCode(prefix: string, collectionName?: strin
   return `${prefix}-${year}-${String(seq).padStart(4, '0')}`;
 }
 
-export function sanitizeInput(input: string): string {
-  return input.trim().slice(0, 1000)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
+// Normalizes free text for storage: trimmed and capped at 1000 characters. Text is stored as typed,
+// not HTML-escaped; React escapes it on render, and escaping here showed entities such as &#x27;
+// to users and in exports. Anything that builds HTML from stored text must escape it itself.
+export function sanitizeInput(input: unknown): string {
+  return String(input ?? '').trim().slice(0, 1000);
 }
 
 export function isValidObjectId(id: string): boolean {

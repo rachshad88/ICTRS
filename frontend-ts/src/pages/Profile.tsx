@@ -6,9 +6,10 @@ import { api } from '../services/api';
 import { OFFICES } from '../data/offices';
 
 function Profile() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, refreshUser } = useAuth();
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<'profile' | 'password' | null>(null);
+  const mustChangePassword = !!user?.is_default_password;
+  const [activeSection, setActiveSection] = useState<'profile' | 'password' | null>(mustChangePassword ? 'password' : null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -43,11 +44,13 @@ function Profile() {
         current_password: currentPassword,
         new_password: newPassword
       });
-      setSuccess('Password changed successfully');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setActiveSection(null);
+      // Picks up is_default_password = false, which unlocks the rest of the app.
+      await refreshUser();
+      setSuccess(mustChangePassword ? 'Password changed. You can now use the rest of the system.' : 'Password changed successfully');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
       setError(e.response?.data?.error || 'Failed to change password');
@@ -109,6 +112,12 @@ function Profile() {
           <h2>Profile Settings</h2>
           <p className="page-subtitle">Manage your personal information and security</p>
         </div>
+
+        {mustChangePassword && (
+          <div className="error-message" role="alert">
+            Your account still uses the default password. Change it under Security to continue using the system.
+          </div>
+        )}
         
         <div className="profile-layout">
           <div className="profile-sidebar">

@@ -97,7 +97,7 @@ function Requested() {
   useEffect(() => {
     
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 

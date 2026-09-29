@@ -6,6 +6,7 @@ import { getUsersCollection, logAudit, Role } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { loginSchema, changePasswordSchema, updateProfileSchema } from '../middleware/validation';
+import { loginRetryAfter, recordLoginFailure, recordLoginSuccess } from '../middleware/loginThrottle';
 
 const router = Router();
 
@@ -39,10 +40,19 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
       return res.status(400).json({ error: 'Username and password required' });
     }
 
+    const ip = req.ip || '';
+    const retryAfter = loginRetryAfter(username, ip);
+    if (retryAfter > 0) {
+      const minutes = Math.ceil(retryAfter / 60);
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({ error: `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` });
+    }
+
     const usersCollection = getUsersCollection();
     const user = await usersCollection.findOne({ username });
 
     if (!user) {
+      recordLoginFailure(username, ip);
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
@@ -70,8 +80,10 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     }
 
     if (!isValid) {
+      recordLoginFailure(username, ip);
       return res.status(401).json({ error: 'Invalid username or password' });
     }
+    recordLoginSuccess(username, ip);
 
     const roles = user.roles || [user.role];
     const primary_role = user.primary_role || user.role;
@@ -93,6 +105,7 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
         req.session.primary_role = primary_role;
         req.session.office = user.office || '';
         req.session.is_default_password = isDefaultPassword;
+        req.session.session_version = user.session_version || 0;
 
         await logAudit(user._id!, user.username, primary_role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
 
@@ -131,11 +144,11 @@ router.post('/logout', async (req: Request, res: Response) => {
     if (err) {
       return res.status(500).json({ error: 'Logout failed' });
     }
-    res.clearCookie('connect.sid', { 
+    res.clearCookie('connect.sid', {
       path: '/',
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+      secure: req.secure,
+      sameSite: 'lax'
     });
     res.json({ status: 'success' });
   });
@@ -183,13 +196,16 @@ router.post('/change_password', isAuthenticated, validateBody(changePasswordSche
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
+    // Changing your own password signs out your other sessions but keeps this one.
     const hashedPassword = await bcrypt.hash(new_password, 10);
-    await usersCollection.updateOne(
+    const updated = await usersCollection.findOneAndUpdate(
       { _id: user._id },
-      { $set: { password: hashedPassword } }
+      { $set: { password: hashedPassword }, $inc: { session_version: 1 } },
+      { returnDocument: 'after', projection: { session_version: 1 } }
     );
 
     req.session.is_default_password = false;
+    req.session.session_version = updated.value?.session_version || 0;
 
     await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'CHANGE_PASSWORD', 'USER', userId, `User ${req.user!.username} changed their password`);
     res.json({ status: 'success', message: 'Password changed successfully' });

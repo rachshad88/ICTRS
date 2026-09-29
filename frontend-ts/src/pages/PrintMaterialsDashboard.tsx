@@ -7,9 +7,12 @@ import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, RequestNote } from '../components/RequestNotes';
 import RequestMobileCard from '../components/RequestMobileCard';
+import { RequestFlags, priorityLabel } from '../components/Priority';
 
 interface PrintMaterialsRequest {
   _id: string;
+  priority?: string;
+  overdue?: boolean;
   request_code: string;
   form_of_printed_media: string;
   size_of_printed_media: string;
@@ -61,7 +64,7 @@ function PrintMaterialsDashboard() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 
@@ -79,11 +82,15 @@ function PrintMaterialsDashboard() {
     socket.on('print_materials_request_completed', handler);
     socket.on('print_materials_request_cancelled', handler);
     socket.on('print_materials_request_note_added', handler);
+    socket.on('print_materials_request_reassigned', handler);
+    socket.on('print_materials_request_priority_changed', handler);
     return () => {
       socket.off('print_materials_request_assigned', handler);
       socket.off('print_materials_request_completed', handler);
       socket.off('print_materials_request_cancelled', handler);
       socket.off('print_materials_request_note_added', handler);
+      socket.off('print_materials_request_reassigned', handler);
+      socket.off('print_materials_request_priority_changed', handler);
     };
   }, [user]);
 
@@ -140,7 +147,10 @@ function PrintMaterialsDashboard() {
                         {request.status.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    <td className="td-code">{request.request_code}</td>
+                    <td className="td-code">
+                      {request.request_code}
+                      <RequestFlags priority={request.priority} overdue={request.overdue} />
+                    </td>
                     <td>{request.form_of_printed_media}</td>
                     <td className="td-cell">{request.size_of_printed_media}</td>
                     <td className="td-cell">{request.event_ppa_name}</td>
@@ -177,6 +187,7 @@ function PrintMaterialsDashboard() {
                 statusLabel={request.status.replace(/_/g, ' ')}
                 statusClass={request.status.toLowerCase().replace(/_/g, '-')}
                 metaItems={[
+                  { label: 'Priority', value: <>{priorityLabel(request.priority)}<RequestFlags overdue={request.overdue} /></> },
                   { label: 'Size', value: request.size_of_printed_media },
                   { label: 'Target', value: formatDate(request.target_date) },
                   { label: 'Contact', value: request.requestor_contact },

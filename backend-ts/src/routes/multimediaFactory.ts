@@ -5,11 +5,14 @@ import path from 'path';
 import fs from 'fs';
 import { AuthenticatedRequest, isAuthenticated, isMultimediaAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { assignMultimediaSchema, completeMultimediaSchema, declineRequestSchema, addNoteSchema } from '../middleware/validation';
+import { assignMultimediaSchema, assignWithPrioritySchema, completeMultimediaSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
+import { normalizePriority, priorityExpr, overdueExpr, toDay } from '../utils/priority';
+import { formatDateTime } from '../utils/dates';
 import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId } from '../config/database';
 import { getIO } from '../config/socket';
 import * as XLSX from 'xlsx';
-import { validateFileMagicBytes } from '../utils/fileValidation';
+import { ZodIssue, ZodTypeAny } from 'zod';
+import { validateFileMagicBytes, mimeTypeForFilename, extensionsForMimeTypes } from '../utils/fileValidation';
 
 interface ColumnDef {
   header: string;
@@ -33,13 +36,16 @@ interface RouteConfig {
   socketPrefix: string;
   hasRecommendation: boolean;
   summaryField: string;
+  // Event or target date; a request past it and still open is flagged overdue.
+  dueField: string;
   searchFields: {
     getAll: string[];
     getUnassigned: string[];
     myRequests: string[];
     myHistory: string[];
   };
-  createFields: { name: string; required: boolean }[];
+  // Validates the submitted form fields (multipart body) before anything is saved.
+  createSchema: ZodTypeAny;
   buildCreateDoc: (body: any, userId: ObjectId, requestCode: string, fileData: any) => Record<string, any>;
   excelSheetName: string;
   excelFileName: string;
@@ -68,11 +74,14 @@ export function createRequestRouter(config: RouteConfig): Router {
     }
   });
 
+  const allowedExtensions = extensionsForMimeTypes(config.allowedMimeTypes);
+
   const fileFilter = (req: any, file: Express.Multer.File, cb: FileFilterCallback) => {
-    if (config.allowedMimeTypes.includes(file.mimetype)) {
+    const mimeType = mimeTypeForFilename(file.originalname);
+    if (mimeType && config.allowedMimeTypes.includes(mimeType)) {
       cb(null, true);
     } else {
-      cb(new Error(`Only ${config.allowedMimeTypes.join(', ')} files are allowed`));
+      cb(new Error(`"${file.originalname}" is not an allowed file type. Allowed: ${allowedExtensions.join(', ')}`));
     }
   };
 
@@ -111,11 +120,25 @@ export function createRequestRouter(config: RouteConfig): Router {
     };
   }
 
+  const priorityFields = {
+    $addFields: { priority: priorityExpr(), overdue: overdueExpr(`$${config.dueField}`) }
+  };
+
   function getUploadedFiles(req: any): any {
     if (config.uploadMethod === 'single') {
       return req.file || null;
     }
     return (req.files as Express.Multer.File[]) || [];
+  }
+
+  // Deletes this request's uploads from the temporary upload folder. Multer saves files before the
+  // form is validated, so every rejected or failed submission must clean up. Files already moved into
+  // a request's folder are not affected (their temporary path no longer exists).
+  function removeTempUploads(req: any): void {
+    const files: Express.Multer.File[] = req.file ? [req.file] : Array.isArray(req.files) ? req.files : [];
+    for (const f of files) {
+      try { fs.unlinkSync(f.path); } catch {}
+    }
   }
 
   function moveUploadedFiles(files: any, requestId: string): any {
@@ -164,10 +187,11 @@ export function createRequestRouter(config: RouteConfig): Router {
       const collection = config.getCollection();
       const userId = req.user!.user_id;
 
-      for (const field of config.createFields) {
-        if (field.required && !req.body[field.name]) {
-          return res.status(400).json({ status: 'error', message: `${field.name} is required` });
-        }
+      const parsed = config.createSchema.safeParse(req.body);
+      if (!parsed.success) {
+        removeTempUploads(req);
+        const details = parsed.error.issues.map((i: ZodIssue) => ({ field: i.path.join('.'), message: i.message }));
+        return res.status(400).json({ status: 'error', error: details[0].message, details });
       }
 
       let request_code = '';
@@ -181,14 +205,14 @@ export function createRequestRouter(config: RouteConfig): Router {
           if (fileData) {
             if (config.uploadMethod === 'single') {
               const f = fileData as Express.Multer.File;
-              if (!validateFileMagicBytes(f.path, f.mimetype)) {
+              if (!validateFileMagicBytes(f.path, mimeTypeForFilename(f.originalname) || '')) {
                 try { fs.unlinkSync(f.path); } catch {}
                 return res.status(400).json({ status: 'error', message: `File ${f.originalname} content does not match its declared type` });
               }
             } else {
               const files = fileData as Express.Multer.File[];
               for (const f of files) {
-                if (!validateFileMagicBytes(f.path, f.mimetype)) {
+                if (!validateFileMagicBytes(f.path, mimeTypeForFilename(f.originalname) || '')) {
                   for (const f2 of files) {
                     try { fs.unlinkSync(f2.path); } catch {}
                   }
@@ -202,6 +226,7 @@ export function createRequestRouter(config: RouteConfig): Router {
             ? (fileData ? fileData.filename : null)
             : ((fileData as Express.Multer.File[]).length > 0 ? (fileData as Express.Multer.File[]).map(f => f.filename) : []);
           const doc = config.buildCreateDoc(req.body, new ObjectId(userId), request_code, storedFile);
+          doc.priority = normalizePriority(req.body.priority);
           doc.created_at = new Date();
           doc.completed_at = null;
           result = await collection.insertOne(doc);
@@ -218,6 +243,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       }
 
       if (!result) {
+        removeTempUploads(req);
         return res.status(500).json({ status: 'error', message: 'Failed to generate unique request code' });
       }
 
@@ -229,12 +255,6 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const io = getIO();
       if (io) {
-        io.emit(`${config.socketPrefix}_created`, {
-          request_id: result.insertedId.toString(),
-          request_code,
-          created_by: userId,
-          timestamp: new Date()
-        });
         io.to('admins').emit(`${config.socketPrefix}_request_created`, {
           request_id: result.insertedId.toString(),
           request_code,
@@ -252,6 +272,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       res.json({ status: 'success', request_code, request_id: result.insertedId });
     } catch (error) {
       console.error(`Create ${config.entity} request error:`, error);
+      removeTempUploads(req);
       res.status(500).json({ status: 'error', message: `Failed to create ${config.entity} request` });
     }
   });
@@ -272,12 +293,14 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const pipeline = [
         { $match: filter },
+        priorityFields,
         {
           $lookup: {
             from: 'users',
             let: { lookupId: '$assigned_to' },
             pipeline: [
-              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+              { $project: { password: 0 } }
             ],
             as: 'assignedTechnician'
           }
@@ -287,7 +310,8 @@ export function createRequestRouter(config: RouteConfig): Router {
             from: 'users',
             let: { lookupId: '$created_by' },
             pipeline: [
-              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+              { $project: { password: 0 } }
             ],
             as: 'requester'
           }
@@ -321,12 +345,14 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const pipeline = [
         { $match: filter },
+        priorityFields,
         {
           $lookup: {
             from: 'users',
             let: { lookupId: '$created_by' },
             pipeline: [
-              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+              { $project: { password: 0 } }
             ],
             as: 'requester'
           }
@@ -343,9 +369,9 @@ export function createRequestRouter(config: RouteConfig): Router {
   });
 
   // POST /assign
-  router.post('/assign', isAuthenticated, isMultimediaAdmin, validateBody(assignMultimediaSchema), async (req: AuthenticatedRequest, res: Response) => {
+  router.post('/assign', isAuthenticated, isMultimediaAdmin, validateBody(assignWithPrioritySchema), async (req: AuthenticatedRequest, res: Response) => {
     try {
-      const { request_id, technician_id } = req.body;
+      const { request_id, technician_id, priority } = req.body;
       const collection = config.getCollection();
       const usersCollection = getUsersCollection();
 
@@ -354,19 +380,19 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(404).json({ error: 'Technician not found' });
       }
 
-      const request = await collection.findOne({ _id: new ObjectId(request_id) });
-      if (!request) {
-        return res.status(404).json({ error: 'Request not found' });
-      }
+      const update: Record<string, unknown> = { assigned_to: new ObjectId(technician_id), status: 'IN_PROGRESS' };
+      if (priority !== undefined) update.priority = normalizePriority(priority);
 
+      // Only requests still waiting for assignment; moving an in-progress one goes through /reassign,
+      // which records who it was taken from.
       const result = await collection.findOneAndUpdate(
-        { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } },
-        { $set: { assigned_to: new ObjectId(technician_id), status: 'IN_PROGRESS' } },
+        { _id: new ObjectId(request_id), status: config.initialStatus, assigned_to: null },
+        { $set: update },
         { returnDocument: 'after' }
       );
 
       if (!result || !result.value) {
-        return res.status(400).json({ error: 'Failed to assign request' });
+        return res.status(400).json({ error: 'This request is no longer waiting to be assigned. Refresh the list.' });
       }
 
       const requestCode = result.value.request_code || 'unknown';
@@ -406,6 +432,103 @@ export function createRequestRouter(config: RouteConfig): Router {
     }
   });
 
+  // POST /reassign
+  router.post('/reassign', isAuthenticated, isMultimediaAdmin, validateBody(reassignRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { request_id, technician_id } = req.body;
+      const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+      const collection = config.getCollection();
+
+      const technician = await getUsersCollection().findOne({ _id: new ObjectId(technician_id), roles: 'MULTIMEDIA' });
+      if (!technician) {
+        return res.status(404).json({ error: 'Staff member not found' });
+      }
+
+      const newTechId = new ObjectId(technician_id);
+      const result = await collection.findOneAndUpdate(
+        { _id: new ObjectId(request_id), status: 'IN_PROGRESS', assigned_to: { $ne: newTechId } },
+        { $set: { assigned_to: newTechId } },
+        { returnDocument: 'before' }
+      );
+
+      if (!result || !result.value) {
+        return res.status(400).json({ error: 'Request is not in progress or is already assigned to this staff member' });
+      }
+
+      const previousTechId = result.value.assigned_to?.toString() || null;
+      const requestCode = result.value.request_code || 'unknown';
+      const assignedTo = `${technician.first_name} ${technician.last_name}`;
+      await logAudit(
+        new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
+        'REASSIGN_REQUEST', config.auditEntityType, request_id,
+        `Admin ${req.user!.username} reassigned ${config.entity} request ${requestCode} to ${assignedTo}${reason ? `: ${reason}` : ''}`,
+        { from: previousTechId, to: technician_id, reason: reason || null }
+      );
+
+      const io = getIO();
+      if (io) {
+        const payload = {
+          request_id,
+          request_code: requestCode,
+          assigned_to: technician_id,
+          [config.summaryField]: result.value[config.summaryField]
+        };
+        io.to(`user_${technician_id}`).emit(`${config.socketPrefix}_request_assigned`, payload);
+        if (previousTechId) {
+          io.to(`user_${previousTechId}`).emit(`${config.socketPrefix}_request_reassigned`, payload);
+        }
+        io.to(`user_${result.value.created_by?.toString()}`).emit(`${config.socketPrefix}_request_reassigned`, payload);
+        io.to('admins').emit(`${config.socketPrefix}_request_assigned_admin`, payload);
+      }
+
+      res.json({ status: 'success' });
+    } catch (error) {
+      console.error(`Reassign ${config.entity} request error:`, error);
+      res.status(500).json({ error: 'Failed to reassign request' });
+    }
+  });
+
+  // POST /set_priority
+  router.post('/set_priority', isAuthenticated, isMultimediaAdmin, validateBody(setPrioritySchema), async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { request_id } = req.body;
+      const priority = normalizePriority(req.body.priority);
+      const collection = config.getCollection();
+
+      const result = await collection.findOneAndUpdate(
+        { _id: new ObjectId(request_id), status: { $in: [config.initialStatus, 'IN_PROGRESS'] } },
+        { $set: { priority } },
+        { returnDocument: 'after' }
+      );
+
+      if (!result || !result.value) {
+        return res.status(400).json({ error: 'Only open requests can be reprioritized' });
+      }
+
+      const requestCode = result.value.request_code || 'unknown';
+      await logAudit(
+        new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
+        'SET_PRIORITY', config.auditEntityType, request_id,
+        `Admin ${req.user!.username} set ${config.entity} request ${requestCode} to ${priority}`,
+        { priority }
+      );
+
+      const io = getIO();
+      if (io) {
+        const payload = { request_id, request_code: requestCode, priority };
+        io.to('admins').emit(`${config.socketPrefix}_request_priority_changed`, payload);
+        if (result.value.assigned_to) {
+          io.to(`user_${result.value.assigned_to.toString()}`).emit(`${config.socketPrefix}_request_priority_changed`, payload);
+        }
+      }
+
+      res.json({ status: 'success' });
+    } catch (error) {
+      console.error(`Set ${config.entity} priority error:`, error);
+      res.status(500).json({ error: 'Failed to update priority' });
+    }
+  });
+
   // GET /my_requests
   router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -423,12 +546,14 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const pipeline = [
         { $match: filter },
+        priorityFields,
         {
           $lookup: {
             from: 'users',
             let: { lookupId: '$created_by' },
             pipeline: [
-              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+              { $project: { password: 0 } }
             ],
             as: 'requester'
           }
@@ -451,10 +576,11 @@ export function createRequestRouter(config: RouteConfig): Router {
       const collection = config.getCollection();
       const userId = new ObjectId(req.user!.user_id);
 
+      // Only work in progress can be completed; completing again would overwrite the remarks and date.
       const filter: Record<string, any> = {
         _id: new ObjectId(request_id),
         assigned_to: userId,
-        status: { $nin: ['CANCELLED', 'DECLINED'] }
+        status: 'IN_PROGRESS'
       };
 
       const updateDoc: Record<string, any> = {
@@ -525,7 +651,8 @@ export function createRequestRouter(config: RouteConfig): Router {
             from: 'users',
             let: { lookupId: '$assigned_to' },
             pipeline: [
-              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+              { $project: { password: 0 } }
             ],
             as: 'assignedTechnician'
           }
@@ -549,8 +676,16 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(400).json({ error: 'Invalid request ID' });
       }
 
+      // Admins can open any request; others only ones they filed or are assigned to.
+      const roles = req.user!.roles;
+      const uid = new ObjectId(req.user!.user_id);
+      const filter: Record<string, unknown> = { _id: new ObjectId(request_id) };
+      if (!roles.includes('ADMIN') && !roles.includes('MULTIMEDIA_ADMIN')) {
+        filter.$or = [{ created_by: uid }, { assigned_to: uid }];
+      }
+
       const collection = config.getCollection();
-      const request = await collection.findOne({ _id: new ObjectId(request_id) });
+      const request = await collection.findOne(filter);
       if (!request) {
         return res.status(404).json({ error: 'Request not found' });
       }
@@ -575,23 +710,34 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(404).json({ error: 'Request not found' });
       }
 
+      // Admins can cancel any open request. Otherwise the owner can cancel before it is assigned,
+      // and a staff member can cancel only a request assigned to them.
+      const uid = new ObjectId(user_id);
+      const isAdmin = roles.includes('ADMIN') || roles.includes('MULTIMEDIA_ADMIN');
       const isOwner = request.created_by?.toString() === user_id;
-      const isStaff = roles.includes('ADMIN') || roles.includes('MULTIMEDIA') || roles.includes('MULTIMEDIA_ADMIN');
+      const isAssignee = roles.includes('MULTIMEDIA') && request.assigned_to?.toString() === user_id;
 
-      if (!isOwner && !isStaff) {
+      if (!isAdmin && !isOwner && !isAssignee) {
         return res.status(403).json({ error: 'Not authorized to cancel this request' });
       }
 
-      const statusCheck: Record<string, any> = config.cancelCheckStatusNot === 'UNASSIGNED'
-        ? { status: 'UNASSIGNED' }
-        : { status: 'PENDING' };
+      const ownerStatus = config.cancelCheckStatusNot;
+      if (!isAdmin && !isAssignee && request.status !== ownerStatus) {
+        return res.status(400).json({ error: `Only ${ownerStatus} requests can be cancelled` });
+      }
 
-      if (isOwner && !isStaff && request.status !== statusCheck.status) {
-        return res.status(400).json({ error: `Only ${statusCheck.status} requests can be cancelled` });
+      const filter: Record<string, any> = { _id: new ObjectId(request_id) };
+      if (isAdmin) {
+        filter.status = { $nin: ['DONE', 'CANCELLED', 'DECLINED'] };
+      } else {
+        filter.$or = [
+          ...(isOwner ? [{ created_by: uid, status: ownerStatus }] : []),
+          ...(isAssignee ? [{ assigned_to: uid, status: 'IN_PROGRESS' }] : [])
+        ];
       }
 
       const result = await collection.findOneAndUpdate(
-        { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } },
+        filter,
         { $set: { status: 'CANCELLED' } },
         { returnDocument: 'after' }
       );
@@ -609,7 +755,7 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const io = getIO();
       if (io) {
-        io.emit(`${config.socketPrefix}_request_cancelled`, {
+        io.to(['admins', 'multimedia_staff', `user_${result.value.created_by?.toString()}`]).emit(`${config.socketPrefix}_request_cancelled`, {
           request_id,
           request_code: requestCode,
           status: 'CANCELLED'
@@ -624,8 +770,6 @@ export function createRequestRouter(config: RouteConfig): Router {
   });
 
   // POST /decline
-  // Decline and note text is stored as plain text, not through sanitizeInput: React escapes it
-  // on render, and HTML-escaping here would show entities such as &#x27; to users.
   router.post('/decline', isAuthenticated, isMultimediaAdmin, validateBody(declineRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { request_id } = req.body;
@@ -721,7 +865,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   router.get('/get_technicians', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const usersCollection = getUsersCollection();
-      const technicians = await usersCollection.find({ roles: 'MULTIMEDIA' }).toArray();
+      const technicians = await usersCollection.find({ roles: 'MULTIMEDIA' }).project({ password: 0 }).toArray();
       res.json({ technicians });
     } catch (error) {
       console.error('Get technicians error:', error);
@@ -741,7 +885,8 @@ export function createRequestRouter(config: RouteConfig): Router {
             from: 'users',
             let: { lookupId: '$assigned_to' },
             pipeline: [
-              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+              { $project: { password: 0 } }
             ],
             as: 'assignedTechnician'
           }
@@ -761,7 +906,10 @@ export function createRequestRouter(config: RouteConfig): Router {
               ? `${r.assignedTechnician[0].first_name} ${r.assignedTechnician[0].last_name}`
               : '';
           } else if (col.field === 'date') {
-            row[col.header] = r.created_at ? new Date(r.created_at).toLocaleDateString() : '';
+            row[col.header] = r.created_at ? formatDateTime(r.created_at).slice(0, 10) : '';
+          } else if (r[col.field] instanceof Date) {
+            // Event and target dates are stored as midnight UTC calendar days.
+            row[col.header] = toDay(r[col.field]) || '';
           } else {
             row[col.header] = r[col.field] || '';
           }

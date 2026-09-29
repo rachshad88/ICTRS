@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { renderStatusBadge } from '../components/HistoryTable';
 
@@ -70,7 +71,7 @@ const REQUEST_TYPES = [
 const STATUSES = [
   { status: 'PENDING', meaning: 'Received and waiting for a technician or staff member to be assigned. You can still cancel it.' },
   { status: 'UNASSIGNED', meaning: 'Same as Pending. Multimedia requests use this label before someone is assigned.' },
-  { status: 'IN_PROGRESS', meaning: 'Someone has been assigned and is working on it. The Assigned To column shows who.' },
+  { status: 'IN_PROGRESS', meaning: 'Someone has been assigned and is working on it. The Assigned To column shows who; if the team moves it to another staff member, the name updates on its own.' },
   { status: 'DONE', meaning: 'Finished. On IT History this shows as Completed, along with whether the unit was Repaired or is Beyond Repair.' },
   { status: 'DECLINED', meaning: 'The team could not take this request, for example because of a schedule conflict or because it is outside what they handle. Open the request to read the reason.' },
   { status: 'CANCELLED', meaning: 'You cancelled the request. No further action will be taken.' },
@@ -107,9 +108,70 @@ function Icon({ d, size = 20 }: { d: string; size?: number }) {
   );
 }
 
+const TICKER = ['Computer and network repairs', 'Event photo and video coverage', 'Social posts and presentations', 'Tarpaulins, brochures and flyers'];
+
+const STATS = [
+  { value: '4', label: 'request types' },
+  { value: '1', label: 'code to track it all' },
+  { value: '0', label: 'page reloads needed' },
+];
+
 function ClientGuide() {
+  const pageRef = useRef<HTMLDivElement>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+
+    const html = document.documentElement;
+    const prevBehavior = html.style.scrollBehavior;
+    html.style.scrollBehavior = 'smooth';
+
+    // Scroll progress bar
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const max = html.scrollHeight - window.innerHeight;
+        const p = max > 0 ? Math.min(1, window.scrollY / max) : 0;
+        barRef.current?.style.setProperty('transform', `scaleX(${p})`);
+        page.classList.toggle('is-scrolled', window.scrollY > 8);
+      });
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // Reveal on scroll
+    const items = Array.from(page.querySelectorAll<HTMLElement>('[data-reveal]'));
+    let io: IntersectionObserver | undefined;
+    if ('IntersectionObserver' in window) {
+      page.classList.add('reveal-ready');
+      io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((e) => {
+            if (e.isIntersecting) {
+              e.target.classList.add('is-visible');
+              io?.unobserve(e.target);
+            }
+          });
+        },
+        { threshold: 0.12, rootMargin: '0px 0px -6% 0px' },
+      );
+      items.forEach((el) => io?.observe(el));
+    }
+
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(raf);
+      io?.disconnect();
+      html.style.scrollBehavior = prevBehavior;
+    };
+  }, []);
+
   return (
-    <div className="guide-page">
+    <div className="guide-page" ref={pageRef}>
+      <div className="guide-progress" aria-hidden="true"><div className="guide-progress-bar" ref={barRef} /></div>
       <header className="guide-topbar">
         <div className="guide-topbar-inner">
           <Link to="/" className="guide-brand">
@@ -121,17 +183,43 @@ function ClientGuide() {
       </header>
 
       <main className="guide-main">
-        <div className="guide-intro">
+        <div className="guide-intro" data-reveal>
+          <span className="guide-burst" aria-hidden="true">Start<br />here</span>
           <p className="guide-eyebrow">Client guide</p>
-          <h1>How to request IT and media services</h1>
+          <h1>Need IT or media help? <span className="guide-hl">Request it in four steps.</span></h1>
           <p className="guide-lede">
             ITRS is how LGU Solano offices ask the IT and multimedia teams for help: computer and network
             repairs, event coverage, digital media, and print materials. This page walks you through
             submitting a request and following it until it is done.
           </p>
+          <div className="guide-hero-actions">
+            <a href="#submit" className="guide-cta-btn">See how it works</a>
+            <Link to="/" className="guide-ghost-btn">Sign in</Link>
+          </div>
         </div>
 
-        <nav className="guide-toc" aria-label="On this page">
+        <div className="guide-stats" data-reveal>
+          {STATS.map((s) => (
+            <div key={s.label} className="guide-stat">
+              <strong>{s.value}</strong>
+              <span>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="guide-ticker" aria-hidden="true">
+          <div className="guide-ticker-track">
+            {[0, 1].map((n) => (
+              <div className="guide-ticker-set" key={n}>
+                {TICKER.map((t) => (
+                  <span key={t}>{t}<i /></span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <nav className="guide-toc" aria-label="On this page" data-reveal>
           <p className="guide-toc-title">On this page</p>
           <ol>
             {SECTIONS.map((s) => (
@@ -140,7 +228,7 @@ function ClientGuide() {
           </ol>
         </nav>
 
-        <section id="sign-in" className="guide-section">
+        <section id="sign-in" className="guide-section" data-reveal>
           <h2><span className="guide-num">1</span>Signing in</h2>
           <ol className="guide-steps">
             <li>Open ITRS and enter the <strong>username</strong> and <strong>password</strong> given to you by the IT office.</li>
@@ -149,12 +237,12 @@ function ClientGuide() {
           </ol>
         </section>
 
-        <section id="request-types" className="guide-section">
+        <section id="request-types" className="guide-section" data-reveal>
           <h2><span className="guide-num">2</span>Request types</h2>
           <p>The left sidebar lists four kinds of requests. Each one has its own form and its own history page.</p>
           <div className="guide-cards">
-            {REQUEST_TYPES.map((t) => (
-              <article key={t.name} className="guide-card">
+            {REQUEST_TYPES.map((t, i) => (
+              <article key={t.name} className="guide-card" data-reveal style={{ transitionDelay: `${i * 80}ms` }}>
                 <div className="guide-card-head">
                   <span className="guide-card-icon"><Icon d={t.icon} /></span>
                   <h3>{t.name}</h3>
@@ -171,11 +259,12 @@ function ClientGuide() {
           </div>
         </section>
 
-        <section id="submit" className="guide-section">
+        <section id="submit" className="guide-section" data-reveal>
           <h2><span className="guide-num">3</span>Submitting a request</h2>
           <ol className="guide-steps">
             <li>Choose the request type from the sidebar.</li>
             <li>Fill in the form. Fields marked with <strong>*</strong> are required.</li>
+            <li>Set the <strong>Priority</strong>. Leave it at Normal unless work has stopped or your deadline is within two days. Keeping Urgent for real emergencies means they get handled first.</li>
             <li>Attach files if the form allows it and they will help the team.</li>
             <li>Select <strong>Submit</strong>. A confirmation shows your <strong>request code</strong>.</li>
           </ol>
@@ -185,7 +274,7 @@ function ClientGuide() {
           </div>
         </section>
 
-        <section id="track" className="guide-section">
+        <section id="track" className="guide-section" data-reveal>
           <h2><span className="guide-num">4</span>Tracking your requests</h2>
           <p>
             Open the matching <strong>History</strong> page in the sidebar. Each row shows the request code, its
@@ -210,8 +299,8 @@ function ClientGuide() {
           </div>
         </section>
 
-        <section id="notes" className="guide-section">
-          <h2><span className="guide-num">5</span>Adding details later</h2>
+        <section id="notes" className="guide-section" data-reveal>
+          <h2><span className="guide-num">5</span>Adding details later<span className="guide-tag">Bonus</span></h2>
           <p>
             Forgot something, or did something change? While a request is Pending, Unassigned or In Progress, open it
             from its History page (<strong>Details / Add note</strong> on IT History, <strong>View / Add note</strong> on the
@@ -221,7 +310,7 @@ function ClientGuide() {
           <p>Notes cannot be added after a request is Done, Declined or Cancelled.</p>
         </section>
 
-        <section id="cancel-rate" className="guide-section">
+        <section id="cancel-rate" className="guide-section" data-reveal>
           <h2><span className="guide-num">6</span>Cancelling and rating</h2>
           <div className="guide-two">
             <div>
@@ -235,7 +324,7 @@ function ClientGuide() {
           </div>
         </section>
 
-        <section id="account" className="guide-section">
+        <section id="account" className="guide-section" data-reveal>
           <h2><span className="guide-num">7</span>Your account</h2>
           <p>Open <strong>Profile</strong> at the bottom of the sidebar to:</p>
           <ul className="guide-list">
@@ -245,7 +334,7 @@ function ClientGuide() {
           <p>The sidebar also has a light and dark mode switch, and <strong>Logout</strong> to end your session on shared computers.</p>
         </section>
 
-        <section id="faq" className="guide-section">
+        <section id="faq" className="guide-section" data-reveal>
           <h2><span className="guide-num">8</span>Common questions</h2>
           <div className="guide-faq">
             {FAQ.map((item) => (
@@ -257,8 +346,11 @@ function ClientGuide() {
           </div>
         </section>
 
-        <div className="guide-cta">
-          <p>Ready to submit a request?</p>
+        <div className="guide-cta" data-reveal>
+          <div>
+            <span className="guide-cta-kicker">Your next step</span>
+            <p>Ready to submit a request?</p>
+          </div>
           <Link to="/" className="guide-cta-btn">Go to sign in</Link>
         </div>
       </main>

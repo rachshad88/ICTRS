@@ -34,14 +34,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth();
   }, []);
 
+  // Keyed on the user id so profile refreshes (which replace the user object) keep the socket;
+  // the socket only resets on login, logout, or switching accounts.
+  const socketUserId = user?.user_id;
   useEffect(() => {
-    if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+    if (socketUserId) {
+      initSocket();
     }
     return () => {
       disconnectSocket();
     };
-  }, [user]);
+  }, [socketUserId]);
 
   const checkAuth = async () => {
     try {
@@ -67,22 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await api.post('/auth/login', { username, password });
     if (response.data.user) {
       setUser(response.data.user);
-      if (password === '12345') {
-        const modalKey = `default-password-modal-seen:${response.data.user.user_id}`;
-        sessionStorage.setItem(modalKey, 'pending');
-      }
       await refreshUser();
     }
   };
 
   const logout = async () => {
     await api.post('/auth/logout');
-    const modalKeyPrefix = 'default-password-modal-seen:';
-    Object.keys(sessionStorage).forEach((key) => {
-      if (key.startsWith(modalKeyPrefix)) {
-        sessionStorage.removeItem(key);
-      }
-    });
     setUser(null);
   };
 

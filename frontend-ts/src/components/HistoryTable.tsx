@@ -106,7 +106,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 
@@ -114,7 +114,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
     const socket = getSocket();
     if (!socket) return;
     const handler = () => fetchRequests(searchTermRef.current || undefined);
-    const events = ['assigned', 'completed', 'cancelled', 'declined'].map((e) => `${config.socketPrefix}_request_${e}`);
+    const events = ['assigned', 'reassigned', 'completed', 'cancelled', 'declined'].map((e) => `${config.socketPrefix}_request_${e}`);
     events.forEach((e) => socket.on(e, handler));
     return () => {
       events.forEach((e) => socket.off(e, handler));

@@ -6,9 +6,13 @@ import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
+import { RequestFlags, PriorityForm, ReassignForm } from '../components/Priority';
 
 interface PrintMaterialsRequest {
   _id: string;
+  priority?: string;
+  overdue?: boolean;
+  assigned_to?: string | null;
   request_code: string;
   form_of_printed_media: string;
   size_of_printed_media: string;
@@ -90,7 +94,7 @@ function PrintMaterialsManagement() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 
@@ -105,6 +109,7 @@ function PrintMaterialsManagement() {
     socket.on('print_materials_request_cancelled', handler);
     socket.on('print_materials_request_declined', handler);
     socket.on('print_materials_request_note_added', handler);
+    socket.on('print_materials_request_priority_changed', handler);
     return () => {
       socket.off('print_materials_request_created', handler);
       socket.off('print_materials_request_assigned', handler);
@@ -113,6 +118,7 @@ function PrintMaterialsManagement() {
       socket.off('print_materials_request_cancelled', handler);
       socket.off('print_materials_request_declined', handler);
       socket.off('print_materials_request_note_added', handler);
+      socket.off('print_materials_request_priority_changed', handler);
     };
   }, [user, fetchData]);
 
@@ -130,9 +136,17 @@ function PrintMaterialsManagement() {
       setSelectedRequest(null);
       setSelectedTechnician('');
       setTimeout(() => { setMessage(''); fetchData(searchTerm); }, 1500);
-    } catch (error) {
-      setMessage('Failed to assign request');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setMessage(err.response?.data?.error || 'Failed to assign request');
     }
+  };
+
+  // Shared follow-up for reassigning and reprioritizing: close the modal, confirm, refresh.
+  const handleAdminChange = (text: string) => {
+    setSelectedRequest(null);
+    setMessage(text);
+    setTimeout(() => { setMessage(''); fetchData(searchTermRef.current); }, 1500);
   };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -194,7 +208,10 @@ function PrintMaterialsManagement() {
                       {request.status.replace(/_/g, ' ')}
                     </span>
                   </td>
-                  <td className="td-code" data-label="Code">{request.request_code}</td>
+                  <td className="td-code" data-label="Code">
+                    {request.request_code}
+                    <RequestFlags priority={request.priority} overdue={request.overdue} />
+                  </td>
                   <td data-label="Form">{request.form_of_printed_media}</td>
                   <td className="td-cell" data-label="Size">{request.size_of_printed_media}</td>
                   <td className="td-cell" data-label="Event / PPA">{request.event_ppa_name}</td>
@@ -210,7 +227,7 @@ function PrintMaterialsManagement() {
                         </button>
                       ) : (
                         <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                          View
+                          {request.status === 'IN_PROGRESS' ? 'Manage' : 'View'}
                         </button>
                       )}
                     </div>
@@ -251,6 +268,25 @@ function PrintMaterialsManagement() {
 
             <DeclineReason reason={selectedRequest.decline_reason} />
             <NotesList notes={selectedRequest.notes} />
+
+            {!declining && selectedRequest.status === 'IN_PROGRESS' && (
+              <ReassignForm
+                endpoint="/printmaterials/reassign"
+                requestId={selectedRequest._id}
+                currentId={selectedRequest.assigned_to}
+                staff={technicians}
+                staffLabel="staff member"
+                onDone={() => handleAdminChange('Request reassigned successfully')}
+              />
+            )}
+            {!declining && ['PENDING', 'IN_PROGRESS'].includes(selectedRequest.status) && (
+              <PriorityForm
+                endpoint="/printmaterials/set_priority"
+                requestId={selectedRequest._id}
+                priority={selectedRequest.priority}
+                onDone={() => handleAdminChange('Priority updated successfully')}
+              />
+            )}
 
             {!declining && selectedRequest.status === 'PENDING' && !selectedRequest.assignedTechnician?.[0] && (
               <div className="form-group" style={{ marginTop: '1rem' }}>

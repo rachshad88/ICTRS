@@ -156,7 +156,8 @@ router.get('/get_pending', isAuthenticated, async (req: AuthenticatedRequest, re
           from: 'users',
           let: { lookupId: '$created_by' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+            { $project: { password: 0 } }
           ],
           as: 'requester'
         }
@@ -213,7 +214,8 @@ router.get('/get_all', isAuthenticated, async (req: AuthenticatedRequest, res: R
           from: 'users',
           let: { lookupId: '$created_by' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+            { $project: { password: 0 } }
           ],
           as: 'requester'
         }
@@ -223,7 +225,8 @@ router.get('/get_all', isAuthenticated, async (req: AuthenticatedRequest, res: R
           from: 'users',
           let: { lookupId: '$assigned_to' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+            { $project: { password: 0 } }
           ],
           as: 'assignedProgrammer'
         }
@@ -355,7 +358,8 @@ router.get('/get_assigned', isAuthenticated, async (req: AuthenticatedRequest, r
           from: 'users',
           let: { lookupId: '$created_by' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+            { $project: { password: 0 } }
           ],
           as: 'requester'
         }
@@ -515,7 +519,8 @@ router.get('/get_history', isAuthenticated, async (req: AuthenticatedRequest, re
                 from: 'users',
                 let: { lookupId: '$assigned_to' },
                 pipeline: [
-                  { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+                  { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+                  { $project: { password: 0 } }
                 ],
                 as: 'assignedProgrammer'
               }
@@ -597,7 +602,8 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
           from: 'users',
           let: { lookupId: '$created_by' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+            { $project: { password: 0 } }
           ],
           as: 'requester'
         }
@@ -607,7 +613,8 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
           from: 'users',
           let: { lookupId: '$assigned_to' },
           pipeline: [
-            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+            { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+            { $project: { password: 0 } }
           ],
           as: 'assignedProgrammer'
         }
@@ -658,7 +665,7 @@ router.get('/get_programmers', isAuthenticated, async (req: AuthenticatedRequest
     }
 
     const usersCollection = getUsersCollection();
-    const programmers = await usersCollection.find({ roles: 'PROGRAMMER' }).toArray();
+    const programmers = await usersCollection.find({ roles: 'PROGRAMMER' }).project({ password: 0 }).toArray();
     res.json({ programmers });
   } catch (error) {
     console.error('Get programmers error:', error);

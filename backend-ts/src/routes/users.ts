@@ -11,6 +11,16 @@ import { createUserSchema, updateUserSchema, deleteUserSchema, objectIdSchema } 
 const router = Router();
 const DEFAULT_PASSWORD = '12345';
 
+// Closes the user's live socket connections; their HTTP sessions are rejected by isAuthenticated
+// once session_version no longer matches (or the user no longer exists).
+function disconnectUserSockets(req: AuthenticatedRequest, userId: string): void {
+  const io = req.app.get('io');
+  if (io) io.in(`user_${userId}`).disconnectSockets(true);
+}
+
+const sameRoles = (a: unknown, b: unknown) =>
+  JSON.stringify([...((a as string[]) || [])].sort()) === JSON.stringify([...((b as string[]) || [])].sort());
+
 async function passwordMatchesDefault(userPassword: string): Promise<boolean> {
   if (!userPassword) return false;
 
@@ -152,10 +162,34 @@ router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSch
       updateData.password = await bcrypt.hash(password, 10);
     }
 
+    const existingUser = await usersCollection.findOne({ _id: new ObjectId(user_id) });
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (username !== existingUser.username && await usersCollection.findOne({ username, _id: { $ne: existingUser._id } })) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    const wasAdmin = (existingUser.roles || [existingUser.role]).includes('ADMIN');
+    if (wasAdmin && !roles.includes('ADMIN') && await usersCollection.countDocuments({ roles: 'ADMIN' }) <= 1) {
+      return res.status(400).json({ error: 'You cannot remove the admin role from the last admin account' });
+    }
+
+    // A change to what the user can access, or how they sign in, ends their current sessions.
+    const accessChanged = !!password
+      || existingUser.username !== username
+      || (existingUser.primary_role || existingUser.role) !== primary_role
+      || !sameRoles(existingUser.roles || [existingUser.role], roles);
+
     await usersCollection.updateOne(
-      { _id: new ObjectId(user_id) },
-      { $set: updateData }
+      { _id: existingUser._id },
+      { $set: updateData, ...(accessChanged && { $inc: { session_version: 1 } }) }
     );
+
+    if (accessChanged) {
+      disconnectUserSockets(req, user_id);
+    }
 
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
@@ -186,8 +220,9 @@ router.post('/reset_user_password', isAuthenticated, isAdmin, validateBody(z.obj
     const hashedPassword = await bcrypt.hash(DEFAULT_PASSWORD, 10);
     await usersCollection.updateOne(
       { _id: targetUser._id },
-      { $set: { password: hashedPassword } }
+      { $set: { password: hashedPassword }, $inc: { session_version: 1 } }
     );
+    disconnectUserSockets(req, user_id);
 
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
@@ -205,9 +240,22 @@ router.post('/delete_user', isAuthenticated, isAdmin, validateBody(deleteUserSch
   try {
     const { user_id } = req.body;
 
+    if (user_id === req.user!.user_id) {
+      return res.status(400).json({ error: 'You cannot delete your own account' });
+    }
+
     const usersCollection = getUsersCollection();
+    const target = await usersCollection.findOne({ _id: new ObjectId(user_id) }, { projection: { roles: 1, role: 1 } });
+    if (!target) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if ((target.roles || [target.role]).includes('ADMIN') && await usersCollection.countDocuments({ roles: 'ADMIN' }) <= 1) {
+      return res.status(400).json({ error: 'You cannot delete the last admin account' });
+    }
+
     const deletedUser = await usersCollection.findOneAndDelete({ _id: new ObjectId(user_id) });
     const deletedUsername = deletedUser?.value?.username || 'unknown';
+    disconnectUserSockets(req, user_id);
 
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});

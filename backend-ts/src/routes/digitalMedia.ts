@@ -1,5 +1,6 @@
 import { sanitizeInput, getDigitalMediaRequestsCollection } from '../config/database';
 import { createRequestRouter } from './multimediaFactory';
+import { createDigitalMediaSchema } from '../middleware/validation';
 
 export default createRequestRouter({
   entity: 'digital_media',
@@ -26,22 +27,14 @@ export default createRequestRouter({
   socketPrefix: 'digital_media',
   hasRecommendation: false,
   summaryField: 'description',
+  dueField: 'target_date',
   searchFields: {
     getAll: ['request_code', 'description', 'event_ppa_name', 'requestor_name'],
     getUnassigned: ['request_code', 'description', 'event_ppa_name', 'requestor_name'],
     myRequests: ['request_code', 'event_ppa_name', 'requestor_name', 'form_of_digital_media'],
     myHistory: ['request_code', 'description', 'digital_media_description', 'event_ppa_name', 'requestor_name']
   },
-  createFields: [
-    { name: 'description', required: true },
-    { name: 'form_of_digital_media', required: true },
-    { name: 'digital_media_description', required: true },
-    { name: 'event_ppa_name', required: true },
-    { name: 'target_date', required: true },
-    { name: 'target_time', required: true },
-    { name: 'requestor_name', required: true },
-    { name: 'requestor_contact', required: true }
-  ],
+  createSchema: createDigitalMediaSchema,
   buildCreateDoc: (body, userId, requestCode, fileData) => ({
     request_code: requestCode,
     created_by: userId,
@@ -68,6 +61,7 @@ export default createRequestRouter({
     { header: 'Form of Digital Media', field: 'form_of_digital_media', width: 20 },
     { header: 'Digital Media Description', field: 'digital_media_description', width: 25 },
     { header: 'Event/PPA', field: 'event_ppa_name', width: 20 },
+    { header: 'Date Requested', field: 'date', width: 15 },
     { header: 'Target Date', field: 'target_date', width: 15 },
     { header: 'Requestor', field: 'requestor_name', width: 20 },
     { header: 'Contact', field: 'requestor_contact', width: 15 },

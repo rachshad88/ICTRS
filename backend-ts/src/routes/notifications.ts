@@ -10,7 +10,8 @@ router.get('/unassigned-count', isAuthenticated, async (req: AuthenticatedReques
     const userId = req.user!.user_id;
     const roles = req.user!.roles;
 
-    if (roles.includes('ADMIN')) {
+    // Multimedia admins see how many requests are waiting to be assigned on their management pages.
+    if (roles.includes('MULTIMEDIA_ADMIN')) {
       const [multimedia, digitalMedia, printMaterials] = await Promise.all([
         getMultimediaRequestsCollection().countDocuments({ status: 'UNASSIGNED' }),
         getDigitalMediaRequestsCollection().countDocuments({ status: 'PENDING', assigned_to: null }),
@@ -20,12 +21,13 @@ router.get('/unassigned-count', isAuthenticated, async (req: AuthenticatedReques
       return res.json({ total, multimedia, digitalMedia, printMaterials });
     }
 
+    // Multimedia staff see how many of their assignments are still open (not done, cancelled or declined).
     if (roles.includes('MULTIMEDIA')) {
       const uid = new ObjectId(userId);
       const [multimedia, digitalMedia, printMaterials] = await Promise.all([
-        getMultimediaRequestsCollection().countDocuments({ assigned_to: uid, status: { $ne: 'DONE' } }),
-        getDigitalMediaRequestsCollection().countDocuments({ assigned_to: uid, status: { $ne: 'DONE' } }),
-        getPrintMaterialsRequestsCollection().countDocuments({ assigned_to: uid, status: { $ne: 'DONE' } }),
+        getMultimediaRequestsCollection().countDocuments({ assigned_to: uid, status: 'IN_PROGRESS' }),
+        getDigitalMediaRequestsCollection().countDocuments({ assigned_to: uid, status: 'IN_PROGRESS' }),
+        getPrintMaterialsRequestsCollection().countDocuments({ assigned_to: uid, status: 'IN_PROGRESS' }),
       ]);
       const total = multimedia + digitalMedia + printMaterials;
       return res.json({ total, multimedia, digitalMedia, printMaterials });

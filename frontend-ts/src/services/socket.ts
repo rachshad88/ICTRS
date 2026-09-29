@@ -1,19 +1,12 @@
 import { io, Socket } from 'socket.io-client';
 
 let socket: Socket | null = null;
-let currentUserId = '';
-let currentRoles: string[] = [];
 
-export const initSocket = (userId: string, roles: string[]): Socket => {
-  currentUserId = userId;
-  currentRoles = roles;
+// The server identifies the user from the session cookie sent with the connection.
+export const initSocket = (): Socket => {
   if (!socket) {
     socket = io('/', {
       transports: ['websocket', 'polling']
-    });
-
-    socket.on('connect', () => {
-      socket?.emit('register_user', { user_id: currentUserId, role: currentRoles[0] || '', roles: currentRoles });
     });
   }
   return socket;

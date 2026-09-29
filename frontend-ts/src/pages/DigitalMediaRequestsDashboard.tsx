@@ -7,9 +7,12 @@ import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, RequestNote } from '../components/RequestNotes';
 import RequestMobileCard from '../components/RequestMobileCard';
+import { RequestFlags, priorityLabel } from '../components/Priority';
 
 interface DigitalMediaRequest {
   _id: string;
+  priority?: string;
+  overdue?: boolean;
   request_code: string;
   description: string;
   form_of_digital_media: string;
@@ -61,7 +64,7 @@ function DigitalMediaRequestsDashboard() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 
@@ -79,11 +82,15 @@ function DigitalMediaRequestsDashboard() {
     socket.on('digital_media_request_completed', handler);
     socket.on('digital_media_request_cancelled', handler);
     socket.on('digital_media_request_note_added', handler);
+    socket.on('digital_media_request_reassigned', handler);
+    socket.on('digital_media_request_priority_changed', handler);
     return () => {
       socket.off('digital_media_request_assigned', handler);
       socket.off('digital_media_request_completed', handler);
       socket.off('digital_media_request_cancelled', handler);
       socket.off('digital_media_request_note_added', handler);
+      socket.off('digital_media_request_reassigned', handler);
+      socket.off('digital_media_request_priority_changed', handler);
     };
   }, [user]);
 
@@ -140,7 +147,10 @@ function DigitalMediaRequestsDashboard() {
                         {request.status.replace(/_/g, ' ')}
                       </span>
                     </td>
-                    <td className="td-code">{request.request_code}</td>
+                    <td className="td-code">
+                      {request.request_code}
+                      <RequestFlags priority={request.priority} overdue={request.overdue} />
+                    </td>
                     <td>{request.form_of_digital_media}</td>
                     <td className="td-cell">{request.event_ppa_name}</td>
                     <td className="td-cell">{formatDate(request.target_date)}</td>
@@ -177,6 +187,7 @@ function DigitalMediaRequestsDashboard() {
                 statusLabel={request.status.replace(/_/g, ' ')}
                 statusClass={request.status.toLowerCase().replace(/_/g, '-')}
                 metaItems={[
+                  { label: 'Priority', value: <>{priorityLabel(request.priority)}<RequestFlags overdue={request.overdue} /></> },
                   { label: 'Target', value: formatDate(request.target_date) },
                   { label: 'Requestor', value: request.requestor_name },
                   { label: 'Requested by', value: request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown' },

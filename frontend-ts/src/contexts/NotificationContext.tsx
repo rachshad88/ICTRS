@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '../services/api';
-import { getSocket } from '../services/socket';
+import { initSocket } from '../services/socket';
 import { useAuth } from './AuthContext';
 
 interface UnassignedCounts {
@@ -51,17 +51,21 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }, 5500);
   }, []);
 
+  const userId = user?.user_id;
+
   const formatEventNotification = useCallback((event: string, payload: any): Omit<LiveNotification, 'id'> | null => {
-    const requestCode = payload?.request_code || payload?.requestId || payload?.request_id || 'Request';
-    const requestLabel = typeof requestCode === 'string' ? requestCode : 'Request';
+    const requestLabel = typeof payload?.request_code === 'string' ? payload.request_code : 'A request';
 
     if (event === 'request_update') {
       const status = payload?.event;
       if (status === 'created') {
+        // The client who just submitted it already sees a confirmation on the form.
+        if (payload?.created_by === userId) return null;
         return { title: 'New request', message: `${requestLabel} has been created.`, type: 'info' };
       }
-      if (status === 'accepted') {
-        return { title: 'Request accepted', message: `${requestLabel} is now in progress.`, type: 'success' };
+      // The owner and the technician each get their own targeted event for these.
+      if (status === 'accepted' || status === 'finished') {
+        return null;
       }
       if (status === 'cancelled') {
         return { title: 'Request cancelled', message: `${requestLabel} was cancelled.`, type: 'warning' };
@@ -69,8 +73,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       if (status === 'declined') {
         return { title: 'Request declined', message: `${requestLabel} was declined.`, type: 'warning' };
       }
-      // Assigned technicians get their own request_note_added toast; this broadcast only refreshes lists.
-      if (status === 'note_added') {
+      // These broadcasts only refresh lists; the people affected get their own targeted toast.
+      if (status === 'note_added' || status === 'reassigned' || status === 'priority_changed') {
         return null;
       }
       return { title: 'Request updated', message: `${requestLabel} has new details.`, type: 'info' };
@@ -80,8 +84,21 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       return { title: 'Assigned to you', message: `${requestLabel} was assigned to you.`, type: 'success' };
     }
 
+    if (event === 'request_reassigned_from_you' || event.endsWith('_request_reassigned')) {
+      return { title: 'Request reassigned', message: `${requestLabel} is now handled by a different staff member.`, type: 'info' };
+    }
+
+    if (event.endsWith('_request_priority_changed')) {
+      const level = typeof payload?.priority === 'string' ? payload.priority.toLowerCase() : 'updated';
+      return { title: 'Priority changed', message: `${requestLabel} is now ${level} priority.`, type: payload?.priority === 'URGENT' ? 'warning' : 'info' };
+    }
+
     if (event === 'my_request_accepted') {
       return { title: 'Request approved', message: `${requestLabel} has been accepted.`, type: 'success' };
+    }
+
+    if (event === 'my_request_finished') {
+      return { title: 'Request completed', message: `${requestLabel} is complete.`, type: 'success' };
     }
 
     if (event === 'my_request_declined' || event.endsWith('_request_declined')) {
@@ -107,27 +124,35 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
 
     return null;
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (!user) return;
 
-    const socket = getSocket();
-    if (!socket) return;
+    fetchCounts();
+
+    // This provider's effect runs before AuthProvider's, so create the socket here if it doesn't exist yet
+    // (initSocket returns the existing one otherwise).
+    const socket = initSocket();
 
     const events = [
       'multimedia_request_created', 'multimedia_request_assigned', 'multimedia_request_assigned_admin',
       'multimedia_request_completed', 'multimedia_request_cancelled',
       'multimedia_request_declined', 'multimedia_request_note_added',
+      'multimedia_request_reassigned', 'multimedia_request_priority_changed',
       'digital_media_request_created', 'digital_media_request_assigned', 'digital_media_request_assigned_admin',
       'digital_media_request_completed', 'digital_media_request_cancelled',
       'digital_media_request_declined', 'digital_media_request_note_added',
+      'digital_media_request_reassigned', 'digital_media_request_priority_changed',
       'print_materials_request_created', 'print_materials_request_assigned', 'print_materials_request_assigned_admin',
       'print_materials_request_completed', 'print_materials_request_cancelled',
       'print_materials_request_declined', 'print_materials_request_note_added',
+      'print_materials_request_reassigned', 'print_materials_request_priority_changed',
       'request_update',
       'request_assigned_to_you',
+      'request_reassigned_from_you',
       'my_request_accepted',
+      'my_request_finished',
       'my_request_declined',
       'request_note_added'
     ];
@@ -145,8 +170,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
 
     socket.on('connect', fetchCounts);
-
-    fetchCounts();
 
     return () => {
       for (const event of events) {

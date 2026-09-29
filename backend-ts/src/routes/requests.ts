@@ -1,19 +1,30 @@
 import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
+import { Server } from 'socket.io';
 import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isTechnicianOnly, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema } from '../middleware/validation';
+import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
+import { formatDateTime, todayString } from '../utils/dates';
+import { normalizePriority, parseDueDate, isOverdue, overdueExpr, toDay, OPEN_STATUSES } from '../utils/priority';
 
 const router = Router();
 
+// IT request events go to IT staff, admins and the request's owner, never to every socket.
+function itAudience(io: Server, ownerId?: string) {
+  return io.to(['technicians', 'admins', ...(ownerId ? [`user_${ownerId}`] : [])]);
+}
+
 router.post('/send_request', isAuthenticated, validateBody(createRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { office, unit, semester, issue } = req.body;
+    const { unit, semester, issue } = req.body;
     const created_by = req.user!.user_id;
 
-    if (!office || !unit || !issue) {
-      return res.status(400).json({ status: 'error', message: 'Required fields missing' });
+    // Filed under the requester's own office (read fresh, in case an admin changed it), never one from the form.
+    const requester = await getUsersCollection().findOne({ _id: new ObjectId(created_by) }, { projection: { office: 1 } });
+    const office = requester?.office?.trim();
+    if (!office) {
+      return res.status(400).json({ status: 'error', message: 'Your account has no office yet. Set it in your profile before submitting.' });
     }
 
     const requestsCollection = getRequestsCollection();
@@ -32,6 +43,8 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
           unit: sanitizeInput(unit || ''),
           semester: sanitizeInput(semester || ''),
           issue: sanitizeInput(issue),
+          priority: normalizePriority(req.body.priority),
+          due_date: null,
           status: 'PENDING',
           assigned_to: null,
           finished: null,
@@ -57,7 +70,7 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
 
     const io = req.app.get('io');
     if (io) {
-      io.emit('request_update', {
+      itAudience(io, created_by).emit('request_update', {
         event: 'created',
         request_id: result.insertedId.toString(),
         request_code,
@@ -77,7 +90,7 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
 
 router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { request_id, technician_id } = req.body;
+    const { request_id, technician_id, priority, due_date } = req.body;
 
     if (!request_id || !technician_id) {
       return res.status(400).json({ status: 'error', message: 'Request ID and technician ID required' });
@@ -89,10 +102,15 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
       return res.status(404).json({ error: 'Technician not found' });
     }
 
+    // Priority and due date are optional here; leave them untouched when not sent.
+    const update: Record<string, unknown> = { status: 'IN_PROGRESS', assigned_to: new ObjectId(technician_id) };
+    if (priority !== undefined) update.priority = normalizePriority(priority);
+    if (due_date !== undefined) update.due_date = parseDueDate(due_date);
+
     const requestsCollection = getRequestsCollection();
     const result = await requestsCollection.findOneAndUpdate(
       { _id: new ObjectId(request_id), status: 'PENDING' },
-      { $set: { status: 'IN_PROGRESS', assigned_to: new ObjectId(technician_id) } },
+      { $set: update },
       { returnDocument: 'after' }
     );
 
@@ -105,15 +123,17 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
 
     const io = req.app.get('io');
     if (io) {
-      io.emit('request_update', {
+      itAudience(io, result.value.created_by?.toString()).emit('request_update', {
         event: 'accepted',
         request_id,
+        request_code: result.value.request_code,
         assigned_to: technician_id,
         status: 'IN_PROGRESS',
         timestamp: new Date()
       });
       io.to(`user_${result.value?.created_by?.toString()}`).emit('my_request_accepted', {
         request_id,
+        request_code: result.value.request_code,
         assigned_to: technician_id
       });
       io.to(`user_${technician_id}`).emit('request_assigned_to_you', {
@@ -126,6 +146,89 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
   } catch (error) {
     console.error('Accept request error:', error);
     res.status(500).json({ status: 'error', message: 'Failed to accept request' });
+  }
+});
+
+router.post('/reassign', isAuthenticated, isItAdmin, validateBody(reassignRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { request_id, technician_id } = req.body;
+    const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
+
+    const usersCollection = getUsersCollection();
+    const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), roles: 'TECHNICIAN' });
+    if (!technician) {
+      return res.status(404).json({ status: 'error', message: 'Technician not found' });
+    }
+
+    const newTechId = new ObjectId(technician_id);
+    const requestsCollection = getRequestsCollection();
+    const result = await requestsCollection.findOneAndUpdate(
+      { _id: new ObjectId(request_id), status: 'IN_PROGRESS', assigned_to: { $ne: newTechId } },
+      { $set: { assigned_to: newTechId } },
+      { returnDocument: 'before' }
+    );
+
+    if (!result || !result.value) {
+      return res.status(404).json({ status: 'error', message: 'Request is not in progress or is already assigned to this technician' });
+    }
+
+    const previousTechId = result.value.assigned_to?.toString() || null;
+    const requestCode = result.value.request_code || 'unknown';
+    const assignedTo = `${technician.first_name} ${technician.last_name}`;
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'REASSIGN_REQUEST', 'IT_REQUEST', request_id,
+      `IT Admin ${req.user!.username} reassigned request ${requestCode} to ${assignedTo}${reason ? `: ${reason}` : ''}`,
+      { from: previousTechId, to: technician_id, reason: reason || null });
+
+    const io = req.app.get('io');
+    if (io) {
+      itAudience(io, result.value.created_by?.toString()).emit('request_update', { event: 'reassigned', request_id, request_code: requestCode, assigned_to: technician_id, timestamp: new Date() });
+      io.to(`user_${technician_id}`).emit('request_assigned_to_you', { request_id, request_code: requestCode });
+      if (previousTechId) {
+        io.to(`user_${previousTechId}`).emit('request_reassigned_from_you', { request_id, request_code: requestCode });
+      }
+    }
+
+    res.json({ status: 'success' });
+  } catch (error) {
+    console.error('Reassign request error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to reassign request' });
+  }
+});
+
+router.post('/set_priority', isAuthenticated, isItAdmin, validateBody(setPrioritySchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { request_id, due_date } = req.body;
+    const priority = normalizePriority(req.body.priority);
+    const update: Record<string, unknown> = { priority };
+    if (due_date !== undefined) update.due_date = parseDueDate(due_date);
+
+    const requestsCollection = getRequestsCollection();
+    const result = await requestsCollection.findOneAndUpdate(
+      { _id: new ObjectId(request_id), status: { $in: ['PENDING', 'IN_PROGRESS'] } },
+      { $set: update },
+      { returnDocument: 'after' }
+    );
+
+    if (!result || !result.value) {
+      return res.status(404).json({ status: 'error', message: 'Only open requests can be reprioritized' });
+    }
+
+    const requestCode = result.value.request_code || 'unknown';
+    const dueDay = toDay(result.value.due_date);
+    const dueText = dueDay ? `, due ${dueDay}` : '';
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'SET_PRIORITY', 'IT_REQUEST', request_id,
+      `IT Admin ${req.user!.username} set request ${requestCode} to ${priority}${dueText}`,
+      { priority, due_date: result.value.due_date || null });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to('technicians').emit('request_update', { event: 'priority_changed', request_id, request_code: requestCode, timestamp: new Date() });
+    }
+
+    res.json({ status: 'success' });
+  } catch (error) {
+    console.error('Set priority error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to update priority' });
   }
 });
 
@@ -177,13 +280,14 @@ router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(f
 
     const io = req.app.get('io');
     if (io) {
-      io.emit('request_update', {
+      itAudience(io, result.value.created_by?.toString()).emit('request_update', {
         event: 'finished',
         request_id,
+        request_code: requestCode,
         status: 'DONE',
         timestamp: new Date()
       });
-      io.to(`user_${result.value?.created_by?.toString()}`).emit('my_request_finished', { request_id });
+      io.to(`user_${result.value?.created_by?.toString()}`).emit('my_request_finished', { request_id, request_code: requestCode });
     }
 
     res.json({ status: 'success' });
@@ -200,20 +304,25 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
 
     const requestsCollection = getRequestsCollection();
     
-    let result;
-    if (req.user!.roles.includes('ADMIN') || req.user!.roles.includes('TECHNICIAN') || req.user!.roles.includes('IT_ADMIN')) {
-      result = await requestsCollection.findOneAndUpdate(
-        { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } },
-        { $set: { status: 'CANCELLED', assigned_to: null } },
-        { returnDocument: 'after' }
-      );
+    // IT admins can cancel any open request. Otherwise the owner can cancel while it is still pending,
+    // and a technician can cancel only a request assigned to them.
+    const roles = req.user!.roles;
+    const uid = new ObjectId(user_id);
+    const filter: Record<string, unknown> = { _id: new ObjectId(request_id) };
+    if (roles.includes('ADMIN') || roles.includes('IT_ADMIN')) {
+      filter.status = { $nin: ['DONE', 'CANCELLED', 'DECLINED'] };
     } else {
-      result = await requestsCollection.findOneAndUpdate(
-        { _id: new ObjectId(request_id), created_by: new ObjectId(user_id), status: 'PENDING' },
-        { $set: { status: 'CANCELLED', assigned_to: null } },
-        { returnDocument: 'after' }
-      );
+      filter.$or = [
+        { created_by: uid, status: 'PENDING' },
+        ...(roles.includes('TECHNICIAN') ? [{ assigned_to: uid, status: 'IN_PROGRESS' }] : [])
+      ];
     }
+
+    const result = await requestsCollection.findOneAndUpdate(
+      filter,
+      { $set: { status: 'CANCELLED', assigned_to: null } },
+      { returnDocument: 'after' }
+    );
 
     if (!result || !result.value) {
       return res.status(404).json({ status: 'error', message: 'Request not found or cannot be cancelled' });
@@ -224,9 +333,10 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
 
     const io = req.app.get('io');
     if (io) {
-      io.emit('request_update', {
+      itAudience(io, result.value.created_by?.toString()).emit('request_update', {
         event: 'cancelled',
         request_id,
+        request_code: cancelledCode,
         status: 'CANCELLED',
         timestamp: new Date()
       });
@@ -239,8 +349,6 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
   }
 });
 
-// Decline and note text is stored as plain text, not through sanitizeInput: React escapes it
-// on render, and HTML-escaping here would show entities such as &#x27; to users.
 router.post('/decline_request', isAuthenticated, isItAdmin, validateBody(declineRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { request_id } = req.body;
@@ -342,7 +450,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
   try {
     const userId = req.user!.user_id;
     const filterType = (req.query.filter as string) || 'all';
-    const selectedDate = (req.query.date as string) || new Date().toISOString().split('T')[0];
+    const selectedDate = (req.query.date as string) || todayString();
     const showDone = req.query.show_done !== '0';
     const page = Math.max(1, parseInt(req.query.page as string) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 10));
@@ -411,9 +519,21 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
             from: 'users',
             let: { lookupId: '$created_by' },
             pipeline: [
-              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } }
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+              { $project: { password: 0 } }
             ],
             as: 'requester'
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            let: { lookupId: '$assigned_to' },
+            pipeline: [
+              { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
+              { $project: { first_name: 1, last_name: 1 } }
+            ],
+            as: 'assignee'
           }
         },
         { $sort: { created_at: -1 } },
@@ -429,7 +549,9 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
                   done_count: { $sum: { $cond: [{ $eq: ['$status', 'DONE'] }, 1, 0] } },
                   declined_count: { $sum: { $cond: [{ $eq: ['$status', 'DECLINED'] }, 1, 0] } },
                   repaired_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'repaired'] }] }, 1, 0] } },
-                  beyond_repair_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'beyond repair'] }] }, 1, 0] } }
+                  beyond_repair_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'beyond repair'] }] }, 1, 0] } },
+                  urgent_count: { $sum: { $cond: [{ $and: [{ $in: ['$status', OPEN_STATUSES] }, { $eq: ['$priority', 'URGENT'] }] }, 1, 0] } },
+                  overdue_count: { $sum: { $cond: [overdueExpr('$due_date'), 1, 0] } }
                 }
               }
             ],
@@ -449,18 +571,21 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
       done_count: meta.done_count || 0,
       declined_count: meta.declined_count || 0,
       repaired_count: meta.repaired_count || 0,
-      beyond_repair_count: meta.beyond_repair_count || 0
+      beyond_repair_count: meta.beyond_repair_count || 0,
+      urgent_count: meta.urgent_count || 0,
+      overdue_count: meta.overdue_count || 0
     };
     const total = meta.total || 0;
     const docs = results[0]?.data || [];
 
     const rows = docs.map((r: any) => {
       const status = r.status || '';
-      const statusClass = status.toLowerCase().replace(' ', '-');
-      const createdAtStr = r.created_at ? new Date(r.created_at).toISOString().replace('T', ' ').substring(0, 16) : '-';
-      const completedAtStr = r.completed_at ? new Date(r.completed_at).toISOString().replace('T', ' ').substring(0, 16) : '-';
+      const statusClass = status.toLowerCase().replace(/[_ ]/g, '-');
+      const createdAtStr = r.created_at ? formatDateTime(r.created_at) : '-';
+      const completedAtStr = r.completed_at ? formatDateTime(r.completed_at) : '-';
       const requesterArr = r.requester || [];
       const clientName = requesterArr.length > 0 ? `${requesterArr[0].first_name} ${requesterArr[0].last_name}` : 'Unknown';
+      const assignee = r.assignee?.[0];
 
       return {
         _id: r._id?.toString(),
@@ -473,6 +598,10 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
         created_at: createdAtStr,
         completed_at: completedAtStr,
         assigned_to: r.assigned_to?.toString() || null,
+        assigned_name: assignee ? `${assignee.first_name} ${assignee.last_name}` : null,
+        priority: normalizePriority(r.priority),
+        due_date: toDay(r.due_date),
+        overdue: isOverdue(status, r.due_date),
         decline_reason: r.decline_reason || null,
         notes: r.notes || []
       };
@@ -501,9 +630,15 @@ router.get('/check_status/:requestCode', isAuthenticated, async (req: Authentica
 
     const requestsCollection = getRequestsCollection();
     
-    const query = req.user!.roles.includes('CLIENT')
-      ? { request_code: requestCode, created_by: new ObjectId(userId) }
-      : { request_code: requestCode };
+    // IT admins can look up any request; technicians their own assignments; everyone else only what they filed.
+    const roles = req.user!.roles;
+    const uid = new ObjectId(userId);
+    const query: Record<string, unknown> = { request_code: requestCode };
+    if (!roles.includes('IT_ADMIN') && !roles.includes('ADMIN')) {
+      query.$or = roles.includes('TECHNICIAN')
+        ? [{ created_by: uid }, { assigned_to: uid }]
+        : [{ created_by: uid }];
+    }
 
     const request = await requestsCollection.findOne(query);
 
@@ -575,13 +710,11 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
     
     const requestsCollection = getRequestsCollection();
     
-    let filter: Record<string, unknown> = {};
-    
-    if (req.user!.roles.includes('CLIENT')) {
-      filter = { created_by: new ObjectId(userId) };
-    } else if (req.user!.roles.includes('TECHNICIAN')) {
-      filter = { assigned_to: new ObjectId(userId) };
-    }
+    // Technicians see what is assigned to them; everyone else only the requests they filed.
+    const roles = req.user!.roles;
+    const filter: Record<string, unknown> = roles.includes('TECHNICIAN') && !roles.includes('CLIENT')
+      ? { assigned_to: new ObjectId(userId) }
+      : { created_by: new ObjectId(userId) };
     
     const search = req.query.search as string | undefined;
     if (search) {
@@ -643,7 +776,7 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
 router.get('/get_technicians', isAuthenticated, isItAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const usersCollection = getUsersCollection();
-    const technicians = await usersCollection.find({ roles: 'TECHNICIAN' }).toArray();
+    const technicians = await usersCollection.find({ roles: 'TECHNICIAN' }).project({ password: 0 }).toArray();
     res.json({ technicians });
   } catch (error) {
     console.error('Get technicians error:', error);

@@ -970,7 +970,9 @@ function Reports() {
   }, [searchTerm, filterType, selectedDate, showDone, activeTab, currentPage, fetchReports]);
 
   const exportToExcel = () => {
-    window.location.href = `/api/reports/export_excel?type=${activeTab}&filter=${filterType}&date=${selectedDate}&show_done=${showDone}`;
+    const params = new URLSearchParams({ type: activeTab, filter: filterType, date: selectedDate, show_done: showDone });
+    if (searchTerm.trim()) params.set('search', searchTerm.trim());
+    window.location.href = `/api/reports/export_excel?${params}`;
   };
 
   const downloadCombinedReport = async () => {
@@ -985,22 +987,24 @@ function Reports() {
         filter: activeFilter,
         date: effectiveDate,
         show_done: '1',
-        page: 1,
-        limit: 1000,
+      };
+
+      // The server returns at most 100 rows per page, so read every page; otherwise a report
+      // covering more than 100 requests of one type would silently leave the rest out.
+      const PAGE_LIMIT = 100;
+      const fetchAllReports = async (typeKey: TabKey) => {
+        const all: Record<string, unknown>[] = [];
+        for (let page = 1; ; page++) {
+          const response = await api.get('/reports/get_reports', {
+            params: { ...paramsBase, type: typeKey, page, limit: PAGE_LIMIT },
+          });
+          all.push(...((response.data.reports || []) as Record<string, unknown>[]));
+          if (page >= (response.data.totalPages || 0)) return all;
+        }
       };
 
       const printableTypes = tabs.map(tab => tab.key) as TabKey[];
-      const responses = await Promise.all(
-        printableTypes.map(async (typeKey) => {
-          const response = await api.get('/reports/get_reports', {
-            params: {
-              ...paramsBase,
-              type: typeKey,
-            },
-          });
-          return (response.data.reports || []) as Record<string, unknown>[];
-        })
-      );
+      const responses = await Promise.all(printableTypes.map(fetchAllReports));
 
       const groupedByType: Record<string, DarRow[]> = {};
 

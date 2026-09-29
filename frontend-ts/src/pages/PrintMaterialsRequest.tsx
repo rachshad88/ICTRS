@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { PriorityField, Priority } from '../components/Priority';
 
 
 const FORM_OF_PRINTED_MEDIA = [
@@ -13,6 +14,7 @@ function PrintMaterialsRequest() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [priority, setPriority] = useState<Priority>('NORMAL');
   const [files, setFiles] = useState<FileList | null>(null);
   
   const [formData, setFormData] = useState({
@@ -79,6 +81,7 @@ function PrintMaterialsRequest() {
       submitData.append('target_time', formData.target_time);
       submitData.append('requestor_name', formData.requestor_name);
       submitData.append('requestor_contact', formData.requestor_contact);
+      submitData.append('priority', priority);
       
       if (files) {
         for (let i = 0; i < files.length; i++) {
@@ -180,6 +183,7 @@ function PrintMaterialsRequest() {
               <label>Target Date of Posting or Use *</label>
               <input
                 type="date"
+                min={new Date().toLocaleDateString('en-CA')}
                 name="target_date"
                 value={formData.target_date}
                 onChange={handleInputChange}
@@ -227,13 +231,15 @@ function PrintMaterialsRequest() {
             </div>
           </div>
 
+          <PriorityField value={priority} onChange={setPriority} />
+
           <div className="form-group">
             <label>Upload relevant files and materials (Optional)</label>
             <input
               type="file"
               onChange={handleFileChange}
               multiple
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.ai,.psd,.tiff"
+              accept=".pdf,.doc,.docx,.pptx,.jpg,.jpeg,.png,.eps,.ps,.psd,.tif,.tiff"
             />
             {files && files.length > 0 && (
               <div className="file-list">
@@ -244,7 +250,7 @@ function PrintMaterialsRequest() {
                 ))}
               </div>
             )}
-            <small>Max 10 files. Allowed: PDF, images, Word, Illustrator, Photoshop, TIFF (max 10MB each)</small>
+            <small>Max 10 files. Allowed: PDF, JPG, PNG, Word, PowerPoint (.pptx), EPS, Photoshop, TIFF (max 10MB each). Save Illustrator files as PDF or EPS.</small>
           </div>
 
           <button type="submit" className="btn-primary" disabled={loading}>

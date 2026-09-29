@@ -7,6 +7,7 @@ import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import AnimatedNumber from '../components/AnimatedNumber';
 import { NotesList, RequestNote } from '../components/RequestNotes';
+import { RequestFlags } from '../components/Priority';
 import { staggerContainer, staggerItem } from '../lib/motion';
 
 interface Request {
@@ -21,6 +22,9 @@ interface Request {
   created_at: string;
   completed_at: string;
   assigned_to: string | null;
+  priority?: string;
+  due_date?: string | null;
+  overdue?: boolean;
   notes?: RequestNote[];
 }
 
@@ -43,7 +47,7 @@ function Dashboard() {
     beyond_repair_count: 0
   });
   const [filterType, setFilterType] = useState('all');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [showDone, setShowDone] = useState('1');
   const [loading, setLoading] = useState(true);
 
@@ -81,7 +85,7 @@ function Dashboard() {
 
   useEffect(() => {
     if (user) {
-      initSocket(user.user_id, user.roles || [user.role]);
+      initSocket();
     }
   }, [user]);
 
@@ -236,7 +240,10 @@ function Dashboard() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
                   >
-                    <td className="td-code" data-label="Code">{req.request_code}</td>
+                    <td className="td-code" data-label="Code">
+                      {req.request_code}
+                      <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} />
+                    </td>
                     <td className="td-cell" data-label="Office">{req.office}</td>
                     <td className="td-cell" data-label="Requested By">{req.client_name}</td>
                     <td data-label="Issue">
