@@ -34,6 +34,21 @@ function getRedirect(role: Role): string {
   }
 }
 
+function sendLockout(res: Response, retryAfter: number) {
+  const minutes = Math.ceil(retryAfter / 60);
+  res.setHeader('Retry-After', String(retryAfter));
+  return res.status(429).json({ error: `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` });
+}
+
+// Counts a failed sign-in. The failure that triggers the lockout answers as locked straight away,
+// so the sign-in page can pause the button now instead of one attempt later.
+function rejectLogin(res: Response, username: string, ip: string) {
+  recordLoginFailure(username, ip);
+  const retryAfter = loginRetryAfter(username, ip);
+  if (retryAfter > 0) return sendLockout(res, retryAfter);
+  return res.status(401).json({ error: 'Invalid username or password' });
+}
+
 router.post('/login', validateBody(loginSchema), async (req: Request, res: Response) => {
   try {
     const { username, password } = req.body;
@@ -44,18 +59,13 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
 
     const ip = req.ip || '';
     const retryAfter = loginRetryAfter(username, ip);
-    if (retryAfter > 0) {
-      const minutes = Math.ceil(retryAfter / 60);
-      res.setHeader('Retry-After', String(retryAfter));
-      return res.status(429).json({ error: `Too many failed attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` });
-    }
+    if (retryAfter > 0) return sendLockout(res, retryAfter);
 
     const usersCollection = getUsersCollection();
     const user = await usersCollection.findOne({ username });
 
     if (!user) {
-      recordLoginFailure(username, ip);
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return rejectLogin(res, username, ip);
     }
 
     let isValid = false;
@@ -82,8 +92,7 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     }
 
     if (!isValid) {
-      recordLoginFailure(username, ip);
-      return res.status(401).json({ error: 'Invalid username or password' });
+      return rejectLogin(res, username, ip);
     }
     recordLoginSuccess(username, ip);
 

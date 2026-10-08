@@ -1,12 +1,13 @@
-// Slows down password guessing. Only failed logins are counted, so people sharing an office
-// network (one public IP) are not blocked by each other's normal use:
-// - 5 failures for one username from one IP locks that pair for 15 minutes;
-// - 20 failures from one IP across any usernames locks that IP for 15 minutes.
+// Slows down password guessing. Only failed logins are counted. Office PCs each have their own
+// LAN address, so "IP" here means one computer:
+// - 5 failures for one username from one IP locks that IP (every username) for 15 minutes, so
+//   trying another name doesn't get round it;
+// - 10 failures from one IP across any usernames also locks it for 15 minutes.
 // State is in memory, which is enough for the single backend process PM2 runs.
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_PER_ACCOUNT = 5;
-const MAX_PER_IP = 20;
+const MAX_PER_IP = 10;
 
 interface Counter { count: number; resetAt: number }
 const failures = new Map<string, Counter>();
@@ -36,6 +37,13 @@ export function recordLoginFailure(username: string, ip: string, now = Date.now(
     const c = current(key, now);
     if (c) c.count++;
     else failures.set(key, { count: 1, resetAt: now + WINDOW_MS });
+  }
+  // A locked username locks the whole computer, for as long as that username's lock lasts.
+  const account = current(accountKey(username, ip), now)!;
+  if (account.count >= MAX_PER_ACCOUNT) {
+    const ipCounter = current(ipKey(ip), now)!;
+    ipCounter.count = Math.max(ipCounter.count, MAX_PER_IP);
+    ipCounter.resetAt = Math.max(ipCounter.resetAt, account.resetAt);
   }
 }
 

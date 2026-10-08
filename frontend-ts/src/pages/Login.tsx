@@ -26,12 +26,11 @@ function homeFor(user: User) {
   return '/dashboard';
 }
 
-// The server pauses sign-in for a username after too many wrong passwords (backend
-// loginThrottle.ts) and says for how long (Retry-After). Remember it per username, so the button
-// stays disabled with a countdown, even after a reload; other usernames on this PC still work.
+// After too many wrong passwords the server pauses sign-in from this computer, for every
+// username (backend loginThrottle.ts), and says for how long (Retry-After). Remember it so the
+// button stays disabled with a countdown, even after a reload or with another username.
 const LOCK_KEY = 'itrs-login-lock';
-interface LoginLock { username: string; until: number }
-const normalize = (u: string) => u.trim().toLowerCase();
+interface LoginLock { until: number }
 function readLock(): LoginLock | null {
   try {
     const lock = JSON.parse(localStorage.getItem(LOCK_KEY) || 'null') as LoginLock | null;
@@ -123,7 +122,7 @@ function Login() {
       saveLock(null);
     }
   }, [lock, now]);
-  const lockedFor = lock && lock.username === normalize(username) ? Math.max(0, Math.ceil((lock.until - now) / 1000)) : 0;
+  const lockedFor = lock ? Math.max(0, Math.ceil((lock.until - now) / 1000)) : 0;
 
   const handleCapsLock = (e: React.KeyboardEvent) => {
     setCapsLock(e.getModifierState('CapsLock'));
@@ -154,7 +153,7 @@ function Login() {
         const msg = err.response.data?.error;
         if (status === 429) {
           const seconds = Number(err.response.headers['retry-after']) || 15 * 60;
-          const next = { username: normalize(username), until: Date.now() + seconds * 1000 };
+          const next = { until: Date.now() + seconds * 1000 };
           setLock(next);
           setNow(Date.now());
           saveLock(next);
@@ -297,8 +296,8 @@ function Login() {
 
                 {lockedFor > 0 ? (
                   <div className="error-message" role="alert">
-                    Too many failed attempts for this username, so sign-in is paused for a few minutes. If you forgot
-                    your password, ask the IT section to reset it.
+                    Too many failed sign-in attempts from this computer, so sign-in is paused for a few minutes. If
+                    you forgot your password, ask the IT section to reset it.
                   </div>
                 ) : (
                   error && <div className="error-message" role="alert">{error}</div>
