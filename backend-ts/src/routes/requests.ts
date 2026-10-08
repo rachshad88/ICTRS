@@ -571,15 +571,18 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
 
     const requestsCollection = getRequestsCollection();
 
-    const matchFilter: Record<string, unknown> = {
-      created_at: { $gte: startDate, $lte: endDate }
-    };
+    // open_earlier=1: the requests still open from before this day/week/month, oldest first, so the
+    // dashboards can list them above the period's own requests and nothing old gets forgotten.
+    const openEarlier = req.query.open_earlier === '1';
+    const matchFilter: Record<string, unknown> = openEarlier
+      ? { created_at: { $lt: startDate }, status: { $in: OPEN_STATUSES } }
+      : { created_at: { $gte: startDate, $lte: endDate } };
 
     if (req.user!.roles.includes('TECHNICIAN')) {
       matchFilter.assigned_to = new ObjectId(userId);
     }
 
-    if (!showDone) {
+    if (!showDone && !openEarlier) {
       matchFilter.status = { $ne: 'DONE' };
     }
 
@@ -626,7 +629,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
             as: 'assignee'
           }
         },
-        { $sort: { created_at: -1 } },
+        { $sort: { created_at: openEarlier ? 1 : -1 } },
         {
           $facet: {
             metadata: [

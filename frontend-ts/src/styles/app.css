@@ -1495,3 +1495,41 @@
   border: 2px solid var(--ink);
   color: var(--ink);
 }
+
+/* ----- IT dashboards: "Still open from earlier days" group headings ----- */
+.app-main .history-table tr.group-row td {
+  padding: 16px 16px 8px;
+  background: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cobalt);
+}
+
+.app-main .history-table tbody tr.group-row:hover {
+  background: none;
+}
+
+/* On phones rows become cards; a heading stays a plain label between them. */
+@media (max-width: 640px) {
+  .app-main .stack-mobile tbody tr.group-row {
+    margin: 18px 0 8px;
+    padding: 0 4px;
+    background: none;
+    border: none;
+    box-shadow: none;
+  }
+
+  .app-main .stack-mobile tr.group-row td {
+    justify-content: flex-start;
+    padding: 0 !important;
+    background: none;
+    text-align: left;
+  }
+
+  .app-main .stack-mobile tr.group-row td::before {
+    content: none;
+  }
+}

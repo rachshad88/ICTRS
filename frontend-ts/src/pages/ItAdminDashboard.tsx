@@ -64,6 +64,14 @@ interface DashboardData {
   total?: number;
 }
 
+// Heading for the requests still open from before the selected day/week/month (shown above it).
+const EARLIER_LABEL: Record<string, string> = {
+  daily: 'Still open from earlier days',
+  weekly: 'Still open from earlier weeks',
+  monthly: 'Still open from earlier months',
+};
+const PERIOD_LABEL: Record<string, string> = { daily: 'This day', weekly: 'This week', monthly: 'This month' };
+
 function ItAdminDashboard() {
   const { user } = useAuth();
   const [filterType, setFilterType] = useState('daily');
@@ -100,6 +108,16 @@ function ItAdminDashboard() {
   const requests = data?.requests ?? [];
   const counts: Counts = { ...NO_COUNTS, ...data?.counts };
   const total = data?.total || 0;
+  // Requests still open from before the selected period, oldest first (open_earlier=1). Shown on
+  // page 1 above the period's own requests, so nothing older is forgotten behind the Daily filter.
+  const earlierParams = { filter: filterType, date: selectedDate, open_earlier: '1', limit: 100, ...(searchTerm && { search: searchTerm }) };
+  const { data: earlierData } = useQuery({
+    queryKey: ['it', 'dashboard-earlier', earlierParams],
+    queryFn: () => api.get<DashboardData>('/requests/get_dashboard', { params: earlierParams }).then((r) => r.data),
+    placeholderData: keepPreviousData,
+    enabled: !!user && filterType !== 'all',
+  });
+  const earlier = filterType !== 'all' && currentPage === 1 ? earlierData?.requests ?? [] : [];
   // A successful refresh clears an earlier action error, as the hand-rolled fetch used to.
   useEffect(() => { setError(''); }, [data]);
 
@@ -193,6 +211,42 @@ function ItAdminDashboard() {
     return null;
   };
 
+  // One table row, shared by the earlier-open group and the period's own requests.
+  const renderRow = (req: Request) => (
+    <tr key={req.request_code}>
+      <td className="td-code" data-label="Code">
+        {req.request_code}
+        <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} />
+      </td>
+      <td className="td-cell td-wrap" data-label="Requested By">
+        <span className="td-stack">
+          {req.client_name}
+          <span className="td-sub">{req.office}</span>
+        </span>
+      </td>
+      <td className="td-cell" data-label="Assigned To">{req.assigned_name || '-'}</td>
+      <td className="td-wrap" data-label="Issue">
+        {req.issue}
+        {req.notes && req.notes.length > 0 && (
+          <span className="note-count" title="Notes from the client">{req.notes.length} {req.notes.length === 1 ? 'note' : 'notes'}</span>
+        )}
+      </td>
+      <td data-label="Status">
+        <span className={`hstatus ${req.statusClass}`}>
+          <span className={`hstatus-dot ${req.statusClass}`} />
+          {req.status}
+        </span>
+      </td>
+      <td className="td-cell" data-label="Created">
+        <span className="td-stack">
+          {req.created_at}
+          {req.completed_at !== '-' && <span className="td-sub">Completed {req.completed_at}</span>}
+        </span>
+      </td>
+      <td className="col-actions">{getActionButtons(req)}</td>
+    </tr>
+  );
+
   return (
     <div className="page-wrap">
       <div className="page-header">
@@ -271,40 +325,14 @@ function ItAdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {requests.map((req) => (
-                <tr key={req.request_code}>
-                  <td className="td-code" data-label="Code">
-                    {req.request_code}
-                    <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} />
-                  </td>
-                  <td className="td-cell td-wrap" data-label="Requested By">
-                    <span className="td-stack">
-                      {req.client_name}
-                      <span className="td-sub">{req.office}</span>
-                    </span>
-                  </td>
-                  <td className="td-cell" data-label="Assigned To">{req.assigned_name || '-'}</td>
-                  <td className="td-wrap" data-label="Issue">
-                    {req.issue}
-                    {req.notes && req.notes.length > 0 && (
-                      <span className="note-count" title="Notes from the client">{req.notes.length} {req.notes.length === 1 ? 'note' : 'notes'}</span>
-                    )}
-                  </td>
-                  <td data-label="Status">
-                    <span className={`hstatus ${req.statusClass}`}>
-                      <span className={`hstatus-dot ${req.statusClass}`} />
-                      {req.status}
-                    </span>
-                  </td>
-                  <td className="td-cell" data-label="Created">
-                    <span className="td-stack">
-                      {req.created_at}
-                      {req.completed_at !== '-' && <span className="td-sub">Completed {req.completed_at}</span>}
-                    </span>
-                  </td>
-                  <td className="col-actions">{getActionButtons(req)}</td>
-                </tr>
-              ))}
+              {earlier.length > 0 && (
+                <tr className="group-row"><td colSpan={7}>{EARLIER_LABEL[filterType]} ({earlier.length})</td></tr>
+              )}
+              {earlier.map(renderRow)}
+              {earlier.length > 0 && (
+                <tr className="group-row"><td colSpan={7}>{PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</td></tr>
+              )}
+              {requests.map(renderRow)}
             </tbody>
           </table>
         </div>
