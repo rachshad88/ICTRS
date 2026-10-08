@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
@@ -15,31 +16,23 @@ interface AuditEntry {
 }
 
 function AuditLogs() {
-  const [logs, setLogs] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [actionFilter, setActionFilter] = useState('');
   const [entityFilter, setEntityFilter] = useState('');
 
-  const fetchLogs = async () => {
-    setLoading(true);
-    try {
-      const params: Record<string, string | number> = { page: currentPage, limit: 25 };
-      if (actionFilter) params.action = actionFilter;
-      if (entityFilter) params.entity_type = entityFilter;
-      const response = await api.get('/audit/logs', { params });
-      setLogs(response.data.logs);
-      setTotalPages(response.data.pagination.totalPages);
-    } catch (error) {
-      console.error('Failed to fetch audit logs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => { setCurrentPage(1); }, [actionFilter, entityFilter]);
-  useEffect(() => { fetchLogs(); }, [currentPage, actionFilter, entityFilter]);
+
+  const params: Record<string, string | number> = { page: currentPage, limit: 25 };
+  if (actionFilter) params.action = actionFilter;
+  if (entityFilter) params.entity_type = entityFilter;
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['audit', params],
+    queryFn: () => api.get<{ logs: AuditEntry[]; pagination: { totalPages: number } }>('/audit/logs', { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or filter loads.
+    placeholderData: keepPreviousData,
+  });
+  const logs = data?.logs ?? [];
+  const totalPages = data?.pagination.totalPages ?? 1;
 
   const formatDate = (d: string) => {
     const date = new Date(d);
@@ -62,7 +55,8 @@ function AuditLogs() {
     CANCEL_REQUEST: 'Cancel Request',
     REASSIGN_REQUEST: 'Reassign Request',
     SET_PRIORITY: 'Set Priority',
-    SHARED_ACCESS: 'Share Access'
+    SHARED_ACCESS: 'Share Access',
+    UPDATE_SIGNATORIES: 'Update Signatories'
   };
 
   return (
@@ -86,6 +80,7 @@ function AuditLogs() {
           <option value="MULTIMEDIA">Multimedia</option>
           <option value="DIGITAL_MEDIA">Digital Media</option>
           <option value="PRINT_MATERIALS">Print Materials</option>
+          <option value="SETTINGS">Settings</option>
         </select>
       </div>
 

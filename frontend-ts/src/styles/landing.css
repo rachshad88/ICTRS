@@ -1,0 +1,1664 @@
+/* ========== LANDING PAGE (public, at "/") ========== */
+/* Concept: scattered requests become one ticket. Paper, ink and rubber stamps.
+   Palette: seal navy/cobalt as ink, seal yellow as the only accent. Status stamps keep their
+   app colours (pending orange, in progress blue, done green) because they carry meaning.
+   Corners: paper scraps 3px, tickets 14px, everything you can press is a pill.
+   Layers: nav 30, grain 40 (pointer-events: none).
+   Overflow is clipped per section, never on .lp, so the sticky "Why" story keeps working. */
+
+.lp {
+  --lp-paper: #eef1f6;
+  --lp-paper-2: #e2e8f1;
+  --lp-card: #fbfcfe;
+  --lp-ink: #0c1f4a;
+  --lp-ink-soft: #4a5875;
+  --lp-navy: #0b3a8c;
+  --lp-cobalt: #1452c9;
+  --lp-yellow: #ffd91a;
+  --lp-yellow-soft: #ffe76a;
+  --lp-display: var(--public-display);
+  --lp-mono: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+  --lp-hand: 'Caveat', 'Comic Sans MS', cursive;
+
+  font-family: var(--public-body);
+
+  position: relative;
+  min-height: 100vh;
+  background: var(--lp-paper);
+  color: var(--lp-ink);
+}
+
+/* Paper grain over everything; fixed so it never repaints while scrolling. */
+.lp::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.lp a:focus-visible {
+  outline: 3px solid var(--lp-cobalt);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+.lp h1,
+.lp h2,
+.lp h3 {
+  font-family: var(--lp-display);
+  color: inherit;
+}
+
+.lp-wrap {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.lp-display-md {
+  font-size: clamp(38px, 5vw, 72px);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  max-width: 14ch;
+}
+
+@keyframes lpTurn {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes lpMarquee {
+  to { transform: translateX(-50%); }
+}
+
+@keyframes lpSwipe {
+  to { transform: skewX(-8deg) scaleX(1); }
+}
+
+.lp-gear {
+  position: absolute;
+  fill: none;
+  stroke-linejoin: round;
+  pointer-events: none;
+  animation: lpTurn 180s linear infinite;
+}
+
+/* ----- Buttons ----- */
+.lp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px 26px;
+  border-radius: 999px;
+  font-family: var(--lp-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 160ms var(--ease-out);
+}
+
+.lp-btn svg {
+  transition: transform 200ms var(--ease-out);
+}
+
+.lp-btn:active {
+  transform: scale(0.97);
+}
+
+.lp-btn-ink {
+  background: var(--lp-ink);
+  color: #f4f7fc;
+}
+
+.lp-btn-line {
+  border: 2px solid var(--lp-ink);
+  color: var(--lp-ink);
+  padding: 13px 24px;
+}
+
+.lp-btn-yellow {
+  background: var(--lp-yellow);
+  color: var(--lp-ink);
+}
+
+.lp-btn-sm {
+  padding: 10px 18px;
+  font-size: 15px;
+}
+
+.lp-btn-line.lp-btn-sm {
+  padding: 8px 16px;
+}
+
+/* Outline button for the dark finale */
+.lp-btn-line-light {
+  border: 2px solid rgba(244, 247, 252, 0.7);
+  color: #f4f7fc;
+  padding: 13px 24px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lp-btn:hover svg {
+    transform: translateX(4px);
+  }
+
+  .lp-btn-ink:hover {
+    background: var(--lp-cobalt);
+  }
+
+  .lp-btn-line:hover {
+    background: var(--lp-ink);
+    color: #f4f7fc;
+  }
+
+  .lp-btn-yellow:hover {
+    background: var(--lp-yellow-soft);
+  }
+
+  .lp-btn-line-light:hover {
+    border-color: #f4f7fc;
+    background: #f4f7fc;
+    color: var(--lp-ink);
+  }
+}
+
+/* ----- Floating nav ----- */
+.lp-nav {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  z-index: 30;
+  transform: translateX(-50%);
+  width: min(1240px, calc(100% - 32px));
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 0 8px 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(12, 31, 74, 0.08);
+  background: rgba(251, 252, 254, 0.96);
+  box-shadow: 0 12px 32px -16px rgba(12, 31, 74, 0.35);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lp-nav {
+    background: rgba(251, 252, 254, 0.78);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(14px) saturate(140%);
+  }
+}
+
+.lp-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--lp-ink);
+  font-family: var(--lp-display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.lp-brand img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
+.lp-nav-links {
+  display: flex;
+  gap: 26px;
+  margin-left: auto;
+}
+
+.lp-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-nav-links a {
+  color: var(--lp-ink-soft);
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+
+.lp-nav-links a:hover {
+  color: var(--lp-ink);
+}
+
+/* ----- Hero ----- */
+.lp-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-hero-inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1320px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 112px 40px 72px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: 24px;
+  align-content: center;
+}
+
+/* Wrapper that lets the hero gear fly in while the gear itself keeps its slow CSS spin */
+.lp-hero-gear-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.lp-gear-hero {
+  width: min(64vw, 880px);
+  height: min(64vw, 880px);
+  right: -15vw;
+  top: 2vh;
+  stroke: rgba(20, 82, 201, 0.11);
+  stroke-width: 1.3;
+}
+
+.lp-place {
+  grid-column: 1 / -1;
+  margin-bottom: 22px;
+  font-family: var(--lp-mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lp-cobalt);
+}
+
+.lp-hero-title {
+  grid-column: 1 / -1;
+  font-size: clamp(52px, 9.2vw, 142px);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+}
+
+.lp-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.07em;
+}
+
+.lp-line > span {
+  display: inline-block;
+}
+
+.lp-highlight {
+  position: relative;
+  z-index: 0;
+  white-space: nowrap;
+}
+
+/* Highlighter swipe behind "done." */
+.lp-highlight::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: -0.05em;
+  right: -0.06em;
+  bottom: 0.06em;
+  height: 0.4em;
+  background: var(--lp-yellow);
+  transform-origin: left center;
+  transform: skewX(-8deg) scaleX(0);
+  animation: lpSwipe 0.7s var(--ease-out) 1s forwards;
+}
+
+.lp-hero-copy {
+  grid-column: 1 / 6;
+  grid-row: 3;
+  align-self: start;
+  margin-top: 44px;
+}
+
+.lp-hero-copy p {
+  max-width: 34ch;
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--lp-ink-soft);
+}
+
+.lp-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.lp-hero-ticket {
+  grid-column: 8 / 13;
+  grid-row: 3;
+  justify-self: end;
+  margin-top: 28px;
+}
+
+/* ----- The ticket ----- */
+.lp-ticket {
+  --notch: var(--lp-paper);
+  position: relative;
+  width: 380px;
+  max-width: 100%;
+  border-radius: 14px;
+  background: var(--lp-card);
+  color: var(--lp-ink);
+  box-shadow: 0 34px 60px -26px rgba(11, 58, 140, 0.45), 0 2px 0 rgba(11, 58, 140, 0.06);
+}
+
+.lp-ticket-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 18px;
+  border-radius: 14px 14px 0 0;
+  background: var(--lp-navy);
+  background: linear-gradient(100deg, var(--lp-navy), var(--lp-cobalt));
+  color: #f4f7fc;
+  font-family: var(--lp-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.lp-ticket-head img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.lp-ticket-type {
+  margin-left: auto;
+  color: var(--lp-yellow);
+}
+
+.lp-ticket-body {
+  padding: 20px 22px 18px;
+}
+
+.lp-ticket-part {
+  position: relative;
+}
+
+.lp-ticket-code {
+  font-family: var(--lp-mono);
+  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+}
+
+.lp-ticket-issue {
+  margin: 8px 0 16px;
+  font-family: var(--lp-display);
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.lp-ticket-meta {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 14px;
+}
+
+.lp-ticket-meta dt,
+.lp-ticket-label {
+  font-family: var(--lp-mono);
+  font-weight: 500;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+}
+
+.lp-ticket-meta dd {
+  margin-top: 3px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.lp-chip-urgent {
+  display: inline-block;
+  padding: 1px 10px;
+  border-radius: 999px;
+  background: var(--lp-yellow);
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Perforation with punched notches on both edges */
+.lp-ticket-tear {
+  position: relative;
+  margin: 0 16px;
+  border-top: 2px dashed rgba(12, 31, 74, 0.2);
+}
+
+.lp-ticket-tear::before,
+.lp-ticket-tear::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--notch);
+}
+
+.lp-ticket-tear::before {
+  left: -28px;
+}
+
+.lp-ticket-tear::after {
+  right: -28px;
+}
+
+.lp-ticket-stub {
+  padding: 8px 22px 18px;
+  font-size: 14px;
+}
+
+.lp-ticket-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 68px;
+}
+
+.lp-ticket-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  font-weight: 700;
+}
+
+.lp-ticket-note {
+  display: grid;
+  gap: 2px;
+  padding: 10px 0 6px;
+  font-family: var(--lp-hand);
+  font-size: 20px;
+  line-height: 1.15;
+  color: var(--lp-cobalt);
+}
+
+.lp-stars {
+  display: inline-flex;
+  gap: 3px;
+  color: var(--lp-cobalt);
+}
+
+.lp-stars svg {
+  fill: var(--lp-yellow);
+}
+
+/* Rubber stamp */
+.lp-stamp {
+  display: inline-block;
+  padding: 3px 12px 2px;
+  border: 4px double currentColor;
+  border-radius: 6px;
+  font-family: var(--lp-display);
+  font-weight: 800;
+  font-size: 19px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transform: rotate(-9deg);
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -2.4 2.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='70'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -2.4 2.1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.lp-stamp-pending { color: #c2571a; }
+.lp-stamp-in_progress { color: var(--lp-cobalt); }
+.lp-stamp-done { color: #12825d; }
+
+/* Numbered markers that tie the ticket to the benefits beside it */
+.lp-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--lp-yellow);
+  color: var(--lp-ink);
+  font-family: var(--lp-display);
+  font-weight: 800;
+  font-size: 14px;
+  box-shadow: 0 0 0 4px var(--lp-paper-2);
+}
+
+.lp-ticket-part > .lp-marker {
+  position: absolute;
+  left: -38px;
+  top: 50%;
+  margin-top: -14px;
+}
+
+/* ----- Ticker: two flat rows of words, no bands. Services run right to left on top, the
+   promises run left to right underneath. ----- */
+.lp-ticker {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 56px 0;
+  overflow: hidden;
+}
+
+.lp-ticker-row {
+  overflow: hidden;
+}
+
+.lp-ticker-track {
+  display: flex;
+  width: max-content;
+  /* 48s per copy of the list, times TICKER_REPEAT (3) in Landing.tsx */
+  animation: lpMarquee 144s linear infinite;
+}
+
+.lp-ticker-set {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.lp-ticker-set span {
+  display: inline-flex;
+  align-items: center;
+  gap: 30px;
+  padding-right: 30px;
+  font-family: var(--lp-display);
+  font-weight: 800;
+  font-size: 44px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--lp-ink);
+}
+
+/* Bottom row: the promises, set in mono so it reads apart from the services above it */
+.lp-ticker-track-reverse {
+  animation-direction: reverse;
+  animation-duration: 180s;
+}
+
+.lp-ticker-set .lp-ticker-promise {
+  gap: 22px;
+  padding-right: 22px;
+  font-family: var(--lp-mono);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.14em;
+  color: var(--lp-cobalt);
+}
+
+.lp-ticker-star {
+  fill: var(--lp-yellow);
+  stroke: var(--lp-navy);
+  stroke-width: 1.5;
+}
+
+.lp-ticker-gear {
+  width: 30px;
+  height: 30px;
+  fill: var(--lp-yellow);
+  stroke: var(--lp-ink);
+  stroke-width: 14;
+  stroke-linejoin: round;
+}
+
+/* ----- Why ----- */
+.lp-why-text p {
+  margin-top: 22px;
+  max-width: 36ch;
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--lp-ink-soft);
+}
+
+.lp-why .lp-why-after {
+  font-family: var(--lp-display);
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: var(--lp-ink);
+}
+
+/* Desktop: a tall section with a sticky stage that the scroll position drives */
+.lp-why-story {
+  position: relative;
+  height: 300vh;
+}
+
+.lp-why-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 90px 40px 30px;
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 48px;
+  align-items: center;
+}
+
+.lp-why-stage {
+  position: relative;
+  height: min(620px, 78vh);
+}
+
+.lp-scrap-anchor {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Paper scraps */
+.lp-scrap {
+  width: 210px;
+  padding: 16px 18px;
+  border-radius: 3px;
+  background: var(--lp-card);
+  color: var(--lp-ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  box-shadow: 0 16px 30px -14px rgba(12, 31, 74, 0.4);
+}
+
+.lp-hand {
+  font-family: var(--lp-hand);
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 1.1;
+}
+
+.lp-scrap-sticky {
+  width: 190px;
+  min-height: 170px;
+  background: var(--lp-yellow-soft);
+}
+
+.lp-scrap-slip {
+  width: 230px;
+  border-top: 8px solid var(--lp-cobalt);
+}
+
+.lp-slip-title {
+  margin-bottom: 8px;
+  font-family: var(--lp-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-cobalt);
+}
+
+.lp-slip-line {
+  display: grid;
+  gap: 0;
+  padding: 4px 0;
+  border-bottom: 1px dotted rgba(12, 31, 74, 0.3);
+}
+
+.lp-slip-line > span:first-child {
+  font-family: var(--lp-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+}
+
+.lp-slip-line .lp-hand {
+  font-size: 22px;
+  color: var(--lp-ink);
+}
+
+.lp-scrap-chat {
+  width: 230px;
+  border-radius: 20px 20px 20px 4px;
+  background: var(--lp-cobalt);
+  color: #f4f7fc;
+}
+
+.lp-scrap-chat-reply {
+  width: 220px;
+  border-radius: 20px 20px 4px 20px;
+}
+
+.lp-scrap-lined {
+  width: 200px;
+  padding-top: 20px;
+  padding-bottom: 28px;
+  background-color: var(--lp-card);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 27px, rgba(20, 82, 201, 0.16) 27px 28px);
+  border-left: 3px solid rgba(20, 82, 201, 0.25);
+  clip-path: polygon(0 0, 100% 0, 100% 92%, 92% 100%, 82% 93%, 70% 100%, 58% 94%, 46% 100%, 34% 93%, 22% 100%, 10% 94%, 0 100%);
+}
+
+.lp-scrap-pad {
+  width: 180px;
+  padding-top: 26px;
+  background-color: #f3f6fb;
+  background-image: radial-gradient(circle at 12px 10px, var(--lp-paper-2) 4px, transparent 5px);
+  background-size: 24px 20px;
+  background-repeat: repeat-x;
+}
+
+.lp-scrap-pad .lp-hand {
+  font-size: 24px;
+  color: var(--lp-navy);
+}
+
+/* Phones and reduced motion: laid out, not scroll-driven */
+.lp-why-static {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 72px 40px;
+}
+
+.lp-why-static > p {
+  margin-top: 20px;
+  max-width: 40ch;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--lp-ink-soft);
+}
+
+.lp-scrap-pile {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin: 36px 0 8px;
+}
+
+.lp-scrap-pile .lp-scrap {
+  width: 170px;
+  min-height: 0;
+}
+
+.lp-scrap-pile .lp-hand {
+  font-size: 23px;
+}
+
+.lp-why-arrow {
+  display: block;
+  margin: 20px auto;
+  color: var(--lp-cobalt);
+}
+
+.lp-why-static > .lp-why-after {
+  margin: 0 auto;
+  text-align: center;
+  max-width: 30ch;
+}
+
+.lp-why-static-ticket {
+  margin: 32px auto 0;
+}
+
+/* ----- Benefits: annotated ticket ----- */
+.lp-anatomy {
+  padding: 130px 0;
+  background: var(--lp-paper-2);
+}
+
+.lp-anatomy .lp-display-md {
+  max-width: 16ch;
+}
+
+.lp-anatomy-grid {
+  margin-top: 72px;
+  display: grid;
+  grid-template-columns: 1fr 400px 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.lp-anatomy-ticket .lp-ticket {
+  --notch: var(--lp-paper-2);
+  width: 100%;
+}
+
+/* Stacked so every marker sits on the ticket's left edge */
+.lp-anatomy-ticket .lp-ticket-meta {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.lp-notes {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+.lp-notes li {
+  position: relative;
+}
+
+.lp-notes .lp-marker {
+  margin-bottom: 14px;
+}
+
+.lp-notes h3 {
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.lp-notes p {
+  margin-top: 8px;
+  max-width: 30ch;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--lp-ink-soft);
+}
+
+.lp-notes-left {
+  text-align: right;
+}
+
+.lp-notes-left p {
+  margin-left: auto;
+}
+
+/* Leader lines pointing at the ticket */
+.lp-notes li::after {
+  content: '';
+  position: absolute;
+  top: 14px;
+  width: 52px;
+  border-top: 2px dashed rgba(20, 82, 201, 0.45);
+}
+
+.lp-notes-left li::after {
+  right: -66px;
+}
+
+.lp-notes-right li::after {
+  left: -66px;
+}
+
+/* ----- How: queue stubs fed out of a take-a-number dispenser ----- */
+.lp-how {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 140px 40px 130px;
+}
+
+.lp-how-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.lp-how-head p {
+  max-width: 34ch;
+  padding-bottom: 8px;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--lp-ink-soft);
+}
+
+.lp-roll {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  margin-top: 64px;
+}
+
+/* The dispenser: navy box with a seal, a label and a yellow "now serving" screen. The stubs
+   come out of the slot on its right edge. */
+.lp-dispenser {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 28px 16px;
+  border-radius: 22px 6px 6px 22px;
+  background: var(--lp-navy);
+  background: linear-gradient(180deg, var(--lp-cobalt) 0%, var(--lp-navy) 100%);
+  color: #f4f7fc;
+  box-shadow: 0 30px 50px -28px rgba(11, 58, 140, 0.6);
+}
+
+.lp-dispenser img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.lp-dispenser-label {
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1.5;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.lp-dispenser-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: 12px 8px 10px;
+  border-radius: 10px;
+  background: #061433;
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.lp-dispenser-screen small {
+  font-family: var(--lp-mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 217, 26, 0.6);
+}
+
+.lp-dispenser-screen b {
+  font-family: var(--lp-mono);
+  font-size: 46px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--lp-yellow);
+  text-shadow: 0 0 14px rgba(255, 217, 26, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The slot the stubs come out of */
+.lp-dispenser::after {
+  content: '';
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  right: 0;
+  width: 6px;
+  border-radius: 3px 0 0 3px;
+  background: #061433;
+}
+
+.lp-stubs {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 18px 0;
+}
+
+.lp-stub-slot {
+  position: relative;
+  display: flex;
+  filter: drop-shadow(0 18px 22px rgba(11, 58, 140, 0.16));
+}
+
+.lp-stub {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 430px;
+  padding: 26px 24px 24px;
+  background: var(--lp-card);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Perforation between joined stubs, with a notch punched at each end */
+.lp-stub-slot + .lp-stub-slot .lp-stub {
+  border-left: 2px dashed rgba(12, 31, 74, 0.2);
+}
+
+.lp-stub-slot + .lp-stub-slot .lp-stub::before,
+.lp-stub-slot + .lp-stub-slot .lp-stub::after {
+  content: '';
+  position: absolute;
+  left: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--lp-paper);
+}
+
+.lp-stub-slot + .lp-stub-slot .lp-stub::before { top: -11px; }
+.lp-stub-slot + .lp-stub-slot .lp-stub::after { bottom: -11px; }
+
+/* The last stub is torn off the roll: yellow, a ragged edge, and set apart */
+.lp-stub-slot-torn {
+  margin-left: 14px;
+}
+
+.lp-stub-slot-torn .lp-stub,
+.lp-stub-slot + .lp-stub-slot-torn .lp-stub {
+  border-left: 0;
+  padding-left: 34px;
+  background: var(--lp-yellow);
+  -webkit-clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 100%, 12px 96%, 0 92%, 12px 88%, 0 84%, 12px 80%, 0 76%, 12px 72%, 0 68%, 12px 64%, 0 60%, 12px 56%, 0 52%, 12px 48%, 0 44%, 12px 40%, 0 36%, 12px 32%, 0 28%, 12px 24%, 0 20%, 12px 16%, 0 12%, 12px 8%, 0 4%, 12px 0%);
+  clip-path: polygon(12px 0, 100% 0, 100% 100%, 12px 100%, 0 100%, 12px 96%, 0 92%, 12px 88%, 0 84%, 12px 80%, 0 76%, 12px 72%, 0 68%, 12px 64%, 0 60%, 12px 56%, 0 52%, 12px 48%, 0 44%, 12px 40%, 0 36%, 12px 32%, 0 28%, 12px 24%, 0 20%, 12px 16%, 0 12%, 12px 8%, 0 4%, 12px 0%);
+}
+
+.lp-stub-slot + .lp-stub-slot-torn .lp-stub::before,
+.lp-stub-slot + .lp-stub-slot-torn .lp-stub::after {
+  content: none;
+}
+
+@media (hover: hover) {
+  .lp-stub-slot:hover .lp-stub {
+    transform: translateY(-8px);
+  }
+}
+
+.lp-stub-num {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--lp-mono);
+  font-size: 54px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--lp-cobalt);
+}
+
+.lp-stub-num small {
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+}
+
+.lp-stub-slot-torn .lp-stub-num {
+  color: var(--lp-ink);
+}
+
+.lp-stub h3 {
+  margin-top: 26px;
+  font-size: clamp(30px, 2.7vw, 40px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.lp-stub p {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--lp-ink-soft);
+}
+
+.lp-stub-slot-torn .lp-stub p {
+  color: var(--lp-ink);
+}
+
+/* A small sketch of the step as it looks in ITRS, pinned to the bottom of the stub */
+.lp-sketch {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 22px;
+  font-size: 13px;
+}
+
+.lp-sk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  font-weight: 600;
+  color: var(--lp-ink);
+}
+
+.lp-sk-field small,
+.lp-sk-track span {
+  font-family: var(--lp-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+}
+
+.lp-sk-btn {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--lp-ink);
+  color: #f4f7fc;
+  font-weight: 700;
+}
+
+.lp-sk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lp-sk-chips span,
+.lp-sk-toggle span {
+  padding: 5px 11px;
+  border: 1.5px solid rgba(12, 31, 74, 0.16);
+  border-radius: 999px;
+  background: #fff;
+  font-weight: 600;
+}
+
+.lp-sk-chips .is-on {
+  border-color: var(--lp-ink);
+  background: var(--lp-ink);
+  color: #f4f7fc;
+}
+
+.lp-sk-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+.lp-sk-toggle .is-on {
+  border-color: var(--lp-ink);
+  background: var(--lp-yellow);
+}
+
+.lp-sk-code {
+  font-family: var(--lp-mono);
+  font-size: 17px;
+  color: var(--lp-cobalt);
+}
+
+/* Pending, in progress, done: three dots on a line, all reached */
+.lp-sk-track {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+}
+
+.lp-sk-track::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--lp-ink);
+}
+
+.lp-sk-track span {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--lp-ink);
+}
+
+.lp-sk-track span:first-child { align-items: flex-start; }
+.lp-sk-track span:last-child { align-items: flex-end; }
+
+.lp-sk-track i {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--lp-ink);
+  border-radius: 50%;
+  background: var(--lp-yellow);
+}
+
+.lp-sk-track span:last-child i {
+  background: #12825d;
+  border-color: #12825d;
+}
+
+/* Up to 1100px the roll hangs down instead: dispenser on top, stubs below it */
+@media (max-width: 1100px) {
+  .lp-how-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 18px;
+  }
+
+  .lp-roll {
+    grid-template-columns: 1fr;
+    max-width: 560px;
+    margin-top: 48px;
+  }
+
+  .lp-dispenser {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-radius: 22px 22px 6px 6px;
+  }
+
+  .lp-dispenser-label {
+    flex: 1;
+    text-align: left;
+  }
+
+  .lp-dispenser-screen {
+    flex-direction: row;
+    gap: 10px;
+    width: auto;
+    padding: 6px 14px;
+  }
+
+  .lp-dispenser-screen b {
+    font-size: 30px;
+  }
+
+  .lp-dispenser::after {
+    top: auto;
+    bottom: 0;
+    left: 18px;
+    right: 18px;
+    width: auto;
+    height: 6px;
+    border-radius: 3px 3px 0 0;
+  }
+
+  .lp-stubs {
+    grid-template-columns: 1fr;
+    margin: 0 16px;
+  }
+
+  .lp-stub {
+    min-height: 0;
+  }
+
+  .lp-stub-slot + .lp-stub-slot .lp-stub {
+    border-left: 0;
+    border-top: 2px dashed rgba(12, 31, 74, 0.2);
+  }
+
+  .lp-stub-slot + .lp-stub-slot .lp-stub::before,
+  .lp-stub-slot + .lp-stub-slot .lp-stub::after {
+    top: -12px;
+    bottom: auto;
+  }
+
+  .lp-stub-slot + .lp-stub-slot .lp-stub::before { left: -11px; }
+  .lp-stub-slot + .lp-stub-slot .lp-stub::after { left: auto; right: -11px; }
+
+  .lp-stub-slot-torn {
+    margin-left: 0;
+    margin-top: 14px;
+  }
+
+  .lp-stub-slot-torn .lp-stub,
+  .lp-stub-slot + .lp-stub-slot-torn .lp-stub {
+    border-top: 0;
+    padding-left: 24px;
+    padding-top: 34px;
+    -webkit-clip-path: polygon(0 12px, 3.3% 0, 6.7% 12px, 10.0% 0, 13.3% 12px, 16.7% 0, 20.0% 12px, 23.3% 0, 26.7% 12px, 30.0% 0, 33.3% 12px, 36.7% 0, 40.0% 12px, 43.3% 0, 46.7% 12px, 50.0% 0, 53.3% 12px, 56.7% 0, 60.0% 12px, 63.3% 0, 66.7% 12px, 70.0% 0, 73.3% 12px, 76.7% 0, 80.0% 12px, 83.3% 0, 86.7% 12px, 90.0% 0, 93.3% 12px, 96.7% 0, 100.0% 12px, 100% 100%, 0 100%);
+    clip-path: polygon(0 12px, 3.3% 0, 6.7% 12px, 10.0% 0, 13.3% 12px, 16.7% 0, 20.0% 12px, 23.3% 0, 26.7% 12px, 30.0% 0, 33.3% 12px, 36.7% 0, 40.0% 12px, 43.3% 0, 46.7% 12px, 50.0% 0, 53.3% 12px, 56.7% 0, 60.0% 12px, 63.3% 0, 66.7% 12px, 70.0% 0, 73.3% 12px, 76.7% 0, 80.0% 12px, 83.3% 0, 86.7% 12px, 90.0% 0, 93.3% 12px, 96.7% 0, 100.0% 12px, 100% 100%, 0 100%);
+  }
+
+  .lp-stub h3 {
+    margin-top: 14px;
+  }
+
+  .lp-stub-num {
+    font-size: 40px;
+  }
+}
+
+/* Tablet: the hanging roll runs full width, so each stub puts its sketch beside the text */
+@media (min-width: 641px) and (max-width: 1100px) {
+  .lp-roll {
+    max-width: none;
+  }
+
+  .lp-stub {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    grid-template-rows: auto auto 1fr;
+    column-gap: 44px;
+  }
+
+  .lp-stub > :not(.lp-sketch) {
+    grid-column: 1;
+  }
+
+  .lp-sketch {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: center;
+    margin-top: 0;
+    padding-top: 0;
+  }
+}
+
+.lp-guide-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 64px;
+  font-family: var(--lp-display);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--lp-cobalt);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
+/* ----- Finale: the one full switch to seal cobalt ----- */
+.lp-finale {
+  position: relative;
+  overflow: hidden;
+  padding: 150px 0 36px;
+  background: var(--lp-navy);
+  background: linear-gradient(160deg, var(--lp-navy) 0%, var(--lp-cobalt) 100%);
+  color: #f4f7fc;
+}
+
+.lp-gear-finale {
+  width: 72vw;
+  height: 72vw;
+  right: -18vw;
+  bottom: -34vw;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1.2;
+}
+
+.lp-finale-inner {
+  position: relative;
+}
+
+.lp-finale-title {
+  max-width: 11ch;
+  font-size: clamp(48px, 8.4vw, 132px);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.lp-finale-mark {
+  display: inline-block;
+  padding: 0 0.1em;
+  background: var(--lp-yellow);
+  color: var(--lp-ink);
+  transform: rotate(-2deg);
+}
+
+.lp-finale-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 40px;
+  margin-top: 56px;
+}
+
+.lp-finale-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.lp-finale-row p {
+  max-width: 44ch;
+  font-size: 18px;
+  line-height: 1.6;
+  color: rgba(244, 247, 252, 0.84);
+}
+
+.lp-credits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 130px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  font-size: 13px;
+  color: rgba(244, 247, 252, 0.72);
+}
+
+.lp-credits-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.lp-credits-brand img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+/* The global reduced-motion rule shortens animations; loops must stop outright instead. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-gear,
+  .lp-ticker-track {
+    animation: none;
+  }
+
+  .lp-highlight::before {
+    animation: none;
+    transform: skewX(-8deg) scaleX(1);
+  }
+}
+
+/* ----- Tablet ----- */
+@media (max-width: 960px) {
+  .lp-nav-links {
+    display: none;
+  }
+
+  .lp-nav-actions {
+    margin-left: auto;
+  }
+
+  .lp-hero-inner {
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 120px;
+    min-height: 0;
+  }
+
+  .lp-hero-copy,
+  .lp-hero-ticket {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .lp-hero-ticket {
+    justify-self: center;
+    margin-top: 56px;
+  }
+
+  .lp-gear-hero {
+    width: 120vw;
+    height: 120vw;
+    right: -60vw;
+    top: auto;
+    bottom: -20vw;
+  }
+
+  .lp-anatomy-grid {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
+  .lp-anatomy-ticket {
+    order: -1;
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    padding-left: 24px;
+  }
+
+  .lp-notes,
+  .lp-notes-left {
+    text-align: left;
+    gap: 36px;
+  }
+
+  .lp-notes-left p {
+    margin-left: 0;
+  }
+
+  .lp-notes li::after {
+    display: none;
+  }
+
+  .lp-notes li {
+    padding-left: 44px;
+  }
+
+  .lp-notes .lp-marker {
+    position: absolute;
+    left: 0;
+    top: -2px;
+  }
+
+  .lp-finale-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ----- Phone ----- */
+@media (max-width: 640px) {
+  .lp-nav {
+    top: 10px;
+    width: calc(100% - 20px);
+    height: 54px;
+    gap: 12px;
+  }
+
+  .lp-brand span {
+    display: none;
+  }
+
+  .lp-nav-actions .lp-btn-sm {
+    padding: 8px 14px;
+    font-size: 14px;
+  }
+
+  .lp-hero-inner {
+    padding: 100px 16px 56px;
+  }
+
+  .lp-hero-copy {
+    margin-top: 28px;
+  }
+
+  .lp-hero-copy p {
+    font-size: 17px;
+  }
+
+  .lp-hero-actions .lp-btn {
+    flex: 1 1 100%;
+  }
+
+  .lp-ticker {
+    gap: 12px;
+    padding: 40px 0;
+  }
+
+  .lp-ticker-set span {
+    font-size: 28px;
+    gap: 20px;
+    padding-right: 20px;
+  }
+
+  .lp-ticker-gear {
+    width: 22px;
+    height: 22px;
+  }
+
+  .lp-ticker-set .lp-ticker-promise {
+    font-size: 13px;
+    gap: 16px;
+    padding-right: 16px;
+  }
+
+  .lp-why-static {
+    padding: 56px 16px;
+  }
+
+  .lp-scrap-pile .lp-scrap {
+    width: calc(50% - 8px);
+  }
+
+  .lp-scrap-pile .lp-hand {
+    font-size: 21px;
+  }
+
+  .lp-why .lp-why-after {
+    font-size: 21px;
+  }
+
+  .lp-wrap {
+    padding: 0 16px;
+  }
+
+  .lp-anatomy {
+    padding: 80px 0;
+  }
+
+  .lp-anatomy-grid {
+    margin-top: 48px;
+  }
+
+  .lp-how {
+    padding: 90px 16px;
+  }
+
+  .lp-guide-link {
+    margin-top: 32px;
+    font-size: 19px;
+  }
+
+  .lp-finale {
+    padding: 96px 0 28px;
+  }
+
+  .lp-finale-actions {
+    width: 100%;
+  }
+
+  .lp-finale-row .lp-btn {
+    flex: 1 1 100%;
+  }
+
+  .lp-credits {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-top: 80px;
+  }
+}

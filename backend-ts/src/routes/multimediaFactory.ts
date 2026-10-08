@@ -13,6 +13,9 @@ import { getIO } from '../config/socket';
 import * as XLSX from 'xlsx';
 import { ZodIssue, ZodTypeAny } from 'zod';
 import { validateFileMagicBytes, mimeTypeForFilename, extensionsForMimeTypes } from '../utils/fileValidation';
+import { LiveLane, liveRequestAdded, liveRequestChanged, liveRequestRemoved } from './live';
+import { notify } from '../utils/notify';
+import { syncRatingStatus, ratingTypeFor } from '../utils/ratingSync';
 
 interface ColumnDef {
   header: string;
@@ -34,6 +37,12 @@ interface RouteConfig {
   cancelCheckStatusNot: string;
   auditEntityType: string;
   socketPrefix: string;
+  // Column on the /live wall display.
+  liveLane: LiveLane;
+  // Shown in notifications, e.g. "Multimedia request MM-001 …".
+  label: string;
+  // Where each kind of recipient follows up on a request of this type.
+  pages: { owner: string; staff: string; admin: string };
   hasRecommendation: boolean;
   summaryField: string;
   // Event or target date; a request past it and still open is flagged overdue.
@@ -57,8 +66,18 @@ interface RouteConfig {
 
 const MAX_NOTES_PER_REQUEST = 20;
 
+function clip(text: string, max = 80): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
+function displayName(user: { first_name: string; last_name: string; username: string }): string {
+  return `${user.first_name} ${user.last_name}`.trim() || user.username;
+}
+
 export function createRequestRouter(config: RouteConfig): Router {
   const router = Router();
+  // Lets the requester rate a finished request straight from its notification.
+  const ratingType = ratingTypeFor(config.collectionName);
 
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -247,6 +266,8 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(500).json({ status: 'error', message: 'Failed to generate unique request code' });
       }
 
+      void syncRatingStatus(config.collectionName, result.insertedId);
+
       await logAudit(
         new ObjectId(userId), req.user!.username, req.user!.primary_role,
         'CREATE_REQUEST', config.auditEntityType, result.insertedId.toString(),
@@ -268,6 +289,12 @@ export function createRequestRouter(config: RouteConfig): Router {
           timestamp: new Date()
         });
       }
+      liveRequestAdded(config.liveLane, result.insertedId);
+      const summary = String(req.body[config.summaryField] ?? '').trim();
+      notify({ roles: ['MULTIMEDIA_ADMIN'] }, {
+        level: 'info', title: `New ${config.label.toLowerCase()} request`, request_code, link: config.pages.admin,
+        message: summary ? `${request_code}: ${clip(summary)}` : `${request_code} is waiting to be assigned.`,
+      }, userId);
 
       res.json({ status: 'success', request_code, request_id: result.insertedId });
     } catch (error) {
@@ -395,6 +422,8 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(400).json({ error: 'This request is no longer waiting to be assigned. Refresh the list.' });
       }
 
+      void syncRatingStatus(config.collectionName, result.value._id);
+
       const requestCode = result.value.request_code || 'unknown';
       const assignedTo = `${technician.first_name} ${technician.last_name}`;
       await logAudit(
@@ -424,6 +453,15 @@ export function createRequestRouter(config: RouteConfig): Router {
           [config.summaryField]: result.value[config.summaryField]
         });
       }
+      notify(result.value.created_by, {
+        level: 'success', title: 'Request accepted', request_code: requestCode, link: config.pages.owner,
+        message: `${config.label} request ${requestCode} was assigned to ${assignedTo}.`,
+      }, req.user!.user_id);
+      notify(technician_id, {
+        level: 'info', title: 'Assigned to you', request_code: requestCode, link: config.pages.staff,
+        message: `${config.label} request ${requestCode} is now yours.`,
+      }, req.user!.user_id);
+      liveRequestRemoved(config.liveLane, request_id, 'ACCEPTED', assignedTo);
 
       res.json({ status: 'success' });
     } catch (error) {
@@ -480,6 +518,19 @@ export function createRequestRouter(config: RouteConfig): Router {
         io.to(`user_${result.value.created_by?.toString()}`).emit(`${config.socketPrefix}_request_reassigned`, payload);
         io.to('admins').emit(`${config.socketPrefix}_request_assigned_admin`, payload);
       }
+      const actorId = req.user!.user_id;
+      notify(technician_id, {
+        level: 'info', title: 'Assigned to you', request_code: requestCode, link: config.pages.staff,
+        message: `${config.label} request ${requestCode} was reassigned to you.`,
+      }, actorId);
+      notify(previousTechId, {
+        level: 'info', title: 'Request reassigned', request_code: requestCode, link: config.pages.staff,
+        message: `${requestCode} was moved to ${assignedTo}.`,
+      }, actorId);
+      notify(result.value.created_by, {
+        level: 'info', title: 'Staff member changed', request_code: requestCode, link: config.pages.owner,
+        message: `${requestCode} is now handled by ${assignedTo}.`,
+      }, actorId);
 
       res.json({ status: 'success' });
     } catch (error) {
@@ -521,6 +572,11 @@ export function createRequestRouter(config: RouteConfig): Router {
           io.to(`user_${result.value.assigned_to.toString()}`).emit(`${config.socketPrefix}_request_priority_changed`, payload);
         }
       }
+      liveRequestChanged(config.liveLane, result.value);
+      notify(result.value.assigned_to, {
+        level: priority === 'URGENT' ? 'warning' : 'info', title: 'Priority changed', request_code: requestCode, link: config.pages.staff,
+        message: `${requestCode} is now ${priority.toLowerCase()} priority.`,
+      }, req.user!.user_id);
 
       res.json({ status: 'success' });
     } catch (error) {
@@ -595,6 +651,8 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(404).json({ error: 'Request not found or not assigned to you' });
       }
 
+      void syncRatingStatus(config.collectionName, result.value._id);
+
       const requestCode = result.value.request_code || 'unknown';
       await logAudit(
         new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
@@ -621,6 +679,11 @@ export function createRequestRouter(config: RouteConfig): Router {
           status: 'DONE'
         });
       }
+      notify(result.value.created_by, {
+        level: 'success', title: 'Request completed', request_code: requestCode, link: config.pages.owner,
+        message: `${config.label} request ${requestCode} is done.`,
+        rate: ratingType ? { request_id: result.value._id.toString(), type: ratingType } : null,
+      }, req.user!.user_id);
 
       res.json({ status: 'success' });
     } catch (error) {
@@ -746,6 +809,8 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(400).json({ error: 'Request cannot be cancelled' });
       }
 
+      void syncRatingStatus(config.collectionName, result.value._id);
+
       const requestCode = result.value.request_code || 'unknown';
       await logAudit(
         new ObjectId(user_id), req.user!.username, req.user!.primary_role,
@@ -761,6 +826,11 @@ export function createRequestRouter(config: RouteConfig): Router {
           status: 'CANCELLED'
         });
       }
+      liveRequestRemoved(config.liveLane, request_id, 'CANCELLED');
+      const cancelled = { level: 'warning' as const, title: 'Request cancelled', request_code: requestCode, message: `${requestCode} was cancelled by ${displayName(req.user!)}.` };
+      notify(result.value.created_by, { ...cancelled, link: config.pages.owner }, user_id);
+      notify(result.value.assigned_to, { ...cancelled, link: config.pages.staff }, user_id);
+      notify({ roles: ['MULTIMEDIA_ADMIN'] }, { ...cancelled, link: config.pages.admin }, user_id);
 
       res.json({ status: 'success' });
     } catch (error) {
@@ -786,6 +856,8 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(404).json({ error: 'Request not found or already assigned' });
       }
 
+      void syncRatingStatus(config.collectionName, result.value._id);
+
       const requestCode = result.value.request_code || 'unknown';
       await logAudit(
         new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
@@ -801,6 +873,11 @@ export function createRequestRouter(config: RouteConfig): Router {
         io.to('admins').emit(`${config.socketPrefix}_request_declined`, payload);
         io.to('multimedia_staff').emit(`${config.socketPrefix}_request_declined`, payload);
       }
+      liveRequestRemoved(config.liveLane, request_id, 'DECLINED');
+      notify(result.value.created_by, {
+        level: 'warning', title: 'Request declined', request_code: requestCode, link: config.pages.owner,
+        message: `${config.label} request ${requestCode} was declined. Reason: ${reason}`,
+      }, req.user!.user_id);
 
       res.json({ status: 'success' });
     } catch (error) {
@@ -853,6 +930,12 @@ export function createRequestRouter(config: RouteConfig): Router {
         }
         io.to('admins').emit(`${config.socketPrefix}_request_note_added`, payload);
       }
+      // The assigned staff member, or whoever will assign it while it is still waiting.
+      notify(result.value.assigned_to ?? { roles: ['MULTIMEDIA_ADMIN'] }, {
+        level: 'info', title: 'New note', request_code: requestCode,
+        link: result.value.assigned_to ? config.pages.staff : config.pages.admin,
+        message: `${note.author_name} added a note to ${requestCode}: ${clip(note.text)}`,
+      }, userId);
 
       res.json({ status: 'success', note });
     } catch (error) {

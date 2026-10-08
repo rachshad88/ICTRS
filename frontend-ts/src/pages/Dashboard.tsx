@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import { initSocket, getSocket } from '../services/socket';
+import { refreshService } from '../services/queryClient';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import AnimatedNumber from '../components/AnimatedNumber';
-import { NotesList, RequestNote } from '../components/RequestNotes';
+import { RequestNote } from '../components/RequestNotes';
+import FinishRequestModal from '../components/FinishRequestModal';
 import { RequestFlags } from '../components/Priority';
-import { staggerContainer, staggerItem } from '../lib/motion';
+import { EASE_OUT, staggerContainer, staggerItem } from '../lib/motion';
+import SearchBox from '../components/SearchBox';
 
 interface Request {
   _id: string;
@@ -36,107 +39,41 @@ interface Counts {
   beyond_repair_count: number;
 }
 
+interface DashboardData {
+  requests: Request[];
+  counts: Counts;
+  total?: number;
+}
+
+const NO_COUNTS: Counts = { pending_count: 0, progress_count: 0, done_count: 0, repaired_count: 0, beyond_repair_count: 0 };
+
 function Dashboard() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<Request[]>([]);
-  const [counts, setCounts] = useState<Counts>({
-    pending_count: 0,
-    progress_count: 0,
-    done_count: 0,
-    repaired_count: 0,
-    beyond_repair_count: 0
-  });
   const [filterType, setFilterType] = useState('all');
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [showDone, setShowDone] = useState('1');
-  const [loading, setLoading] = useState(true);
 
-  const [showModal, setShowModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
-  const [finished, setFinished] = useState('repaired');
-  const [remarks, setRemarks] = useState('');
-  const [recommendation, setRecommendation] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [finishTarget, setFinishTarget] = useState<Request | null>(null);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [total, setTotal] = useState(0);
 
   useEffect(() => { setCurrentPage(1); }, [filterType, selectedDate, showDone, searchTerm]);
 
-  const searchTermRef = useRef(searchTerm);
-  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
-
-  const fetchData = useCallback(async (search?: string) => {
-    try {
-      const params: Record<string, string | number> = { filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: 10 };
-      if (search) params.search = search;
-      const response = await api.get('/requests/get_dashboard', { params });
-      setRequests(response.data.requests);
-      setCounts(response.data.counts);
-      setTotal(response.data.total || 0);
-      setError('');
-    } catch (error) {
-      console.error('Failed to fetch dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filterType, selectedDate, showDone, currentPage]);
-
-  useEffect(() => {
-    if (user) {
-      initSocket();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      fetchData(searchTerm);
-    }
-  }, [user, fetchData, searchTerm]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    const handler = () => fetchData(searchTermRef.current);
-    socket.on('request_update', handler);
-    return () => {
-      socket.off('request_update', handler);
-    };
-  }, [user, fetchData]);
-
-  const openFinishModal = (req: Request) => {
-    setSelectedRequest(req);
-    setFinished('repaired');
-    setRemarks('');
-    setRecommendation('');
-    setShowModal(true);
-  };
-
-  const handleMarkDone = async () => {
-    if (!selectedRequest || !user) return;
-    setSubmitting(true);
-
-    const payload = {
-      request_id: selectedRequest._id,
-      finished,
-      ...(remarks && { remarks }),
-      ...(recommendation && { recommendation })
-    };
-
-    try {
-      await api.post('/requests/request_finish', payload);
-      setShowModal(false);
-      setSelectedRequest(null);
-      fetchData(searchTerm);
-    } catch (error: unknown) {
-      const err = error as { response?: { data?: { message?: string; error?: string; details?: unknown[] } } };
-      const errorMsg = err.response?.data?.message || err.response?.data?.error || 'Failed to mark request as done';
-      setError(errorMsg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  // Cached per filter and page (services/queryClient.ts); IT socket events refresh it.
+  const params = { filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: 10, ...(searchTerm && { search: searchTerm }) };
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['it', 'dashboard', params],
+    queryFn: () => api.get<DashboardData>('/requests/get_dashboard', { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or filter loads.
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const requests = data?.requests ?? [];
+  const counts = data?.counts ?? NO_COUNTS;
+  const total = data?.total || 0;
+  // A successful refresh clears an earlier action error, as the hand-rolled fetch used to.
+  useEffect(() => { setError(''); }, [data]);
 
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
@@ -152,7 +89,7 @@ function Dashboard() {
       return <span className="hstatus declined"><span className="hstatus-dot declined" />Declined</span>;
     }
     if (req.status === 'IN_PROGRESS') {
-      return <button className="hbtn hbtn-view" onClick={() => openFinishModal(req)}>Mark Done</button>;
+      return <button className="hbtn hbtn-view" onClick={() => setFinishTarget(req)}>Mark Done</button>;
     }
     if (req.status === 'PENDING' && !req.assigned_to) {
       return <span className="td-code">Pending</span>;
@@ -169,7 +106,7 @@ function Dashboard() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="filters-row">
-        <input type="text" placeholder="Search by code, issue, office..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+        <SearchBox placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
 
         <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
           <option value="all">All</option>
@@ -238,7 +175,7 @@ function Dashboard() {
                     key={req.request_code}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+                    transition={{ duration: 0.26, ease: EASE_OUT }}
                   >
                     <td className="td-code" data-label="Code">
                       {req.request_code}
@@ -255,7 +192,7 @@ function Dashboard() {
                     <td data-label="Status">
                       <span className={`hstatus ${req.statusClass}`}>
                         <span className={`hstatus-dot ${req.statusClass}`} />
-                        {req.status}
+                        {req.status.replace(/_/g, ' ')}
                       </span>
                     </td>
                     <td className="td-cell" data-label="Created">{req.created_at}</td>
@@ -272,40 +209,13 @@ function Dashboard() {
 
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
 
-      {showModal && (
-        <div className="modal">
-          <div className="modal-content">
-            <h3>Mark Request as Done</h3>
-            <p><strong>Request:</strong> {selectedRequest?.request_code}</p>
-            <p><strong>Issue:</strong> {selectedRequest?.issue}</p>
-            <NotesList notes={selectedRequest?.notes} />
-
-            <div className="form-group">
-              <label>Status *</label>
-              <select value={finished} onChange={(e) => setFinished(e.target.value)} required>
-                <option value="repaired">Repaired</option>
-                <option value="beyond repair">Beyond Repair</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label>Remarks</label>
-              <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)} rows={3} placeholder="Optional" />
-            </div>
-
-            <div className="form-group">
-              <label>Recommendation</label>
-              <textarea value={recommendation} onChange={(e) => setRecommendation(e.target.value)} rows={3} placeholder="Optional" />
-            </div>
-
-            <div className="modal-actions">
-              <button className="btn-primary" onClick={handleMarkDone} disabled={submitting}>
-                {submitting ? 'Saving...' : 'Save'}
-              </button>
-              <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>
+      {finishTarget && (
+        <FinishRequestModal
+          request={finishTarget}
+          onClose={() => setFinishTarget(null)}
+          onFinished={() => { setFinishTarget(null); refreshService('it'); }}
+          onError={setError}
+        />
       )}
     </div>
   );

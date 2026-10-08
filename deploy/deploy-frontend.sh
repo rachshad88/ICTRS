@@ -15,6 +15,8 @@ echo "Type-checking..."
 npx tsc --noEmit -p .
 echo "Building..."
 npx vite build --outDir "$BUILD_DIR" --emptyOutDir
+echo "Pre-compressing..."
+node "$REPO/deploy/precompress.mjs" "$BUILD_DIR"
 
 echo "Publishing to $WEB_ROOT (sudo)..."
 sudo mkdir -p "$WEB_ROOT"

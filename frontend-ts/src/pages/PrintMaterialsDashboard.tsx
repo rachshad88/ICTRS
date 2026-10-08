@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { initSocket, getSocket } from '../services/socket';
+import { refreshService } from '../services/queryClient';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, RequestNote } from '../components/RequestNotes';
 import RequestMobileCard from '../components/RequestMobileCard';
 import { RequestFlags, priorityLabel } from '../components/Priority';
+import SearchBox from '../components/SearchBox';
 
 interface PrintMaterialsRequest {
   _id: string;
@@ -32,73 +34,35 @@ interface PrintMaterialsRequest {
 
 function PrintMaterialsDashboard() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<PrintMaterialsRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<PrintMaterialsRequest | null>(null);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
-
-  const fetchRequests = useCallback(async (search?: string) => {
-    try {
-      const params: Record<string, string | number> = {};
-      if (search) params.search = search;
-      params.page = currentPage;
-      params.limit = 10;
-      const response = await api.get('/printmaterials/my_requests', { params });
-      setRequests(response.data.requests);
-      setTotal(response.data.total || 0);
-      setError('');
-    } catch (error) {
-      console.error('Failed to fetch requests:', error);
-    } finally { setLoading(false); }
-  }, [currentPage]);
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
-  const searchTermRef = useRef(searchTerm);
-  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
-
-  useEffect(() => {
-    if (user) {
-      initSocket();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      fetchRequests(searchTerm);
-    }
-  }, [user, searchTerm, fetchRequests]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    const handler = () => fetchRequests(searchTermRef.current);
-    socket.on('print_materials_request_assigned', handler);
-    socket.on('print_materials_request_completed', handler);
-    socket.on('print_materials_request_cancelled', handler);
-    socket.on('print_materials_request_note_added', handler);
-    socket.on('print_materials_request_reassigned', handler);
-    socket.on('print_materials_request_priority_changed', handler);
-    return () => {
-      socket.off('print_materials_request_assigned', handler);
-      socket.off('print_materials_request_completed', handler);
-      socket.off('print_materials_request_cancelled', handler);
-      socket.off('print_materials_request_note_added', handler);
-      socket.off('print_materials_request_reassigned', handler);
-      socket.off('print_materials_request_priority_changed', handler);
-    };
-  }, [user]);
+  // Requests assigned to this staff member, cached per search and page (services/queryClient.ts);
+  // this service's socket events refresh it.
+  const params = { page: currentPage, limit: 10, ...(searchTerm && { search: searchTerm }) };
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['printMaterials', 'assigned', params],
+    queryFn: () => api.get<{ requests: PrintMaterialsRequest[]; total?: number }>('/printmaterials/my_requests', { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or search loads.
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const requests = data?.requests ?? [];
+  const total = data?.total || 0;
+  // A successful refresh clears an earlier action error, as the hand-rolled fetch used to.
+  useEffect(() => { setError(''); }, [data]);
 
   const handleCompleteRequest = async () => {
     if (!selectedRequest) return;
     try {
       await api.post('/printmaterials/complete_request', { request_id: selectedRequest._id, remarks });
-      setShowCompleteModal(false); setRemarks(''); setSelectedRequest(null); fetchRequests();
+      setShowCompleteModal(false); setRemarks(''); setSelectedRequest(null); refreshService('printMaterials');
     } catch (error) { setError('Failed to complete request'); }
   };
 
@@ -113,7 +77,7 @@ function PrintMaterialsDashboard() {
       </div>
 
       <div className="filters-row">
-        <input type="text" placeholder="Search by code, form, event, requestor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+        <SearchBox placeholder="Search by code, form, event, requestor..." value={searchTerm} onSearch={setSearchTerm} />
       </div>
 
       {error && <div className="error-message">{error}</div>}

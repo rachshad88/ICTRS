@@ -1,6 +1,14 @@
-import { useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import { renderStatusBadge } from '../components/HistoryTable';
+import { useEffect, useState } from 'react';
+import { TransitionLink } from '../components/PageCurtain';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { EASE_OUT } from '../lib/motion';
+import { CountUp, useRevealDelay } from '../components/Entrance';
+
+// Public client guide at /guide, styled like the landing page: paper, ink, tickets and stamps.
+
+const GEAR_PATH = 'M77.8 -18.7 L98.8 -15.6 L98.8 15.6 L77.8 18.7 L68.2 41.8 L80.9 58.8 L58.8 80.9 L41.8 68.2 L18.7 77.8 L15.6 98.8 L-15.6 98.8 L-18.7 77.8 L-41.8 68.2 L-58.8 80.9 L-80.9 58.8 L-68.2 41.8 L-77.8 18.7 L-98.8 15.6 L-98.8 -15.6 L-77.8 -18.7 L-68.2 -41.8 L-80.9 -58.8 L-58.8 -80.9 L-41.8 -68.2 L-18.7 -77.8 L-15.6 -98.8 L15.6 -98.8 L18.7 -77.8 L41.8 -68.2 L58.8 -80.9 L80.9 -58.8 L68.2 -41.8 Z';
+const ARROW = 'M5 12h14 M13 6l6 6-6 6';
 
 const SECTIONS = [
   { id: 'sign-in', label: 'Signing in' },
@@ -19,11 +27,10 @@ const REQUEST_TYPES = [
     icon: 'M2 3h20v14H2z M8 21h8 M12 17v4',
     use: 'Repairs and troubleshooting for office computers and network.',
     fields: [
-      'Unit: Desktop, Laptop, Network or Others',
-      'Semester (optional)',
+      'Unit: Desktop, Laptop, Network or Others (say what it is)',
       'Issue: a short description, up to 100 characters',
     ],
-    note: 'Your office is filled in automatically from your account.',
+    note: 'Your office is filled in automatically from your account, and the semester from the date you submit.',
     history: 'IT History',
   },
   {
@@ -40,7 +47,7 @@ const REQUEST_TYPES = [
   },
   {
     name: 'Digital Media Request',
-    icon: 'M2 3h20v14H2z M8 21h8 M12 17v4',
+    icon: 'M3 3h18v18H3z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 21',
     use: 'Social media posts, digital posters, PowerPoint or video presentations.',
     fields: [
       'Title and form of digital media',
@@ -100,262 +107,349 @@ const FAQ = [
   },
 ];
 
-function Icon({ d, size = 20 }: { d: string; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={d} />
-    </svg>
-  );
-}
-
-const TICKER = ['Computer and network repairs', 'Event photo and video coverage', 'Social posts and presentations', 'Tarpaulins, brochures and flyers'];
-
 const STATS = [
   { value: '4', label: 'request types' },
   { value: '1', label: 'code to track it all' },
   { value: '0', label: 'page reloads needed' },
 ];
 
+function Icon({ d, size = 20 }: { d: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {d.split(' M').map((p, i) => <path key={i} d={i === 0 ? p : 'M' + p} />)}
+    </svg>
+  );
+}
+
+function Gear({ className }: { className: string }) {
+  return (
+    <svg className={className} viewBox="-110 -110 220 220" aria-hidden="true" focusable="false">
+      <path d={GEAR_PATH} />
+      <circle r="38" />
+    </svg>
+  );
+}
+
+function Stamp({ status }: { status: string }) {
+  return <span className={`gd-stamp gd-stamp-${status.toLowerCase()}`}>{status.replace(/_/g, ' ')}</span>;
+}
+
+// A numbered guide section that rises in once as it scrolls into view; its number flips over
+// like an index tab as it arrives.
+function Section({ id, n, title, tag, children }: { id: string; n: number; title: string; tag?: string; children: React.ReactNode }) {
+  return (
+    <motion.section
+      id={id}
+      className="gd-section"
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.08 }}
+      variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE_OUT } } }}
+    >
+      <h2>
+        <motion.span
+          className="gd-num"
+          aria-hidden="true"
+          style={{ transformPerspective: 400 }}
+          variants={{ hidden: { rotateY: -180 }, visible: { rotateY: 0, transition: { type: 'spring', stiffness: 160, damping: 14, delay: 0.15 } } }}
+        >
+          {n}
+        </motion.span>
+        {title}
+        {tag && <span className="gd-tag">{tag}</span>}
+      </h2>
+      {children}
+    </motion.section>
+  );
+}
+
+// The guide's entrance follows the page-turn transition: the headline lines flip down onto the
+// page like index cards on a top hinge, the copy comes into focus, and the numbers count up.
+const SILK = [0.22, 1, 0.36, 1] as const;
+const flipDown = {
+  hidden: { rotateX: -100, opacity: 0 },
+  visible: (delay: number) => ({ rotateX: 0, opacity: 1, transition: { duration: 0.95, delay, ease: SILK } }),
+};
+
 function ClientGuide() {
-  const pageRef = useRef<HTMLDivElement>(null);
-  const barRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
+  const reduce = useReducedMotion();
+  // Waits for the page turn to open before the entrance plays.
+  const d = useRevealDelay('guide');
+  const [active, setActive] = useState(SECTIONS[0].id);
 
+  // Reading progress. Function form keeps framer from handing this to a native scroll timeline.
+  const { scrollYProgress } = useScroll();
+  const progress = useTransform(scrollYProgress, (p) => Math.min(1, Math.max(0, p)));
+
+  // Smooth scrolling for the in-page links; restored when leaving the page.
   useEffect(() => {
-    const page = pageRef.current;
-    if (!page) return;
-
+    if (reduce) return;
     const html = document.documentElement;
-    const prevBehavior = html.style.scrollBehavior;
+    const prev = html.style.scrollBehavior;
     html.style.scrollBehavior = 'smooth';
+    return () => { html.style.scrollBehavior = prev; };
+  }, [reduce]);
 
-    // Scroll progress bar
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const max = html.scrollHeight - window.innerHeight;
-        const p = max > 0 ? Math.min(1, window.scrollY / max) : 0;
-        barRef.current?.style.setProperty('transform', `scaleX(${p})`);
-        page.classList.toggle('is-scrolled', window.scrollY > 8);
-      });
-    };
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-
-    // Reveal on scroll
-    const items = Array.from(page.querySelectorAll<HTMLElement>('[data-reveal]'));
-    let io: IntersectionObserver | undefined;
-    if ('IntersectionObserver' in window) {
-      page.classList.add('reveal-ready');
-      io = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((e) => {
-            if (e.isIntersecting) {
-              e.target.classList.add('is-visible');
-              io?.unobserve(e.target);
-            }
-          });
-        },
-        { threshold: 0.12, rootMargin: '0px 0px -6% 0px' },
-      );
-      items.forEach((el) => io?.observe(el));
-    }
-
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      cancelAnimationFrame(raf);
-      io?.disconnect();
-      html.style.scrollBehavior = prevBehavior;
-    };
+  // Highlight the section being read in the table of contents.
+  useEffect(() => {
+    if (!('IntersectionObserver' in window)) return;
+    // Sections crossing a band near the top of the screen; the latest one in reading order wins.
+    const inBand = new Set<string>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => (e.isIntersecting ? inBand.add(e.target.id) : inBand.delete(e.target.id)));
+        const current = [...SECTIONS].reverse().find((s) => inBand.has(s.id));
+        if (current) setActive(current.id);
+      },
+      { rootMargin: '-20% 0px -65% 0px' },
+    );
+    SECTIONS.forEach((s) => {
+      const el = document.getElementById(s.id);
+      if (el) io.observe(el);
+    });
+    return () => io.disconnect();
   }, []);
 
+  let home = '/login';
+  if (user) {
+    const primary = user.primary_role || user.role;
+    home = primary === 'CLIENT' ? '/request' : primary === 'MULTIMEDIA' ? '/multimedia-dashboard' : '/dashboard';
+  }
+  const primaryLabel = user ? 'Open ITRS' : 'Sign in';
+
   return (
-    <div className="guide-page" ref={pageRef}>
-      <div className="guide-progress" aria-hidden="true"><div className="guide-progress-bar" ref={barRef} /></div>
-      <header className="guide-topbar">
-        <div className="guide-topbar-inner">
-          <Link to="/" className="guide-brand">
-            <img src="/solano-logo.png" alt="" className="guide-brand-seal" />
-            <span>ITRS</span>
-          </Link>
-          <Link to="/" className="guide-signin">Sign in</Link>
-        </div>
+    <div className="gd" style={{ '--intro-delay': `${d}s` } as React.CSSProperties}>
+      <motion.div className="gd-progress" style={{ scaleX: progress }} aria-hidden="true" />
+
+      <header className="gd-nav">
+        <TransitionLink to="/" className="gd-brand">
+          <img src="/solano-logo.png" alt="" />
+          <span>ITRS</span>
+          <span className="gd-brand-sub">Client guide</span>
+        </TransitionLink>
+        <TransitionLink to={home} className="gd-btn gd-btn-ink gd-btn-sm">{primaryLabel}</TransitionLink>
       </header>
 
-      <main className="guide-main">
-        <div className="guide-intro" data-reveal>
-          <span className="guide-burst" aria-hidden="true">Start<br />here</span>
-          <p className="guide-eyebrow">Client guide</p>
-          <h1>Need IT or media help? <span className="guide-hl">Request it in four steps.</span></h1>
-          <p className="guide-lede">
-            ITRS is how LGU Solano offices ask the IT and multimedia teams for help: computer and network
-            repairs, event coverage, digital media, and print materials. This page walks you through
-            submitting a request and following it until it is done.
-          </p>
-          <div className="guide-hero-actions">
-            <a href="#submit" className="guide-cta-btn">See how it works</a>
-            <Link to="/" className="guide-ghost-btn">Sign in</Link>
-          </div>
-        </div>
-
-        <div className="guide-stats" data-reveal>
-          {STATS.map((s) => (
-            <div key={s.label} className="guide-stat">
-              <strong>{s.value}</strong>
-              <span>{s.label}</span>
+      {/* ----- Hero ----- */}
+      <section className="gd-hero">
+        <Gear className="gd-gear gd-gear-hero" />
+        <div className="gd-wrap gd-hero-inner">
+          <motion.p
+            className="gd-place"
+            initial={{ opacity: 0, letterSpacing: '0.6em' }}
+            animate={{ opacity: 1, letterSpacing: '0.16em' }}
+            transition={{ duration: 0.9, delay: d, ease: SILK }}
+          >
+            Client guide
+          </motion.p>
+          <h1 className="gd-hero-title" aria-label="Request it in four steps.">
+            <span className="gd-line" aria-hidden="true">
+              <motion.span style={{ transformOrigin: '50% 0%', transformPerspective: 900 }} custom={d + 0.1} variants={flipDown} initial="hidden" animate="visible">
+                Request it in
+              </motion.span>
+            </span>
+            <span className="gd-line" aria-hidden="true">
+              <motion.span style={{ transformOrigin: '50% 0%', transformPerspective: 900 }} custom={d + 0.26} variants={flipDown} initial="hidden" animate="visible">
+                <span className="gd-highlight">four steps.</span>
+              </motion.span>
+            </span>
+          </h1>
+          {/* Comes into focus, like a page settling under the reading light */}
+          <motion.div
+            className="gd-hero-copy"
+            initial={{ opacity: 0, y: 8, filter: 'blur(8px)' }}
+            animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+            transition={{ duration: 0.8, delay: d + 0.5, ease: EASE_OUT }}
+          >
+            <p>
+              ITRS is how LGU Solano offices ask the IT and multimedia teams for help: computer and network
+              repairs, event coverage, digital media, and print materials. This page walks you through
+              submitting a request and following it until it is done.
+            </p>
+            <div className="gd-hero-actions">
+              <a href="#submit" className="gd-btn gd-btn-ink">See how it works<Icon d={ARROW} size={18} /></a>
+              <TransitionLink to={home} className="gd-btn gd-btn-line">{primaryLabel}</TransitionLink>
             </div>
-          ))}
-        </div>
+          </motion.div>
 
-        <div className="guide-ticker" aria-hidden="true">
-          <div className="guide-ticker-track">
-            {[0, 1].map((n) => (
-              <div className="guide-ticker-set" key={n}>
-                {TICKER.map((t) => (
-                  <span key={t}>{t}<i /></span>
-                ))}
-              </div>
-            ))}
-          </div>
+          {/* Each stat's rule draws down, then its number counts to its value ("0 reloads" counts down) */}
+          <dl className="gd-stats">
+            {STATS.map((s, i) => {
+              const at = d + 0.7 + i * 0.12;
+              const to = Number(s.value);
+              return (
+                <motion.div
+                  key={s.label}
+                  initial={{ opacity: 0, clipPath: 'inset(0 0 100% 0)' }}
+                  animate={{ opacity: 1, clipPath: 'inset(0 0 0% 0)' }}
+                  transition={{ duration: 0.6, delay: at, ease: SILK }}
+                >
+                  <dt><CountUp from={to === 0 ? 9 : 0} to={to} delay={at} duration={1.1} /></dt>
+                  <dd>{s.label}</dd>
+                </motion.div>
+              );
+            })}
+          </dl>
         </div>
+      </section>
 
-        <nav className="guide-toc" aria-label="On this page" data-reveal>
-          <p className="guide-toc-title">On this page</p>
+      {/* ----- Body: contents + sections ----- */}
+      <div className="gd-wrap gd-body">
+        <nav className="gd-toc" aria-label="On this page">
+          <p className="gd-toc-title">On this page</p>
           <ol>
-            {SECTIONS.map((s) => (
-              <li key={s.id}><a href={`#${s.id}`}>{s.label}</a></li>
+            {SECTIONS.map((s, i) => (
+              <li key={s.id}>
+                <a href={`#${s.id}`} className={active === s.id ? 'is-active' : ''} aria-current={active === s.id ? 'location' : undefined}>
+                  <span className="gd-toc-n">{i + 1}</span>
+                  {s.label}
+                </a>
+              </li>
             ))}
           </ol>
         </nav>
 
-        <section id="sign-in" className="guide-section" data-reveal>
-          <h2><span className="guide-num">1</span>Signing in</h2>
-          <ol className="guide-steps">
-            <li>Open ITRS and enter the <strong>username</strong> and <strong>password</strong> given to you by the IT office.</li>
-            <li>Select <strong>Sign In</strong>. You will land on the IT Request page.</li>
-            <li>If you are still using the default password, the system will remind you to change it. Go to <strong>Profile</strong> and set a new one before continuing.</li>
-          </ol>
-        </section>
+        <main className="gd-main">
+          <Section id="sign-in" n={1} title="Signing in">
+            <ol className="gd-steps">
+              <li>Open ITRS and enter the <strong>username</strong> and <strong>password</strong> given to you by the IT office.</li>
+              <li>Select <strong>Sign In</strong>. You will land on the IT Request page.</li>
+              <li>If you are still using the default password, the system will remind you to change it. Go to <strong>Profile</strong> and set a new one before continuing.</li>
+            </ol>
+          </Section>
 
-        <section id="request-types" className="guide-section" data-reveal>
-          <h2><span className="guide-num">2</span>Request types</h2>
-          <p>The left sidebar lists four kinds of requests. Each one has its own form and its own history page.</p>
-          <div className="guide-cards">
-            {REQUEST_TYPES.map((t, i) => (
-              <article key={t.name} className="guide-card" data-reveal style={{ transitionDelay: `${i * 80}ms` }}>
-                <div className="guide-card-head">
-                  <span className="guide-card-icon"><Icon d={t.icon} /></span>
-                  <h3>{t.name}</h3>
+          <Section id="request-types" n={2} title="Request types">
+            <p>The left sidebar lists four kinds of requests. Each one has its own form and its own history page.</p>
+            <div className="gd-tickets">
+              {/* Dealt onto the table one after another, each landing from its own angle */}
+              {REQUEST_TYPES.map((t, i) => (
+                <motion.article
+                  key={t.name}
+                  className="gd-ticket"
+                  initial={{ opacity: 0, y: 60, x: (i % 2 ? 1 : -1) * 30, rotate: (i % 2 ? 1 : -1) * 7 }}
+                  whileInView={{ opacity: 1, y: 0, x: 0, rotate: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ type: 'spring', stiffness: 120, damping: 16, delay: (i % 2) * 0.1 }}
+                >
+                  <div className="gd-ticket-head">
+                    <Icon d={t.icon} size={16} />
+                    <h3>{t.name}</h3>
+                  </div>
+                  <div className="gd-ticket-body">
+                    <p className="gd-ticket-use">{t.use}</p>
+                    <p className="gd-ticket-label">What you will fill in</p>
+                    <ul>
+                      {t.fields.map((f) => <li key={f}>{f}</li>)}
+                    </ul>
+                    {t.note && <p className="gd-ticket-note">{t.note}</p>}
+                  </div>
+                  <div className="gd-ticket-tear" aria-hidden="true" />
+                  <p className="gd-ticket-stub">Track it under <strong>{t.history}</strong></p>
+                </motion.article>
+              ))}
+            </div>
+          </Section>
+
+          <Section id="submit" n={3} title="Submitting a request">
+            <ol className="gd-steps">
+              <li>Choose the request type from the sidebar.</li>
+              <li>Fill in the form. Fields marked with <strong>*</strong> are required.</li>
+              <li>Set the <strong>Priority</strong>. Leave it at Normal unless work has stopped or your deadline is within two days. Keeping Urgent for real emergencies means they get handled first.</li>
+              <li>Attach files if the form allows it and they will help the team.</li>
+              <li>Select <strong>Submit</strong>. A confirmation shows your <strong>request code</strong>.</li>
+            </ol>
+            <aside className="gd-sticky">
+              <p className="gd-sticky-title">Keep your code</p>
+              <p>Write down or screenshot your request code. It is the fastest way to find your request and to refer to it when you talk to the IT office.</p>
+            </aside>
+          </Section>
+
+          <Section id="track" n={4} title="Tracking your requests">
+            <p>
+              Open the matching <strong>History</strong> page in the sidebar. Each row shows the request code, its
+              status and who it is assigned to. The list refreshes on its own when your request is accepted or
+              finished, so there is no need to reload. Use the search box to find a request by code or keyword,
+              and <strong>View</strong> to see its full details and attachments.
+            </p>
+            <dl className="gd-statuses">
+              {STATUSES.map((s) => (
+                <div key={s.status}>
+                  <dt><Stamp status={s.status} /></dt>
+                  <dd>{s.meaning}</dd>
                 </div>
-                <p className="guide-card-use">{t.use}</p>
-                <p className="guide-card-label">What you will fill in</p>
-                <ul>
-                  {t.fields.map((f) => <li key={f}>{f}</li>)}
-                </ul>
-                {t.note && <p className="guide-card-note">{t.note}</p>}
-                <p className="guide-card-foot">Track it under <strong>{t.history}</strong>.</p>
-              </article>
-            ))}
-          </div>
-        </section>
+              ))}
+            </dl>
+          </Section>
 
-        <section id="submit" className="guide-section" data-reveal>
-          <h2><span className="guide-num">3</span>Submitting a request</h2>
-          <ol className="guide-steps">
-            <li>Choose the request type from the sidebar.</li>
-            <li>Fill in the form. Fields marked with <strong>*</strong> are required.</li>
-            <li>Set the <strong>Priority</strong>. Leave it at Normal unless work has stopped or your deadline is within two days. Keeping Urgent for real emergencies means they get handled first.</li>
-            <li>Attach files if the form allows it and they will help the team.</li>
-            <li>Select <strong>Submit</strong>. A confirmation shows your <strong>request code</strong>.</li>
-          </ol>
-          <div className="guide-callout">
-            <Icon d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z M12 16v-4 M12 8h.01" size={18} />
-            <p>Write down or screenshot your request code. It is the fastest way to find your request and to refer to it when you talk to the IT office.</p>
-          </div>
-        </section>
+          <Section id="notes" n={5} title="Adding details later" tag="Bonus">
+            <p>
+              Forgot something, or did something change? While a request is Pending, Unassigned or In Progress, open it
+              from its History page (<strong>Details / Add note</strong> on IT History, <strong>View / Add note</strong> on the
+              others) and write a note of up to 500 characters. The assigned staff member is notified right away, and your
+              notes stay attached to the request.
+            </p>
+            <p>Notes cannot be added after a request is Done, Declined or Cancelled.</p>
+          </Section>
 
-        <section id="track" className="guide-section" data-reveal>
-          <h2><span className="guide-num">4</span>Tracking your requests</h2>
-          <p>
-            Open the matching <strong>History</strong> page in the sidebar. Each row shows the request code, its
-            status and who it is assigned to. The list refreshes on its own when your request is accepted or
-            finished, so there is no need to reload. Use the search box to find a request by code or keyword,
-            and <strong>View</strong> to see its full details and attachments.
-          </p>
-          <div className="guide-table-wrap">
-            <table className="guide-table">
-              <thead>
-                <tr><th>Status</th><th>What it means</th></tr>
-              </thead>
-              <tbody>
-                {STATUSES.map((s) => (
-                  <tr key={s.status}>
-                    <td>{renderStatusBadge(s.status)}</td>
-                    <td>{s.meaning}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section id="notes" className="guide-section" data-reveal>
-          <h2><span className="guide-num">5</span>Adding details later<span className="guide-tag">Bonus</span></h2>
-          <p>
-            Forgot something, or did something change? While a request is Pending, Unassigned or In Progress, open it
-            from its History page (<strong>Details / Add note</strong> on IT History, <strong>View / Add note</strong> on the
-            others) and write a note of up to 500 characters. The assigned staff member is notified right away, and your
-            notes stay attached to the request.
-          </p>
-          <p>Notes cannot be added after a request is Done, Declined or Cancelled.</p>
-        </section>
-
-        <section id="cancel-rate" className="guide-section" data-reveal>
-          <h2><span className="guide-num">6</span>Cancelling and rating</h2>
-          <div className="guide-two">
-            <div>
-              <h3>Cancel</h3>
-              <p>A <strong>Cancel</strong> button appears on a request while it is Pending or Unassigned. Confirm when asked. After someone is assigned, the request can no longer be cancelled from ITRS.</p>
+          <Section id="cancel-rate" n={6} title="Cancelling and rating">
+            <div className="gd-two">
+              <div>
+                <h3>Cancel</h3>
+                <p>A <strong>Cancel</strong> button appears on a request while it is Pending or Unassigned. Confirm when asked. After someone is assigned, the request can no longer be cancelled from ITRS.</p>
+              </div>
+              <div>
+                <h3>Rate</h3>
+                <p>When a request is Done, select <strong>Rate</strong> to open the client satisfaction feedback form in a new tab. Your rating helps the team improve its service.</p>
+              </div>
             </div>
-            <div>
-              <h3>Rate</h3>
-              <p>When a request is Done, select <strong>Rate</strong> to open the client satisfaction feedback form in a new tab. Your rating helps the team improve its service.</p>
+          </Section>
+
+          <Section id="account" n={7} title="Your account">
+            <p>Open <strong>Profile</strong> at the bottom of the sidebar to:</p>
+            <ul className="gd-list">
+              <li>Update your first, middle and last name.</li>
+              <li>Change your password (at least 8 characters). You will need your current password.</li>
+            </ul>
+            <p>The sidebar also has <strong>Logout</strong> to end your session on shared computers.</p>
+          </Section>
+
+          <Section id="faq" n={8} title="Common questions">
+            <div className="gd-faq">
+              {FAQ.map((item) => (
+                <details key={item.q}>
+                  <summary>{item.q}</summary>
+                  <p>{item.a}</p>
+                </details>
+              ))}
             </div>
-          </div>
-        </section>
+          </Section>
+        </main>
+      </div>
 
-        <section id="account" className="guide-section" data-reveal>
-          <h2><span className="guide-num">7</span>Your account</h2>
-          <p>Open <strong>Profile</strong> at the bottom of the sidebar to:</p>
-          <ul className="guide-list">
-            <li>Update your first, middle and last name.</li>
-            <li>Change your password (at least 8 characters). You will need your current password.</li>
-          </ul>
-          <p>The sidebar also has a light and dark mode switch, and <strong>Logout</strong> to end your session on shared computers.</p>
-        </section>
-
-        <section id="faq" className="guide-section" data-reveal>
-          <h2><span className="guide-num">8</span>Common questions</h2>
-          <div className="guide-faq">
-            {FAQ.map((item) => (
-              <details key={item.q}>
-                <summary>{item.q}</summary>
-                <p>{item.a}</p>
-              </details>
-            ))}
+      {/* ----- Finale ----- */}
+      <footer className="gd-finale">
+        <Gear className="gd-gear gd-gear-finale" />
+        <div className="gd-wrap gd-finale-inner">
+          <h2 className="gd-finale-title">
+            Ready to submit a <span className="gd-finale-mark">request?</span>
+          </h2>
+          <div className="gd-finale-row">
+            <p>
+              No account yet? Visit the Information and Technology Section (Mayor&apos;s Office), 2nd floor of the
+              Municipal Hall.
+            </p>
+            <TransitionLink to={home} className="gd-btn gd-btn-yellow">{primaryLabel}<Icon d={ARROW} size={18} /></TransitionLink>
           </div>
-        </section>
-
-        <div className="guide-cta" data-reveal>
-          <div>
-            <span className="guide-cta-kicker">Your next step</span>
-            <p>Ready to submit a request?</p>
+          <div className="gd-credits">
+            <TransitionLink to="/" className="gd-credits-brand">
+              <img src="/solano-logo.png" alt="Seal of the Municipality of Solano" />
+              ITRS, Municipality of Solano, Nueva Vizcaya
+            </TransitionLink>
+            <span>&copy; 2026 Dave Shadrach B. Lannu</span>
           </div>
-          <Link to="/" className="guide-cta-btn">Go to sign in</Link>
         </div>
-      </main>
-
-      <footer className="guide-footer">2026 © Dave Shadrach B. Lannu</footer>
+      </footer>
     </div>
   );
 }

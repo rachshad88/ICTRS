@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { initSocket, getSocket } from '../services/socket';
+import { refreshService } from '../services/queryClient';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, RequestNote } from '../components/RequestNotes';
 import RequestMobileCard from '../components/RequestMobileCard';
 import { RequestFlags, priorityLabel } from '../components/Priority';
+import SearchBox from '../components/SearchBox';
 
 interface DigitalMediaRequest {
   _id: string;
@@ -32,73 +34,35 @@ interface DigitalMediaRequest {
 
 function DigitalMediaRequestsDashboard() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<DigitalMediaRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<DigitalMediaRequest | null>(null);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
-
-  const fetchRequests = useCallback(async (search?: string) => {
-    try {
-      const params: Record<string, string | number> = {};
-      if (search) params.search = search;
-      params.page = currentPage;
-      params.limit = 10;
-      const response = await api.get('/digitalmedia/my_requests', { params });
-      setRequests(response.data.requests);
-      setTotal(response.data.total || 0);
-      setError('');
-    } catch (error) {
-      console.error('Failed to fetch requests:', error);
-    } finally { setLoading(false); }
-  }, [currentPage]);
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
-  const searchTermRef = useRef(searchTerm);
-  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
-
-  useEffect(() => {
-    if (user) {
-      initSocket();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      fetchRequests(searchTerm);
-    }
-  }, [user, searchTerm, fetchRequests]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    const handler = () => fetchRequests(searchTermRef.current);
-    socket.on('digital_media_request_assigned', handler);
-    socket.on('digital_media_request_completed', handler);
-    socket.on('digital_media_request_cancelled', handler);
-    socket.on('digital_media_request_note_added', handler);
-    socket.on('digital_media_request_reassigned', handler);
-    socket.on('digital_media_request_priority_changed', handler);
-    return () => {
-      socket.off('digital_media_request_assigned', handler);
-      socket.off('digital_media_request_completed', handler);
-      socket.off('digital_media_request_cancelled', handler);
-      socket.off('digital_media_request_note_added', handler);
-      socket.off('digital_media_request_reassigned', handler);
-      socket.off('digital_media_request_priority_changed', handler);
-    };
-  }, [user]);
+  // Requests assigned to this staff member, cached per search and page (services/queryClient.ts);
+  // this service's socket events refresh it.
+  const params = { page: currentPage, limit: 10, ...(searchTerm && { search: searchTerm }) };
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['digitalMedia', 'assigned', params],
+    queryFn: () => api.get<{ requests: DigitalMediaRequest[]; total?: number }>('/digitalmedia/my_requests', { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or search loads.
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const requests = data?.requests ?? [];
+  const total = data?.total || 0;
+  // A successful refresh clears an earlier action error, as the hand-rolled fetch used to.
+  useEffect(() => { setError(''); }, [data]);
 
   const handleCompleteRequest = async () => {
     if (!selectedRequest) return;
     try {
       await api.post('/digitalmedia/complete_request', { request_id: selectedRequest._id, remarks });
-      setShowCompleteModal(false); setRemarks(''); setSelectedRequest(null); fetchRequests();
+      setShowCompleteModal(false); setRemarks(''); setSelectedRequest(null); refreshService('digitalMedia');
     } catch (error) { setError('Failed to complete request'); }
   };
 
@@ -113,7 +77,7 @@ function DigitalMediaRequestsDashboard() {
       </div>
 
       <div className="filters-row">
-        <input type="text" placeholder="Search by code, form, event, requestor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+        <SearchBox placeholder="Search by code, form, event, requestor..." value={searchTerm} onSearch={setSearchTerm} />
       </div>
 
       {error && <div className="error-message">{error}</div>}

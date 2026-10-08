@@ -91,11 +91,18 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  transition: var(--tr-press), var(--tr-colors);
 }
 
 .back-btn:hover {
   background: var(--border-light);
+}
+
+.back-btn:active,
+.yt-btn-files:active,
+.yt-btn-cancel:active,
+.yt-btn-done:active {
+  transform: scale(0.96);
 }
 
 .back-btn svg {
@@ -123,7 +130,7 @@
   font-weight: 700;
   margin-bottom: 24px;
   box-shadow: 0 8px 24px rgba(44, 111, 187, 0.25);
-  animation: avatarPop 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: avatarPop 300ms var(--ease-out);
   overflow: hidden;
 }
 
@@ -153,7 +160,7 @@
   font-weight: 700;
   margin-bottom: 16px;
   box-shadow: 0 8px 32px rgba(44, 111, 187, 0.3);
-  animation: avatarPop 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: avatarPop 300ms var(--ease-out);
   overflow: hidden;
   position: relative;
 }
@@ -224,7 +231,7 @@
 @keyframes avatarPop {
   0% {
     opacity: 0;
-    transform: scale(0.5);
+    transform: scale(0.9);
   }
   100% {
     opacity: 1;
@@ -238,12 +245,12 @@
   align-items: center;
   padding: 14px 0;
   border-bottom: 1px solid #f0f0f5;
-  animation: slideInRight 0.4s ease backwards;
+  animation: slideInRight 300ms var(--ease-out) backwards;
 }
 
-.info-row:nth-child(1) { animation-delay: 0.1s; }
-.info-row:nth-child(2) { animation-delay: 0.15s; }
-.info-row:nth-child(3) { animation-delay: 0.2s; }
+.info-row:nth-child(1) { animation-delay: 0.04s; }
+.info-row:nth-child(2) { animation-delay: 0.08s; }
+.info-row:nth-child(3) { animation-delay: 0.12s; }
 
 @keyframes slideInRight {
   from {
@@ -303,14 +310,16 @@
   background: var(--bg-card);
   border-radius: 12px;
   overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 200ms var(--ease-out), var(--tr-shadow);
   border: 1px solid transparent;
 }
 
-.yt-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-medium);
-  border-color: var(--border-light);
+@media (hover: hover) and (pointer: fine) {
+  .yt-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+    border-color: var(--border-light);
+  }
 }
 
 .yt-card-header {
@@ -488,7 +497,7 @@ yt-channel-avatar.pm { background: #047857; }
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s, border-color 0.15s;
+  transition: var(--tr-press), var(--tr-colors);
 }
 
 .yt-btn-files:hover {
@@ -525,7 +534,7 @@ yt-channel-avatar.pm { background: #047857; }
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s, color 0.15s;
+  transition: var(--tr-press), var(--tr-colors);
 }
 
 .yt-btn-cancel:hover {
@@ -546,12 +555,14 @@ yt-channel-avatar.pm { background: #047857; }
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: var(--tr-press), var(--tr-shadow);
 }
 
-.yt-btn-done:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+@media (hover: hover) and (pointer: fine) {
+  .yt-btn-done:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+  }
 }
 
 /* ========== YOUTUBE CARDS (legacy) ========== */
@@ -561,19 +572,21 @@ yt-channel-avatar.pm { background: #047857; }
   padding: 20px 24px;
   box-shadow: var(--shadow-soft);
   border: 1px solid var(--border-light);
-  transition: all var(--transition-normal);
-  animation: fadeInUp 0.4s ease backwards;
+  transition: transform 200ms var(--ease-out), var(--tr-shadow);
+  animation: fadeInUp 250ms var(--ease-out) backwards;
 }
 
-.youtube-card:nth-child(1) { animation-delay: 0.05s; }
-.youtube-card:nth-child(2) { animation-delay: 0.1s; }
-.youtube-card:nth-child(3) { animation-delay: 0.15s; }
-.youtube-card:nth-child(4) { animation-delay: 0.2s; }
-.youtube-card:nth-child(5) { animation-delay: 0.25s; }
+.youtube-card:nth-child(1) { animation-delay: 0.04s; }
+.youtube-card:nth-child(2) { animation-delay: 0.08s; }
+.youtube-card:nth-child(3) { animation-delay: 0.12s; }
+.youtube-card:nth-child(4) { animation-delay: 0.16s; }
+.youtube-card:nth-child(5) { animation-delay: 0.2s; }
 
-.youtube-card:hover {
-  box-shadow: var(--shadow-medium);
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .youtube-card:hover {
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-2px);
+  }
 }
 
 .youtube-card-header {
@@ -930,4 +943,22 @@ yt-channel-avatar.pm { background: #047857; }
 
 [data-theme='light'] .summary-card {
   background: var(--bg-secondary);
+}
+
+/* ========== SIGNATORIES ========== */
+.signatories-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+}
+
+.signatories-heading:not(:first-child) {
+  margin-top: 24px;
+}
+
+.signatories-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 16px 0 0;
 }

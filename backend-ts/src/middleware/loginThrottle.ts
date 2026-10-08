@@ -43,6 +43,24 @@ export function recordLoginSuccess(username: string, ip: string): void {
   failures.delete(accountKey(username, ip));
 }
 
+// Self sign-up: at most MAX_SIGNUPS_PER_IP new accounts per IP per hour, so one machine cannot
+// flood the user list. Counts successful sign-ups only.
+const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
+const MAX_SIGNUPS_PER_IP = 10;
+const signupKey = (ip: string) => `signup:${ip}`;
+
+export function signupRetryAfter(ip: string, now = Date.now()): number {
+  const c = current(signupKey(ip), now);
+  if (!c || c.count < MAX_SIGNUPS_PER_IP) return 0;
+  return Math.ceil((c.resetAt - now) / 1000);
+}
+
+export function recordSignup(ip: string, now = Date.now()): void {
+  const c = current(signupKey(ip), now);
+  if (c) c.count++;
+  else failures.set(signupKey(ip), { count: 1, resetAt: now + SIGNUP_WINDOW_MS });
+}
+
 setInterval(() => {
   const now = Date.now();
   for (const [key, c] of failures) if (c.resetAt <= now) failures.delete(key);

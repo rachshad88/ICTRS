@@ -21,3 +21,8 @@ export function isValidDay(value: unknown): value is string {
 export function isValidTime(value: unknown): value is string {
   return typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 }
+
+// The semester a date falls in (app timezone): January-June is the 1st, July-December the 2nd.
+export function semesterFor(value: Date): string {
+  return value.getMonth() < 6 ? '1st Semester (January-June)' : '2nd Semester (July-December)';
+}

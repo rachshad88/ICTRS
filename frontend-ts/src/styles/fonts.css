@@ -1,0 +1,68 @@
+/* Self-hosted faces for the public pages (landing, guide, login) and their transitions.
+   Headings: Plus Jakarta Sans. Body: Inter. Accents: JetBrains Mono and Caveat.
+   Geist is the signed-in app's heading face (--font-display in tokens.css).
+   Files live in public/fonts; every family is SIL Open Font License. */
+
+:root {
+  --public-display: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --public-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-latin-var.woff2') format('woff2-variations'),
+    url('/fonts/plus-jakarta-sans-latin-var.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin-var.woff2') format('woff2-variations'),
+    url('/fonts/inter-latin-var.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Geist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/geist-latin-var.woff2') format('woff2-variations'),
+    url('/fonts/geist-latin-var.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-700-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Caveat';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/caveat-latin-600-normal.woff2') format('woff2');
+}
+
+/* Form controls don't inherit fonts by default; keep them on the public body face. */
+.lp button,
+.lp input,
+.gd button,
+.gd input {
+  font-family: inherit;
+}

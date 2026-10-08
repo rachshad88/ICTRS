@@ -122,7 +122,7 @@ function MultimediaRequest() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="request-form">
+        <form onSubmit={handleSubmit} className="request-form" data-ticket="Multimedia">
           <div className="form-group">
             <label>Event Title *</label>
             <input
@@ -227,6 +227,8 @@ function MultimediaRequest() {
             {file && <p className="file-selected">✓ {file.name}</p>}
             <small>Max 10MB. Allowed: PDF, images, Word documents</small>
           </div>
+          
+          <div className="ticket-tear" aria-hidden="true" />
           
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit Request'}

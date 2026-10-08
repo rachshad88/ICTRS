@@ -14,6 +14,12 @@ if [ ! -f /var/www/itrs/index.html ]; then
   exit 1
 fi
 
+if ! ls /etc/nginx/modules-enabled/*brotli* >/dev/null 2>&1; then
+  echo "The nginx Brotli modules are not installed. Install them first:" >&2
+  echo "  sudo apt install libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static" >&2
+  exit 1
+fi
+
 cp "$SITE" "$BACKUP"
 cp "$REPO/deploy/nginx-itrs.conf" "$SITE"
 

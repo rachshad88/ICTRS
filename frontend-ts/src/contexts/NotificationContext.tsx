@@ -10,27 +10,62 @@ interface UnassignedCounts {
   printMaterials: number;
 }
 
+type Level = 'success' | 'info' | 'warning' | 'error';
+
+// A short-lived toast.
 export interface LiveNotification {
   id: string;
-  type: 'success' | 'info' | 'warning' | 'error';
+  type: Level;
   title: string;
   message: string;
+  // The saved notification it came from, so clicking the toast can open and mark it.
+  source?: InboxNotification;
+}
+
+// A saved notification from the server, shown in the bell panel.
+export interface InboxNotification {
+  id: string;
+  level: Level;
+  title: string;
+  message: string;
+  link: string | null;
+  request_code: string | null;
+  // Present on "request completed" notifications: enough to open the rating form directly.
+  rate?: { request_id: string; type: string } | null;
+  read: boolean;
+  created_at: string;
 }
 
 interface NotificationContextType {
   counts: UnassignedCounts;
   notifications: LiveNotification[];
+  dismissToast: (id: string) => void;
+  inbox: InboxNotification[];
+  unread: number;
+  markRead: (id: string) => void;
+  markAllRead: () => void;
+  clearOne: (id: string) => void;
+  clearAll: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType>({
   counts: { total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 },
-  notifications: []
+  notifications: [],
+  dismissToast: () => {},
+  inbox: [],
+  unread: 0,
+  markRead: () => {},
+  markAllRead: () => {},
+  clearOne: () => {},
+  clearAll: () => {},
 });
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [counts, setCounts] = useState<UnassignedCounts>({ total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 });
   const [notifications, setNotifications] = useState<LiveNotification[]>([]);
+  const [inbox, setInbox] = useState<InboxNotification[]>([]);
+  const [unread, setUnread] = useState(0);
 
   const fetchCounts = useCallback(async () => {
     if (!user) return;
@@ -42,6 +77,49 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  const fetchInbox = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await api.get('/notifications');
+      setInbox(res.data.items);
+      setUnread(res.data.unread);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  }, [user]);
+
+  const markRead = useCallback((id: string) => {
+    const target = inbox.find((n) => n.id === id);
+    if (!target || target.read) return;
+    setInbox((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setUnread((u) => Math.max(0, u - 1));
+    api.post(`/notifications/${id}/read`).catch((err) => console.error('Failed to mark notification read:', err));
+  }, [inbox]);
+
+  const markAllRead = useCallback(() => {
+    setInbox((prev) => prev.map((n) => (n.read ? n : { ...n, read: true })));
+    setUnread(0);
+    api.post('/notifications/read_all').catch((err) => console.error('Failed to mark notifications read:', err));
+  }, []);
+
+  const clearOne = useCallback((id: string) => {
+    const target = inbox.find((n) => n.id === id);
+    if (!target) return;
+    setInbox((prev) => prev.filter((n) => n.id !== id));
+    if (!target.read) setUnread((u) => Math.max(0, u - 1));
+    api.post(`/notifications/${id}/clear`).catch((err) => console.error('Failed to clear notification:', err));
+  }, [inbox]);
+
+  const clearAll = useCallback(() => {
+    setInbox([]);
+    setUnread(0);
+    api.post('/notifications/clear_all').catch((err) => console.error('Failed to clear notifications:', err));
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setNotifications((current) => current.filter((item) => item.id !== id));
+  }, []);
+
   const pushNotification = useCallback((notification: Omit<LiveNotification, 'id'>) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     setNotifications((prev) => [...prev, { id, ...notification }]);
@@ -51,85 +129,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }, 5500);
   }, []);
 
-  const userId = user?.user_id;
-
-  const formatEventNotification = useCallback((event: string, payload: any): Omit<LiveNotification, 'id'> | null => {
-    const requestLabel = typeof payload?.request_code === 'string' ? payload.request_code : 'A request';
-
-    if (event === 'request_update') {
-      const status = payload?.event;
-      if (status === 'created') {
-        // The client who just submitted it already sees a confirmation on the form.
-        if (payload?.created_by === userId) return null;
-        return { title: 'New request', message: `${requestLabel} has been created.`, type: 'info' };
-      }
-      // The owner and the technician each get their own targeted event for these.
-      if (status === 'accepted' || status === 'finished') {
-        return null;
-      }
-      if (status === 'cancelled') {
-        return { title: 'Request cancelled', message: `${requestLabel} was cancelled.`, type: 'warning' };
-      }
-      if (status === 'declined') {
-        return { title: 'Request declined', message: `${requestLabel} was declined.`, type: 'warning' };
-      }
-      // These broadcasts only refresh lists; the people affected get their own targeted toast.
-      if (status === 'note_added' || status === 'reassigned' || status === 'priority_changed') {
-        return null;
-      }
-      return { title: 'Request updated', message: `${requestLabel} has new details.`, type: 'info' };
-    }
-
-    if (event === 'request_assigned_to_you') {
-      return { title: 'Assigned to you', message: `${requestLabel} was assigned to you.`, type: 'success' };
-    }
-
-    if (event === 'request_reassigned_from_you' || event.endsWith('_request_reassigned')) {
-      return { title: 'Request reassigned', message: `${requestLabel} is now handled by a different staff member.`, type: 'info' };
-    }
-
-    if (event.endsWith('_request_priority_changed')) {
-      const level = typeof payload?.priority === 'string' ? payload.priority.toLowerCase() : 'updated';
-      return { title: 'Priority changed', message: `${requestLabel} is now ${level} priority.`, type: payload?.priority === 'URGENT' ? 'warning' : 'info' };
-    }
-
-    if (event === 'my_request_accepted') {
-      return { title: 'Request approved', message: `${requestLabel} has been accepted.`, type: 'success' };
-    }
-
-    if (event === 'my_request_finished') {
-      return { title: 'Request completed', message: `${requestLabel} is complete.`, type: 'success' };
-    }
-
-    if (event === 'my_request_declined' || event.endsWith('_request_declined')) {
-      const reason = typeof payload?.reason === 'string' ? ` Reason: ${payload.reason}` : '';
-      return { title: 'Request declined', message: `${requestLabel} was declined.${reason}`, type: 'warning' };
-    }
-
-    if (event === 'request_note_added' || event.endsWith('_request_note_added')) {
-      return { title: 'New note', message: `The client added a note to ${requestLabel}.`, type: 'info' };
-    }
-
-    if (event.includes('_created')) {
-      return { title: 'New request', message: `${requestLabel} was created.`, type: 'info' };
-    }
-    if (event.includes('_assigned')) {
-      return { title: 'Request assigned', message: `${requestLabel} has been assigned.`, type: 'success' };
-    }
-    if (event.includes('_completed')) {
-      return { title: 'Request completed', message: `${requestLabel} is complete.`, type: 'success' };
-    }
-    if (event.includes('_cancelled')) {
-      return { title: 'Request cancelled', message: `${requestLabel} was cancelled.`, type: 'warning' };
-    }
-
-    return null;
-  }, [userId]);
 
   useEffect(() => {
     if (!user) return;
 
     fetchCounts();
+    fetchInbox();
 
     // This provider's effect runs before AuthProvider's, so create the socket here if it doesn't exist yet
     // (initSocket returns the existing one otherwise).
@@ -157,30 +162,45 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       'request_note_added'
     ];
 
-    const handlers: Record<string, (data: any) => void> = {};
-
+    // These only keep the sidebar counts fresh; what the user is told arrives as 'notification:new'.
     for (const event of events) {
-      const handler = (data: any) => {
-        fetchCounts();
-        const notification = formatEventNotification(event, data);
-        if (notification) pushNotification(notification);
-      };
-      handlers[event] = handler;
-      socket.on(event, handler);
+      socket.on(event, fetchCounts);
     }
 
-    socket.on('connect', fetchCounts);
+    const onNotification = (n: InboxNotification) => {
+      setInbox((prev) => (prev.some((p) => p.id === n.id) ? prev : [n, ...prev].slice(0, 50)));
+      setUnread((u) => u + 1);
+      pushNotification({ title: n.title, message: n.message, type: n.level, source: n });
+    };
+    socket.on('notification:new', onNotification);
+
+    // Catch up on anything sent while the connection was down.
+    const onConnect = () => {
+      fetchCounts();
+      fetchInbox();
+    };
+    socket.on('connect', onConnect);
 
     return () => {
       for (const event of events) {
-        socket.off(event, handlers[event]);
+        socket.off(event, fetchCounts);
       }
-      socket.off('connect', fetchCounts);
+      socket.off('notification:new', onNotification);
+      socket.off('connect', onConnect);
     };
-  }, [fetchCounts, formatEventNotification, pushNotification, user]);
+  }, [fetchCounts, fetchInbox, pushNotification, user]);
+
+  // Nothing from the previous account should linger after logout or a switch.
+  useEffect(() => {
+    if (!user) {
+      setInbox([]);
+      setUnread(0);
+      setNotifications([]);
+    }
+  }, [user]);
 
   return (
-    <NotificationContext.Provider value={{ counts, notifications }}>
+    <NotificationContext.Provider value={{ counts, notifications, dismissToast, inbox, unread, markRead, markAllRead, clearOne, clearAll }}>
       {children}
     </NotificationContext.Provider>
   );

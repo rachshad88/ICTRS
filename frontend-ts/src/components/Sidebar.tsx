@@ -1,21 +1,23 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { BellIcon } from './NotificationPanel';
+import { useLogoutTransition } from './LogoutTransition';
 
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  onOpenNotifications: () => void;
+  notificationsOpen: boolean;
 }
 
-function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const { user, logout } = useAuth();
+function Sidebar({ collapsed, onToggle, onOpenNotifications, notificationsOpen }: SidebarProps) {
+  const { user } = useAuth();
+  const { signOut } = useLogoutTransition();
   const location = useLocation();
-  const navigate = useNavigate();
 
-  const { counts } = useNotification();
-  const { theme, toggleTheme } = useTheme();
+  const { counts, unread } = useNotification();
   const isOpen = !collapsed;
   const shouldReduceMotion = useReducedMotion();
 
@@ -60,6 +62,7 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
       { to: '/users', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', label: 'Users' },
       { to: '/all-requests', icon: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01', label: 'All Requests' },
       { to: '/audit-logs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H9H8', label: 'Audit Log' },
+      { to: '/signatories', icon: 'M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z', label: 'Signatories' },
       { section: '' },
       { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
     ],
@@ -77,10 +80,6 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
       { to: '/print-materials-management', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Mgmt' },
       { to: '/all-requests', icon: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01', label: 'All Requests' },
       { section: '' },
-      { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
-    ],
-    PROGRAMMER: [
-      { section: 'Work' },
       { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
     ],
   };
@@ -148,6 +147,18 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </nav>
 
         <div className="sidebar-footer">
+          <button
+            className={`sidebar-item sidebar-notif-btn ${notificationsOpen ? 'open' : ''}`}
+            onClick={onOpenNotifications}
+            title="Notifications"
+            aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
+            aria-expanded={notificationsOpen}
+          >
+            <BellIcon />
+            <span className="sidebar-label">Notifications</span>
+            {unread > 0 && <span className="sidebar-badge">{unread > 99 ? '99+' : unread}</span>}
+          </button>
+
           <Link to="/profile" className={`sidebar-item ${location.pathname === '/profile' ? 'active' : ''}`} aria-current={location.pathname === '/profile' ? 'page' : undefined}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -156,27 +167,6 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <span className="sidebar-label">Profile</span>
           </Link>
 
-          <button className="sidebar-item sidebar-theme-btn" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`theme-icon ${theme === 'light' ? 'flipped' : ''}`}>
-              {theme === 'dark' ? (
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              ) : (
-                <>
-                  <circle cx="12" cy="12" r="5" />
-                  <line x1="12" y1="1" x2="12" y2="3" />
-                  <line x1="12" y1="21" x2="12" y2="23" />
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                  <line x1="1" y1="12" x2="3" y2="12" />
-                  <line x1="21" y1="12" x2="23" y2="12" />
-                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-                </>
-              )}
-            </svg>
-            {!collapsed && <span className="sidebar-label">{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>}
-          </button>
-
           <button className="sidebar-item sidebar-collapse-btn" onClick={onToggle} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`collapse-icon ${collapsed ? 'flipped' : ''}`}>
               <polyline points="15 18 9 12 15 6" />
@@ -184,7 +174,7 @@ function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {!collapsed && <span className="sidebar-label">Hide sidebar</span>}
           </button>
 
-          <button className="sidebar-item sidebar-logout-btn" onClick={() => { logout(); navigate('/'); }} title="Logout">
+          <button className="sidebar-item sidebar-logout-btn" onClick={signOut} title="Logout">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
               <polyline points="16 17 21 12 16 7" />

@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { ObjectId } from 'mongodb';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
-import { getMultimediaRequestsCollection, getDigitalMediaRequestsCollection, getPrintMaterialsRequestsCollection, getSoftwareRequestsCollection, isValidObjectId } from '../config/database';
+import { getMultimediaRequestsCollection, getDigitalMediaRequestsCollection, getPrintMaterialsRequestsCollection, isValidObjectId } from '../config/database';
 
 const router = Router();
 
@@ -209,61 +209,6 @@ router.get('/printmaterials/:requestId/:filename', isAuthenticated, async (req: 
     fileStream.pipe(res);
   } catch (error) {
     console.error('Error serving print materials file:', error);
-    res.status(500).json({ error: 'Failed to retrieve file' });
-  }
-});
-
-router.get('/software/:requestId/:filename', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const { requestId, filename } = req.params;
-    const roles = req.user!.roles;
-
-    if (!roles.includes('PROGRAMMER') && !roles.includes('IT_ADMIN') && !roles.includes('ADMIN') && !roles.includes('CLIENT')) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    if (!isValidObjectId(requestId)) {
-      return res.status(400).json({ error: 'Invalid request ID' });
-    }
-
-    const collection = getSoftwareRequestsCollection();
-    const request = await collection.findOne({ _id: new ObjectId(requestId) });
-    if (!request) {
-      return res.status(404).json({ error: 'Request not found' });
-    }
-
-    const isOwner = request.created_by?.toString() === req.user!.user_id;
-    const isAssignee = request.assigned_to?.toString() === req.user!.user_id;
-    const isItAdmin = roles.includes('IT_ADMIN') || roles.includes('ADMIN');
-
-    if (!isOwner && !isAssignee && !isItAdmin) {
-      return res.status(403).json({ error: 'You do not have access to this file' });
-    }
-
-    const ext = path.extname(filename).toLowerCase();
-    if (!allowedExtensions.includes(ext)) {
-      return res.status(400).json({ error: 'File type not allowed' });
-    }
-
-    const safeFilename = path.basename(filename);
-    const filePath = path.join(__dirname, `../../uploads/software/${requestId}/${safeFilename}`);
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-
-    const mimeType = getMimeType(ext);
-    const fileName = Buffer.from(safeFilename, 'latin1').toString('utf8');
-
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Content-Disposition', isInlineFile(ext)
-      ? `inline; filename="${fileName}"` 
-      : `attachment; filename="${fileName}"`);
-
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-  } catch (error) {
-    console.error('Error serving software file:', error);
     res.status(500).json({ error: 'Failed to retrieve file' });
   }
 });

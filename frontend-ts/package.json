@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "dependencies": {
+    "@tanstack/react-query": "^5.104.1",
     "axios": "^1.13.5",
     "docx": "^9.7.1",
     "framer-motion": "^13.1.0",

@@ -1,0 +1,364 @@
+/* ========== NOTIFICATIONS ========== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Toasts are buttons now (they open the notification), so undo button defaults. */
+button.toast-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: var(--tr-press);
+}
+
+button.toast-item:active {
+  transform: scale(0.98);
+}
+
+/* Sidebar trigger */
+.sidebar-notif-btn.open {
+  background: var(--sidebar-hover);
+}
+
+/* With labels hidden the count sits on the icon's corner instead of trailing it. */
+.sidebar.collapsed .sidebar-notif-btn .sidebar-badge {
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  margin: 0;
+  padding: 1px 4px;
+  min-width: 16px;
+  font-size: 9px;
+}
+
+/* Phones use the bell in the top bar. */
+@media (max-width: 768px) {
+  .sidebar-notif-btn {
+    display: none;
+  }
+}
+
+/* Mobile top bar trigger */
+.mobile-topbar-bell {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border-light);
+  background: var(--glass-bg);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background-color 150ms ease, var(--tr-press);
+}
+
+.mobile-topbar-bell:active {
+  background: var(--sidebar-hover);
+  transform: scale(0.94);
+}
+
+.mobile-topbar-bell:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
+.notif-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--danger-red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--bg-primary);
+}
+
+/* Panel */
+.notif-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1499;
+  background: transparent;
+}
+
+.notif-backdrop.dim {
+  background: rgba(5, 8, 14, 0.45);
+}
+
+.notif-panel {
+  position: fixed;
+  z-index: 1500;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--elevation-3);
+  overflow: hidden;
+  outline: none;
+}
+
+/* Desktop: opens beside the sidebar footer and grows out of the bell. */
+.notif-panel--popover {
+  left: calc(var(--sidebar-w) + 12px);
+  bottom: 16px;
+  width: 380px;
+  max-height: 560px;
+  max-height: min(560px, calc(100vh - 32px));
+  border-radius: 16px;
+  transform-origin: bottom left;
+}
+
+.notif-panel--popover.sidebar-collapsed {
+  left: 68px;
+}
+
+/* Phones: a bottom sheet. */
+.notif-panel--sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 80vh;
+  max-height: 80dvh;
+  border-radius: 20px 20px 0 0;
+  border-bottom: none;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.notif-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.notif-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.notif-mark-all {
+  border: none;
+  background: none;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--purple);
+  cursor: pointer;
+  transition: background-color 150ms ease, var(--tr-press);
+}
+
+.notif-mark-all:hover {
+  background: var(--bg-hover);
+}
+
+.notif-mark-all:active {
+  transform: scale(0.96);
+}
+
+.notif-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: -6px -8px -6px 0;
+}
+
+.notif-clear-all {
+  color: var(--text-secondary);
+}
+
+.notif-clear-all.confirm {
+  color: var(--danger-red);
+}
+
+.notif-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* A notification can carry its own action (e.g. Rate) beside the clickable item, so the
+   unread and hover highlight sit on the whole row rather than on the item alone. */
+.notif-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 12px;
+  transition: background-color 150ms ease;
+}
+
+.notif-row:hover {
+  background: var(--bg-hover);
+}
+
+.notif-row.unread {
+  background: var(--notif-unread-bg);
+}
+
+.notif-row.unread:hover {
+  background: var(--bg-hover);
+}
+
+/* Solid fill so the row highlight shows around the button, not through it. */
+.notif-row .notif-rate,
+.notif-row .notif-rate:hover {
+  flex-shrink: 0;
+  background: var(--bg-card);
+}
+
+.notif-clear {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, var(--tr-press);
+}
+
+.notif-clear:hover {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.notif-clear:active {
+  transform: scale(0.9);
+}
+
+.notif-clear:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 1px;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.notif-item:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: -2px;
+}
+
+.notif-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--purple);
+  opacity: 0.35;
+}
+
+.notif-item.unread .notif-dot {
+  opacity: 1;
+}
+
+.notif-dot.success { background: var(--green); }
+.notif-dot.warning { background: var(--orange); }
+.notif-dot.error { background: var(--danger-red); }
+
+.notif-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.notif-title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.notif-item.unread .notif-title {
+  font-weight: 800;
+}
+
+.notif-msg {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.notif-time {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 40px 24px 44px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.notif-empty svg {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 6px;
+  opacity: 0.5;
+}
+
+.notif-empty p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.notif-empty span {
+  font-size: 12.5px;
+}

@@ -15,7 +15,7 @@ const config: HistoryTableConfig = {
   searchPlaceholder: 'Search by code, description, event, requestor...',
   emptyMessage: 'No digital media requests yet',
   cancelStatus: 'PENDING',
-  socketPrefix: 'digital_media',
+  service: 'digitalMedia',
   rateType: 'digital_media',
   modalTitleKey: 'form_of_digital_media',
   modalFields: [
@@ -26,7 +26,6 @@ const config: HistoryTableConfig = {
     { label: 'Target Time', key: 'target_time' },
     { label: 'Requestor', key: 'requestor_name' },
     { label: 'Contact', key: 'requestor_contact' },
-    { label: 'Remarks', key: 'remarks' },
   ],
   fileViewer: { fileKey: 'supporting_files', type: 'digitalmedia', isArray: true },
 };

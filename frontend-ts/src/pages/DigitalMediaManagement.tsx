@@ -1,12 +1,14 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { initSocket, getSocket } from '../services/socket';
+import { refreshService } from '../services/queryClient';
 import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
 import { RequestFlags, PriorityForm, ReassignForm } from '../components/Priority';
+import SearchBox from '../components/SearchBox';
 
 interface DigitalMediaRequest {
   _id: string;
@@ -40,10 +42,6 @@ interface User {
 
 function DigitalMediaManagement() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<DigitalMediaRequest[]>([]);
-  const [allRequests, setAllRequests] = useState<DigitalMediaRequest[]>([]);
-  const [technicians, setTechnicians] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState<DigitalMediaRequest | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState('');
   const [declining, setDeclining] = useState(false);
@@ -51,76 +49,41 @@ function DigitalMediaManagement() {
   const [activeTab, setActiveTab] = useState<'unassigned' | 'all'>('unassigned');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
-  const [totalUnassigned, setTotalUnassigned] = useState(0);
-  const [totalAll, setTotalAll] = useState(0);
 
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm]);
 
-  const searchTermRef = useRef(searchTerm);
-  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
-
-  const fetchData = useCallback(async (search?: string) => {
-    try {
-      const unassignedParams: Record<string, string | number> = {};
-      const allParams: Record<string, string | number> = {};
-      if (search) { unassignedParams.search = search; allParams.search = search; }
-      unassignedParams.page = activeTab === 'unassigned' ? currentPage : 1;
-      unassignedParams.limit = ITEMS_PER_PAGE;
-      allParams.page = activeTab === 'all' ? currentPage : 1;
-      allParams.limit = ITEMS_PER_PAGE;
-      const [unassignedRes, allRes, techniciansRes] = await Promise.all([
-        api.get('/digitalmedia/get_unassigned', { params: unassignedParams }),
-        api.get('/digitalmedia/get_all', { params: allParams }),
-        api.get('/digitalmedia/get_technicians')
-      ]);
-      setRequests(unassignedRes.data.requests);
-      setTotalUnassigned(unassignedRes.data.total || 0);
-      setAllRequests(allRes.data.requests);
-      setTotalAll(allRes.data.total || 0);
-      setTechnicians(techniciansRes.data.technicians);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [activeTab, currentPage]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => fetchData(searchTerm), 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm, fetchData]);
-
-  useEffect(() => {
-    if (user) {
-      initSocket();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    const handler = () => fetchData(searchTermRef.current);
-    socket.on('digital_media_request_created', handler);
-    socket.on('digital_media_request_assigned', handler);
-    socket.on('digital_media_request_assigned_admin', handler);
-    socket.on('digital_media_request_completed', handler);
-    socket.on('digital_media_request_cancelled', handler);
-    socket.on('digital_media_request_declined', handler);
-    socket.on('digital_media_request_note_added', handler);
-    socket.on('digital_media_request_priority_changed', handler);
-    return () => {
-      socket.off('digital_media_request_created', handler);
-      socket.off('digital_media_request_assigned', handler);
-      socket.off('digital_media_request_assigned_admin', handler);
-      socket.off('digital_media_request_completed', handler);
-      socket.off('digital_media_request_cancelled', handler);
-      socket.off('digital_media_request_declined', handler);
-      socket.off('digital_media_request_note_added', handler);
-      socket.off('digital_media_request_priority_changed', handler);
-    };
-  }, [user, fetchData]);
+  // Both tabs are cached per search and page (the hidden tab stays on page 1 for its count);
+  // any of this service's socket events refreshes them (services/queryClient.ts).
+  type Page = { requests: DigitalMediaRequest[]; total?: number };
+  const search = searchTerm ? { search: searchTerm } : {};
+  const unassignedParams = { page: activeTab === 'unassigned' ? currentPage : 1, limit: ITEMS_PER_PAGE, ...search };
+  const allParams = { page: activeTab === 'all' ? currentPage : 1, limit: ITEMS_PER_PAGE, ...search };
+  const unassignedQuery = useQuery({
+    queryKey: ['digitalMedia', 'unassigned', unassignedParams],
+    queryFn: () => api.get<Page>('/digitalmedia/get_unassigned', { params: unassignedParams }).then((r) => r.data),
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const allQuery = useQuery({
+    queryKey: ['digitalMedia', 'all', allParams],
+    queryFn: () => api.get<Page>('/digitalmedia/get_all', { params: allParams }).then((r) => r.data),
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  // Staff list for the assign form. It changes only when accounts do, so request events leave it be.
+  const { data: technicians = [] } = useQuery({
+    queryKey: ['users', 'technicians', 'digitalMedia'],
+    queryFn: () => api.get<{ technicians: User[] }>('/digitalmedia/get_technicians').then((r) => r.data.technicians),
+    staleTime: 5 * 60_000,
+    enabled: !!user,
+  });
+  const requests = unassignedQuery.data?.requests ?? [];
+  const allRequests = allQuery.data?.requests ?? [];
+  const totalUnassigned = unassignedQuery.data?.total || 0;
+  const totalAll = allQuery.data?.total || 0;
+  const loading = (activeTab === 'unassigned' ? unassignedQuery : allQuery).isPending;
 
   const handleAssign = async () => {
     if (!selectedRequest || !selectedTechnician) {
@@ -135,7 +98,7 @@ function DigitalMediaManagement() {
       setMessage('Request assigned successfully');
       setSelectedRequest(null);
       setSelectedTechnician('');
-      setTimeout(() => { setMessage(''); fetchData(searchTerm); }, 1500);
+      setTimeout(() => { setMessage(''); refreshService('digitalMedia'); }, 1500);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
       setMessage(err.response?.data?.error || 'Failed to assign request');
@@ -146,7 +109,7 @@ function DigitalMediaManagement() {
   const handleAdminChange = (text: string) => {
     setSelectedRequest(null);
     setMessage(text);
-    setTimeout(() => { setMessage(''); fetchData(searchTermRef.current); }, 1500);
+    setTimeout(() => { setMessage(''); refreshService('digitalMedia'); }, 1500);
   };
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -171,7 +134,7 @@ function DigitalMediaManagement() {
       </div>
 
       <div className="filters-row">
-        <input type="text" placeholder="Search by code, description, event, requestor..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+        <SearchBox placeholder="Search by code, description, event, requestor..." value={searchTerm} onSearch={setSearchTerm} />
       </div>
 
       {message && (
@@ -309,7 +272,7 @@ function DigitalMediaManagement() {
                   setDeclining(false);
                   setSelectedRequest(null);
                   setMessage('Request declined successfully');
-                  setTimeout(() => { setMessage(''); fetchData(searchTermRef.current); }, 1500);
+                  setTimeout(() => { setMessage(''); refreshService('digitalMedia'); }, 1500);
                 }}
               />
             ) : (

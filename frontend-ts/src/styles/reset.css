@@ -15,6 +15,15 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+button,
+a,
+[role='button'],
+summary {
+  /* We draw our own :active feedback; the grey tap flash just doubles it */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 #root {
   min-height: 100vh;
 }

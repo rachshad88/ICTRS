@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
@@ -62,24 +62,17 @@ function fmtDateTime(v: string | null | undefined): string {
 
 function AdminDashboard() {
   const { user } = useAuth();
-  const [data, setData] = useState<StatsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await api.get('/dashboard/admin-stats');
-        setData(response.data);
-      } catch (err: unknown) {
-        const e = err as { response?: { data?: { error?: string } } };
-        setError(e.response?.data?.error || 'Failed to load dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
+  // Counts across every service; any service's socket events refresh them (['overview'] in
+  // services/queryClient.ts).
+  const { data = null, isPending: loading, error: loadError } = useQuery({
+    queryKey: ['overview', 'admin-stats'],
+    queryFn: () => api.get<StatsData>('/dashboard/admin-stats').then((r) => r.data),
+    enabled: !!user,
+  });
+  // Only a failed first load replaces the page; a failed background refresh keeps the last counts.
+  const error = !data && loadError
+    ? (loadError as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to load dashboard'
+    : '';
 
   if (loading) {
     return (

@@ -81,6 +81,7 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
         roles: 1,
         primary_role: 1,
         office: 1,
+        position: 1,
         created_at: 1
       })
       .limit(100)
@@ -104,7 +105,7 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
 
 router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { username, password, first_name, middle_name, last_name, roles, primary_role, office } = req.body;
+    const { username, password, first_name, middle_name, last_name, roles, primary_role, office, position } = req.body;
 
     const usersCollection = getUsersCollection();
     const existing = await usersCollection.findOne({ username });
@@ -126,6 +127,7 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
       roles,
       primary_role,
       office: office || '',
+      position: (position || '').trim(),
       created_at: new Date()
     });
 
@@ -143,7 +145,7 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
 
 router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { user_id, username, first_name, middle_name, last_name, roles, primary_role, office, password } = req.body;
+    const { user_id, username, first_name, middle_name, last_name, roles, primary_role, office, position, password } = req.body;
 
     const usersCollection = getUsersCollection();
     
@@ -155,7 +157,8 @@ router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSch
       role: primary_role,
       roles,
       primary_role,
-      office: office || ''
+      office: office || '',
+      position: (position || '').trim()
     };
 
     if (password) {

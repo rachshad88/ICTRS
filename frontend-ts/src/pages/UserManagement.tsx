@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '../services/queryClient';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
@@ -14,18 +16,19 @@ interface User {
   roles: string[];
   primary_role: string;
   office?: string;
+  position?: string;
   is_default_password?: boolean;
 }
 
 const DEFAULT_PASSWORD = '12345';
+const NO_USERS: User[] = [];
 
 function UserManagement() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState('');
+  // Confirmation of the last action (e.g. a password reset); shown in place of the standing warning.
   const [notice, setNotice] = useState('');
 
   const [formData, setFormData] = useState({
@@ -37,24 +40,26 @@ function UserManagement() {
     role: 'CLIENT',
     roles: [] as string[],
     primary_role: 'CLIENT',
-    office: ''
+    office: '',
+    position: ''
   });
 
-  useEffect(() => { fetchUsers(); }, []);
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['users', 'list'],
+    queryFn: () => api.get<{ users?: User[] }>('/users/get_users').then((r) => r.data.users || []),
+  });
+  const users = data ?? NO_USERS;
+  // A successful refresh clears an earlier action error, as the hand-rolled fetch used to.
+  useEffect(() => { setError(''); }, [data]);
+  const defaultPasswordWarning = users.some((u) => u.is_default_password)
+    ? `Some users are still using the default password ${DEFAULT_PASSWORD}.`
+    : '';
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get('/users/get_users');
-      const fetchedUsers = response.data.users || [];
-      setUsers(fetchedUsers);
-      setError('');
-      setNotice(fetchedUsers.some((user: User) => user.is_default_password)
-        ? `Some users are still using the default password ${DEFAULT_PASSWORD}.`
-        : '');
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    } finally { setLoading(false); }
-  };
+  // Accounts feed other screens too: the staff lists in the assign forms and All Requests filters.
+  const refreshUsers = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['users'] }),
+    queryClient.invalidateQueries({ queryKey: ['meta'] }),
+  ]);
 
   const openModal = (user?: User) => {
     if (user) {
@@ -68,7 +73,8 @@ function UserManagement() {
         role: user.role || (user.roles?.[0] || 'CLIENT'),
         roles: user.roles || [user.role || 'CLIENT'],
         primary_role: user.primary_role || user.role || 'CLIENT',
-        office: user.office || ''
+        office: user.office || '',
+        position: user.position || ''
       });
     } else {
       setEditingUser(null);
@@ -81,7 +87,8 @@ function UserManagement() {
         role: 'CLIENT',
         roles: ['CLIENT'],
         primary_role: 'CLIENT',
-        office: ''
+        office: '',
+        position: ''
       });
     }
     setShowModal(true);
@@ -100,7 +107,8 @@ function UserManagement() {
           role: formData.role,
           roles: formData.roles,
           primary_role: formData.primary_role,
-          office: formData.office
+          office: formData.office,
+          position: formData.position
         };
         if (formData.password) payload.password = formData.password;
         await api.post('/users/update_user', payload);
@@ -108,7 +116,7 @@ function UserManagement() {
         await api.post('/users/create_user', { ...formData, roles: formData.roles, primary_role: formData.primary_role });
       }
       setShowModal(false);
-      fetchUsers();
+      refreshUsers();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string; details?: Array<{ message: string }> } } };
       setError(err.response?.data?.details?.[0]?.message || err.response?.data?.error || 'Failed to save user');
@@ -119,7 +127,7 @@ function UserManagement() {
     if (!confirm('Are you sure you want to delete this user?')) return;
     try {
       await api.post('/users/delete_user', { user_id: userId });
-      fetchUsers();
+      refreshUsers();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
       setError(err.response?.data?.error || 'Failed to delete user');
@@ -132,7 +140,7 @@ function UserManagement() {
     try {
       await api.post('/users/reset_user_password', { user_id: editingUser._id });
       setNotice(`${editingUser.username}'s password was reset to ${DEFAULT_PASSWORD}.`);
-      await fetchUsers();
+      await refreshUsers();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
       setError(err.response?.data?.error || 'Failed to reset user password');
@@ -147,7 +155,6 @@ function UserManagement() {
     { value: 'CLIENT', label: 'Client' },
     { value: 'TECHNICIAN', label: 'Technician' },
     { value: 'MULTIMEDIA', label: 'Multimedia' },
-    { value: 'PROGRAMMER', label: 'Programmer' },
     { value: 'IT_ADMIN', label: 'IT Admin' },
     { value: 'MULTIMEDIA_ADMIN', label: 'Multimedia Admin' },
     { value: 'ADMIN', label: 'Super Admin' },
@@ -160,7 +167,6 @@ function UserManagement() {
       case 'TECHNICIAN': return 'technician';
       case 'MULTIMEDIA_ADMIN': return 'multimedia-admin';
       case 'MULTIMEDIA': return 'multimedia';
-      case 'PROGRAMMER': return 'programmer';
       default: return 'client';
     }
   };
@@ -169,7 +175,6 @@ function UserManagement() {
     CLIENT: 'Client',
     TECHNICIAN: 'Technician',
     MULTIMEDIA: 'Multimedia',
-    PROGRAMMER: 'Programmer',
     IT_ADMIN: 'IT Admin',
     MULTIMEDIA_ADMIN: 'Multimedia Admin',
     ADMIN: 'Super Admin',
@@ -187,9 +192,9 @@ function UserManagement() {
       </div>
 
       {error && <div className="error-message">{error}</div>}
-      {notice && (
+      {(notice || defaultPasswordWarning) && (
         <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '6px', background: '#fff7e6', color: '#8a4b00', border: '1px solid #f0c36d' }}>
-          {notice}
+          {notice || defaultPasswordWarning}
         </div>
       )}
 
@@ -212,6 +217,9 @@ function UserManagement() {
                   <td className="td-cell" data-label="Username">{user.username}</td>
                   <td data-label="Name">
                     <div>{user.first_name} {user.middle_name} {user.last_name}</div>
+                    {user.position && (
+                      <div style={{ marginTop: '2px', fontSize: '11px', opacity: 0.75 }}>{user.position}</div>
+                    )}
                     {user.is_default_password && (
                       <div style={{ marginTop: '4px', fontSize: '10px', color: '#8a4b00', fontWeight: 600 }}>
                         Default password
@@ -312,6 +320,10 @@ function UserManagement() {
                     <option key={office} value={office}>{office}</option>
                   ))}
                 </select>
+              </div>
+              <div className="form-group">
+                <label>Position</label>
+                <input type="text" value={formData.position} maxLength={120} placeholder="e.g. Computer Programmer I" onChange={(e) => setFormData({...formData, position: e.target.value})} />
               </div>
               <div className="modal-actions">
                 {editingUser && (

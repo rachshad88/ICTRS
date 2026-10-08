@@ -1,0 +1,1497 @@
+/* ========== SIGNED-IN APP SKIN ========== */
+/* Puts every page behind the login in the same language as the landing page and client guide:
+   paper, seal navy/cobalt as ink, seal yellow as the one accent. Page titles get the highlighter
+   swipe, stats are ticket stubs, statuses are rubber stamps, empty states are sticky notes.
+   Only restyles the shared classes; no markup or behaviour depends on this file.
+   Scope: .app-main, .sidebar and .mobile-topbar, plus toasts and the notification panel, so the
+   public pages (landing, guide, login, live) are untouched. Fonts come from fonts.css.
+   Avoids :has() (some staff phones lack it); color-mix() and dvh get plain fallbacks first.
+   Layers: gear -1 and grain -2 sit behind all content, so they never cover a table or modal. */
+
+@keyframes appTurn {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes appSwipe {
+  to { background-size: 100% 0.3em; }
+}
+
+@keyframes appStamp {
+  from {
+    opacity: 0;
+    transform: scale(1.55) rotate(-12deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(-3deg);
+  }
+}
+
+/* ----- Backdrop: paper grain and a slow gear, both behind the page ----- */
+.app-main {
+  padding: 28px 36px 64px;
+  color: var(--ink);
+}
+
+.app-main::before {
+  content: '';
+  position: fixed;
+  z-index: -1;
+  top: -280px;
+  right: -280px;
+  width: 860px;
+  height: 860px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-110 -110 220 220'%3E%3Cg fill='none' stroke='rgba(20,82,201,0.10)' stroke-width='1.3' stroke-linejoin='round'%3E%3Cpath d='M77.8 -18.7 L98.8 -15.6 L98.8 15.6 L77.8 18.7 L68.2 41.8 L80.9 58.8 L58.8 80.9 L41.8 68.2 L18.7 77.8 L15.6 98.8 L-15.6 98.8 L-18.7 77.8 L-41.8 68.2 L-58.8 80.9 L-80.9 58.8 L-68.2 41.8 L-77.8 18.7 L-98.8 15.6 L-98.8 -15.6 L-77.8 -18.7 L-68.2 -41.8 L-80.9 -58.8 L-58.8 -80.9 L-41.8 -68.2 L-18.7 -77.8 L-15.6 -98.8 L15.6 -98.8 L18.7 -77.8 L41.8 -68.2 L58.8 -80.9 L80.9 -58.8 L68.2 -41.8 Z'/%3E%3Ccircle r='38'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  animation: appTurn 200s linear infinite;
+}
+
+.app-main::after {
+  content: '';
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.app-main h1,
+.app-main h2,
+.app-main h3,
+.app-main h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.app-main strong {
+  color: var(--ink);
+}
+
+/* ----- Page titles ----- */
+.app-main .page-header {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 20px;
+  margin-bottom: 28px;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.app-main .page-header h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  text-shadow: none;
+}
+
+/* Eyebrow above the first title on a page, like the landing page's place line */
+.app-main .page-header:first-child::before,
+.app-main .request-page .container::before {
+  content: 'ITRS \00b7  LGU Solano';
+  display: block;
+  flex-basis: 100%;
+  order: -1;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cobalt);
+}
+
+.app-main .request-page .container::before {
+  content: 'New request \00b7  LGU Solano';
+  margin-bottom: 14px;
+}
+
+/* The highlighter swipe from the landing hero, drawn per line so wrapped titles stay tidy */
+.app-main .page-header:first-child h2,
+.app-main .request-page .container > h2 {
+  font-size: clamp(34px, 4.2vw, 58px);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  background-image: linear-gradient(var(--seal-yellow), var(--seal-yellow));
+  background-repeat: no-repeat;
+  background-position: 0 86%;
+  background-size: 0% 0.3em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: appSwipe 0.7s var(--ease-out) 0.2s forwards;
+}
+
+.app-main .request-page .container > h2 {
+  display: inline;
+  font-size: clamp(30px, 3.3vw, 46px);
+  line-height: 1.12;
+}
+
+.app-main .request-page .container > h2 + * {
+  margin-top: 26px;
+}
+
+/* Subtitles read as a handwritten margin note */
+.app-main .page-subtitle {
+  font-family: var(--font-hand);
+  font-weight: 600;
+  font-size: 23px;
+  line-height: 1.1;
+  color: var(--cobalt);
+  transform: rotate(-2deg);
+  transform-origin: left center;
+}
+
+.app-main .form-description {
+  max-width: 70ch;
+  font-size: 15.5px;
+  color: var(--ink-soft);
+}
+
+/* ----- Sidebar: navy ink with a yellow marker for where you are ----- */
+.sidebar {
+  background: var(--sidebar-bg);
+  background: linear-gradient(170deg, #0c1f4a 0%, #0b2c6e 100%);
+  border-right: none;
+  box-shadow: 14px 0 40px -22px rgba(12, 31, 74, 0.7);
+}
+
+.sidebar::after {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: -150px;
+  bottom: -140px;
+  width: 360px;
+  height: 360px;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-110 -110 220 220'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M77.8 -18.7 L98.8 -15.6 L98.8 15.6 L77.8 18.7 L68.2 41.8 L80.9 58.8 L58.8 80.9 L41.8 68.2 L18.7 77.8 L15.6 98.8 L-15.6 98.8 L-18.7 77.8 L-41.8 68.2 L-58.8 80.9 L-80.9 58.8 L-68.2 41.8 L-77.8 18.7 L-98.8 15.6 L-98.8 -15.6 L-77.8 -18.7 L-68.2 -41.8 L-80.9 -58.8 L-58.8 -80.9 L-41.8 -68.2 L-18.7 -77.8 L-15.6 -98.8 L15.6 -98.8 L18.7 -77.8 L41.8 -68.2 L58.8 -80.9 L80.9 -58.8 L68.2 -41.8 Z'/%3E%3Ccircle r='38'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  animation: appTurn 240s linear infinite reverse;
+}
+
+.sidebar-brand,
+.sidebar-nav,
+.sidebar-footer {
+  position: relative;
+  z-index: 1;
+}
+
+.sidebar-brand::after {
+  background: linear-gradient(90deg, rgba(255, 217, 26, 0.5), rgba(255, 217, 26, 0));
+}
+
+.sidebar-logo-frame,
+.sidebar.collapsed .sidebar-logo-frame {
+  border-radius: 50%;
+  background: #fbfcfe;
+  box-shadow: 0 0 0 3px var(--seal-yellow);
+}
+
+.sidebar-logo {
+  width: 32px;
+  height: 32px;
+}
+
+.sidebar.collapsed .sidebar-logo {
+  width: 22px;
+  height: 22px;
+}
+
+.sidebar-brand-text {
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: -0.02em;
+}
+
+/* The signed-in name, written by hand */
+.sidebar-user-name {
+  margin-top: 1px;
+  font-family: var(--font-hand);
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--seal-yellow-soft);
+}
+
+.sidebar-section {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: rgba(255, 217, 26, 0.72);
+}
+
+.sidebar-item {
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.sidebar-item:focus-visible {
+  outline-color: var(--seal-yellow);
+}
+
+.sidebar-active-pill {
+  border-radius: 8px;
+  background: var(--seal-yellow);
+  box-shadow: 0 10px 22px -12px rgba(255, 217, 26, 0.8);
+}
+
+.sidebar-active-pill::before {
+  content: none;
+}
+
+.sidebar-item.active,
+.sidebar-item.active svg,
+.sidebar-item.active:hover svg {
+  color: var(--ink);
+}
+
+.sidebar-badge {
+  background: var(--seal-yellow);
+  color: var(--ink);
+  box-shadow: none;
+  font-family: var(--font-mono);
+}
+
+.sidebar-item.active .sidebar-badge {
+  background: var(--ink);
+  color: var(--seal-yellow);
+}
+
+.sidebar-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-footer .sidebar-item.active {
+  background: var(--seal-yellow);
+  color: var(--ink);
+}
+
+.sidebar-footer .sidebar-item.active svg {
+  color: var(--ink);
+}
+
+.sidebar .sidebar-logout-btn:hover {
+  background: rgba(255, 155, 145, 0.14) !important;
+  color: #ff9b91 !important;
+}
+
+.sidebar .sidebar-logout-btn:hover svg {
+  color: #ff9b91 !important;
+}
+
+/* ----- Buttons: ink pills like the landing page ----- */
+.app-main .btn-primary {
+  background: var(--ink);
+  color: #f4f7fc;
+  font-family: var(--font-display);
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  box-shadow: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-main .btn-primary:hover:not(:disabled) {
+    background: var(--cobalt);
+    box-shadow: 0 14px 26px -14px rgba(20, 82, 201, 0.7);
+  }
+}
+
+.app-main .btn-primary:disabled {
+  background: var(--paper-2);
+  color: var(--ink-soft);
+}
+
+.app-main .btn-secondary {
+  background: transparent;
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-main .btn-secondary:hover {
+    background: var(--ink);
+    color: #f4f7fc;
+  }
+}
+
+.app-main .btn-danger {
+  font-family: var(--font-display);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.app-main .btn-export {
+  padding: 8px 16px;
+  background: var(--seal-yellow);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 13px;
+}
+
+.app-main .btn-export.btn-export-alt {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-main .btn-export:hover {
+    background: var(--seal-yellow-soft);
+    box-shadow: none;
+  }
+
+  .app-main .btn-export.btn-export-alt:hover {
+    background: var(--ink);
+    color: #f4f7fc;
+    box-shadow: inset 0 0 0 2px var(--ink);
+  }
+}
+
+/* Rating is a star, and stars are yellow on the landing page */
+.app-main .btn-rate,
+.app-main .hbtn-rate {
+  background: var(--seal-yellow);
+  border-color: var(--seal-yellow);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.app-main .hbtn-rate:hover {
+  background: var(--seal-yellow-soft);
+  border-color: var(--seal-yellow-soft);
+  color: var(--ink);
+}
+
+.app-main .hbtn,
+.app-main .btn-view,
+.app-main .hp-btn {
+  border-width: 1.5px;
+  font-weight: 700;
+}
+
+.app-main .hbtn-view:hover,
+.app-main .btn-view:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #f4f7fc;
+}
+
+/* ----- Forms ----- */
+.app-main .form-group label {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.app-main .form-group label:focus-within {
+  color: var(--cobalt);
+}
+
+.app-main .form-group input,
+.app-main .form-group select,
+.app-main .form-group textarea {
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+}
+
+.app-main .form-group input:focus,
+.app-main .form-group select:focus,
+.app-main .form-group textarea:focus {
+  border-color: var(--cobalt);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(255, 217, 26, 0.45);
+}
+
+/* A plain arrow for selects; appearance: none removed the native one */
+.app-main .form-group select {
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%230c1f4a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+}
+
+/* Hints under a field read as notes in the margin */
+.app-main .form-group small:not(.field-error) {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--font-hand);
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 1.15;
+  color: var(--cobalt);
+}
+
+.app-main .form-control-static {
+  border: 1.5px dashed rgba(12, 31, 74, 0.22);
+  background: transparent;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.app-main .file-selected {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+/* The request forms are drawn as the ITRS ticket: navy head, perforation before submitting */
+.app-main .request-form {
+  --form-pad: 32px;
+  position: relative;
+  overflow: hidden;
+  padding: 0 var(--form-pad) var(--form-pad);
+  border: none;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-strong);
+}
+
+.app-main .request-form::before {
+  content: 'ITRS request ticket';
+  display: block;
+  margin: 0 calc(var(--form-pad) * -1) 28px;
+  padding: 13px var(--form-pad);
+  border-radius: 14px 14px 0 0;
+  background: var(--navy);
+  background: var(--accent-grad);
+  color: #f4f7fc;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.app-main .request-form[data-ticket]::after {
+  content: attr(data-ticket);
+  position: absolute;
+  top: 13px;
+  right: var(--form-pad);
+  max-width: 50%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--seal-yellow);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ticket-tear {
+  position: relative;
+  margin: 30px calc(16px - var(--form-pad, 32px)) 24px;
+  border-top: 2px dashed rgba(12, 31, 74, 0.2);
+}
+
+.ticket-tear::before,
+.ticket-tear::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.ticket-tear::before {
+  left: -27px;
+}
+
+.ticket-tear::after {
+  right: -27px;
+}
+
+/* ----- Search and filters ----- */
+.app-main .search-input {
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  background: var(--card);
+  color: var(--ink);
+}
+
+.app-main .search-input:focus {
+  border-color: var(--cobalt);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(255, 217, 26, 0.45);
+}
+
+.app-main .search-form .search-btn {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #f4f7fc;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-main .search-form .search-btn:hover {
+    background: var(--cobalt);
+    border-color: var(--cobalt);
+  }
+}
+
+.app-main .filters-row select,
+.app-main .filters-row input[type='date'],
+.app-main .overview-filters select,
+.app-main .overview-filters input {
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  border-radius: 10px;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.app-main .filters-row select:focus,
+.app-main .filters-row input[type='date']:focus,
+.app-main .overview-filters select:focus,
+.app-main .overview-filters input:focus {
+  outline: none;
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 3px rgba(255, 217, 26, 0.45);
+}
+
+.app-main .overview-filters label,
+.app-main .overview-filters .overview-search {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.app-main .filters-row label {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* ----- Stats: ticket stubs ----- */
+.app-main .stats-container {
+  gap: 18px;
+}
+
+.app-main .stat-card {
+  position: relative;
+  overflow: hidden;
+  padding: 0 0 20px;
+  border: none;
+  border-radius: 14px;
+  background: var(--card);
+  text-align: left;
+  box-shadow: var(--shadow-medium);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transition: transform 220ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-main .stat-card:hover {
+    transform: translateY(-3px) rotate(-0.5deg);
+  }
+}
+
+.app-main .stat-label {
+  margin: 0 0 16px;
+  padding: 10px 18px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: var(--navy);
+  background: var(--accent-grad);
+  color: #f4f7fc;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+}
+
+.app-main .stat-number {
+  padding: 0 18px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 54px;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+.app-main .stat-note {
+  position: relative;
+  margin: 18px 0 0;
+  padding: 12px 18px 0;
+  border-top: 2px dashed rgba(12, 31, 74, 0.18);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.app-main .stat-note::before,
+.app-main .stat-note::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.app-main .stat-note::before {
+  left: -11px;
+}
+
+.app-main .stat-note::after {
+  right: -11px;
+}
+
+.app-main .stat-card-sm {
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+}
+
+.app-main .stat-card-sm h4 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.app-main .stat-card-sm .stat-num {
+  font-family: var(--font-display);
+  font-size: 30px;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+
+.app-main .overview-stat {
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+}
+
+.app-main .overview-stat span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+
+.app-main .overview-stat strong {
+  font-family: var(--font-display);
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+
+/* The active filter is highlighted, like a marked line on paper */
+.app-main .overview-stat.active {
+  border-color: var(--ink);
+  background: var(--seal-yellow);
+}
+
+.app-main .overview-stat.active span {
+  color: var(--ink);
+}
+
+.app-main .overview-stat.warn strong {
+  color: var(--danger-red);
+}
+
+/* ----- Tables: navy ticket heads, ledger rows ----- */
+.app-main .history-table-wrap,
+.app-main .table-container,
+.app-main .users-table-container,
+.app-main .skeleton-table {
+  border: none;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-medium);
+}
+
+.app-main .history-table th,
+.app-main .requests-table th,
+.app-main .reports-table th,
+.app-main .users-table th {
+  border-bottom: none;
+  background: var(--navy);
+  color: rgba(244, 247, 252, 0.9);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.app-main .history-table td,
+.app-main .requests-table td,
+.app-main .reports-table td,
+.app-main .users-table td {
+  border-bottom: 1px dashed rgba(12, 31, 74, 0.14);
+}
+
+.app-main .history-table tbody tr:hover,
+.app-main .requests-table tbody tr:hover,
+.app-main .reports-table tbody tr:hover,
+.app-main .users-table tbody tr:hover,
+.app-main .overview-row:hover td {
+  background: rgba(255, 217, 26, 0.14);
+}
+
+.app-main .request-code,
+.app-main .td-code,
+.app-main .code-link,
+.app-main .yt-card-code,
+.app-main .youtube-card-code,
+.app-main .mobile-request-code {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+}
+
+.app-main .requests-table,
+.app-main .reports-table,
+.app-main .users-table {
+  border-collapse: collapse;
+}
+
+.app-main .request-code,
+.app-main .td-code {
+  white-space: nowrap;
+}
+
+.app-main .td-code {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.app-main .request-code,
+.app-main .code-link {
+  color: var(--cobalt);
+}
+
+.app-main .issue-cell {
+  color: var(--ink);
+}
+
+.app-main .type-tag,
+.app-main .role-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-main .type-tag {
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1px rgba(12, 31, 74, 0.12);
+}
+
+/* ----- Statuses: rubber stamps (colours match the client guide) ----- */
+.app-main .hstatus,
+.app-main .status-badge {
+  gap: 0;
+  padding: 2px 9px 1px;
+  border: 3px double currentColor;
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 11.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: rotate(-3deg);
+  animation: appStamp 340ms var(--ease-spring) both;
+}
+
+.app-main .hstatus-dot {
+  display: none;
+}
+
+.app-main .hstatus.pending,
+.app-main .hstatus.unassigned,
+.app-main .badge-pending,
+.app-main .badge-unassigned {
+  background: transparent;
+  color: #c2571a;
+}
+
+.app-main .hstatus.in-progress,
+.app-main .badge-in-progress {
+  background: transparent;
+  color: var(--cobalt);
+}
+
+.app-main .hstatus.done,
+.app-main .badge-done,
+.app-main .badge-repaired {
+  background: transparent;
+  color: #12825d;
+}
+
+.app-main .hstatus.declined,
+.app-main .badge-declined,
+.app-main .badge-beyond-repair {
+  background: transparent;
+  color: #b42318;
+}
+
+.app-main .hstatus.cancelled,
+.app-main .badge-cancelled {
+  background: transparent;
+  color: var(--ink-soft);
+}
+
+/* ----- Priority flags: Urgent is the landing page's yellow chip ----- */
+.app-main .prio-badge,
+.app-main .overdue-badge,
+.app-main .due-chip,
+.app-main .note-count {
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-main .prio-badge.urgent {
+  background: var(--seal-yellow);
+  color: var(--ink);
+}
+
+.app-main .prio-badge.low {
+  background: var(--paper-2);
+  color: var(--ink-soft);
+}
+
+.app-main .overdue-badge {
+  background: var(--danger-red);
+  color: #ffffff;
+}
+
+.app-main .note-count {
+  background: var(--paper-2);
+  color: var(--cobalt);
+}
+
+/* ----- Tabs ----- */
+.app-main .mgmt-tabs {
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--paper-2);
+}
+
+.app-main .mgmt-tab,
+.app-main .yt-tab {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.app-main .mgmt-tab.active,
+.app-main .yt-tab.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #f4f7fc;
+  box-shadow: none;
+}
+
+.app-main .reports-toolbar {
+  border-bottom-color: rgba(12, 31, 74, 0.12);
+}
+
+.app-main .reports-tab {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.app-main .reports-tab.active {
+  color: var(--ink);
+}
+
+.app-main .reports-tab-indicator {
+  height: 4px;
+  bottom: -3px;
+  background: var(--seal-yellow);
+  box-shadow: 0 0 0 1px rgba(12, 31, 74, 0.08);
+}
+
+/* ----- Modals: a "while you were out" slip ----- */
+.app-main .modal {
+  background: rgba(12, 31, 74, 0.42);
+}
+
+.app-main .modal-content {
+  border-top: 8px solid var(--cobalt);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.app-main .modal-content > h3,
+.app-main .modal-header h3 {
+  margin-bottom: 14px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.app-main .modal-header h3 {
+  margin-bottom: 0;
+}
+
+.app-main .modal-close {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+/* Details read as ticket fields: mono label, value beside it */
+.app-main .detail-section > p {
+  display: flex;
+  gap: 4px 14px;
+  padding: 7px 0;
+  border-bottom: 1px dotted rgba(12, 31, 74, 0.22);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.app-main .detail-section > p > strong:first-child {
+  flex: 0 0 132px;
+  padding-top: 2px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ----- Notes and decline reasons ----- */
+.app-main .request-notes-title,
+.app-main .admin-control-title,
+.app-main .decline-reason .decline-reason-title {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.app-main .request-notes li {
+  border: none;
+  border-left: 3px solid var(--cobalt);
+  border-radius: 4px;
+  background: var(--paper);
+}
+
+.app-main .decline-reason {
+  border-left: none;
+  border-top: 5px solid #b42318;
+  border-radius: 4px;
+  background: #fdf1ef;
+  box-shadow: var(--shadow-soft);
+}
+
+.app-main .decline-reason .decline-reason-title {
+  color: #b42318;
+}
+
+/* Staff remarks and recommendation on a finished request, shown to the client (StaffReport) */
+.app-main .staff-report {
+  margin: 14px 0;
+  padding: 12px 16px 14px;
+  border-top: 5px solid var(--cobalt);
+  border-radius: 4px;
+  background: var(--paper);
+}
+
+.app-main .staff-report-title {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cobalt);
+}
+
+.app-main .staff-report dl {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.app-main .staff-report dt {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.app-main .staff-report dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.app-main .staff-report dd.staff-report-empty {
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+/* ----- Empty states: sticky notes ----- */
+.app-main .history-empty,
+.app-main .empty-state {
+  max-width: 380px;
+  margin: 36px auto;
+  padding: 30px 26px 34px;
+  border-radius: 3px;
+  background: var(--seal-yellow-soft);
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-weight: 600;
+  font-size: 26px;
+  line-height: 1.15;
+  text-align: center;
+  box-shadow: 0 18px 30px -16px rgba(12, 31, 74, 0.45);
+  transform: rotate(-2deg);
+}
+
+.app-main .empty-state h3 {
+  font-family: var(--font-hand);
+  font-size: 32px;
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.app-main .empty-state p {
+  font-family: var(--font-hand);
+  font-size: 22px;
+  color: var(--ink);
+}
+
+/* ----- Cards and panels ----- */
+.app-main .card,
+.app-main .profile-sidebar,
+.app-main .profile-content,
+.app-main .profile-info,
+.app-main .skeleton-card,
+.app-main .yt-card,
+.app-main .youtube-card {
+  border: none;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-medium);
+}
+
+.app-main .profile-sidebar .profile-avatar-large,
+.app-main .profile-avatar-large,
+.app-main .profile-avatar,
+.app-main .avatar-preview-large {
+  background: var(--navy);
+  background: var(--accent-grad);
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+  box-shadow: 0 0 0 5px var(--card), 0 0 0 9px var(--seal-yellow);
+}
+
+.app-main .profile-sidebar h3,
+.app-main .profile-summary h3,
+.app-main .form-header h3 {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+.app-main .profile-sidebar .role-badge {
+  padding: 4px 14px;
+  border: 2px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+
+.app-main .profile-menu .menu-item {
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.app-main .profile-menu .menu-item.active {
+  background: var(--seal-yellow);
+  color: var(--ink);
+}
+
+.app-main .summary-card {
+  border: none;
+  background: var(--paper);
+  box-shadow: none;
+}
+
+.app-main .summary-icon {
+  border-radius: 50%;
+  background: var(--ink);
+}
+
+.app-main .summary-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.app-main .info-row,
+.app-main .detail-row {
+  border-bottom-color: rgba(12, 31, 74, 0.12);
+}
+
+.app-main .file-item {
+  border-radius: 10px;
+  background: var(--paper);
+}
+
+/* Phone request cards: the head is the ticket's navy strip */
+.app-main .mobile-request-card {
+  border: none;
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-medium);
+}
+
+.app-main .mobile-request-thumb {
+  background: var(--navy);
+  background: var(--accent-grad);
+}
+
+.app-main .mobile-request-thumb-body h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.app-main .mobile-request-chip {
+  font-family: var(--font-mono);
+  letter-spacing: 0.12em;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.app-main .mobile-request-code {
+  background: var(--seal-yellow);
+  color: var(--ink);
+}
+
+.app-main .mobile-request-meta-item span {
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+}
+
+.app-main .mobile-request-toggle {
+  background: var(--paper-2);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.app-main .mobile-request-details {
+  border-top: 2px dashed rgba(12, 31, 74, 0.18);
+}
+
+.app-main .loading {
+  font-family: var(--font-hand);
+  font-weight: 600;
+  font-size: 24px;
+  color: var(--cobalt);
+}
+
+/* ----- Toasts and notifications (outside .app-main, but only the app uses them) ----- */
+.toast-item {
+  border: 1px solid rgba(12, 31, 74, 0.1);
+  border-top: 5px solid var(--cobalt);
+  border-radius: 12px;
+  background: #fbfcfe;
+  color: var(--ink);
+  box-shadow: 0 24px 44px -22px rgba(11, 58, 140, 0.55);
+}
+
+[data-theme='light'] .toast-item.info {
+  background: #fbfcfe;
+  border-color: rgba(12, 31, 74, 0.1);
+  border-top-color: var(--cobalt);
+  color: var(--ink);
+}
+
+[data-theme='light'] .toast-item.success {
+  background: #fbfcfe;
+  border-color: rgba(12, 31, 74, 0.1);
+  border-top-color: #12825d;
+  color: var(--ink);
+}
+
+[data-theme='light'] .toast-item.warning {
+  background: #fbfcfe;
+  border-color: rgba(12, 31, 74, 0.1);
+  border-top-color: var(--seal-yellow);
+  color: var(--ink);
+}
+
+[data-theme='light'] .toast-item.error {
+  background: #fbfcfe;
+  border-color: rgba(12, 31, 74, 0.1);
+  border-top-color: #b42318;
+  color: var(--ink);
+}
+
+.toast-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.notif-head h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.notif-backdrop.dim {
+  background: rgba(12, 31, 74, 0.42);
+}
+
+/* ----- Phone top bar: the landing page's floating pill nav ----- */
+@media (max-width: 768px) {
+  .app-main {
+    padding: 0 16px 40px;
+  }
+
+  .app-main::before {
+    top: auto;
+    bottom: -220px;
+    right: -260px;
+    width: 560px;
+    height: 560px;
+    animation: none;
+  }
+
+  .mobile-topbar {
+    top: 10px;
+    height: 56px;
+    margin: 10px 0 22px;
+    padding: 0 8px;
+    border: 1px solid rgba(12, 31, 74, 0.08);
+    border-radius: 999px;
+    background: rgba(251, 252, 254, 0.96);
+    box-shadow: 0 12px 32px -16px rgba(12, 31, 74, 0.35);
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .mobile-topbar {
+      background: rgba(251, 252, 254, 0.8);
+    }
+  }
+
+  .mobile-menu-toggle {
+    border: none;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #f4f7fc;
+  }
+
+  .mobile-menu-toggle:active {
+    background: var(--cobalt);
+  }
+
+  .mobile-topbar-bell {
+    border: none;
+    border-radius: 50%;
+    background: var(--paper-2);
+    color: var(--ink);
+  }
+
+  .mobile-topbar-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+
+  .sidebar-overlay {
+    background: rgba(12, 31, 74, 0.5);
+  }
+
+  .app-main .page-header {
+    margin-bottom: 20px;
+  }
+
+  .app-main .page-header .page-subtitle {
+    font-size: 21px;
+  }
+
+  .app-main .stat-number {
+    font-size: 40px;
+  }
+
+  .app-main .detail-section > p > strong:first-child {
+    flex-basis: 108px;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-main .request-form {
+    --form-pad: 18px;
+  }
+
+  /* On phones table wrappers step aside and every row becomes its own ticket card */
+  .app-main .history-table-wrap,
+  .app-main .table-container,
+  .app-main .stack-mobile {
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .app-main .stack-mobile tbody tr,
+  .app-main .stack-mobile tbody tr:last-child {
+    border: none;
+    border-radius: 14px;
+    background: var(--card);
+    box-shadow: var(--shadow-medium);
+  }
+
+  .app-main .stack-mobile tbody tr:hover {
+    background: var(--card);
+  }
+
+  .app-main .stack-mobile td::before {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  /* The code text and its flags sit on one line here, so give the flags their own gap */
+  .app-main .stack-mobile td .req-flags {
+    margin-left: 8px;
+  }
+
+  .app-main .stack-mobile td.col-actions {
+    margin-top: 8px;
+    padding-top: 12px !important;
+    border-top: 2px dashed rgba(12, 31, 74, 0.16) !important;
+  }
+
+  .app-main .modal-content {
+    border-radius: 22px 22px 0 0;
+  }
+
+  .app-main .history-empty,
+  .app-main .empty-state {
+    margin: 24px auto;
+  }
+}
+
+/* The global reduced-motion rule shortens animations; the slow loops must stop outright. */
+@media (prefers-reduced-motion: reduce) {
+  .app-main::before,
+  .sidebar::after {
+    animation: none;
+  }
+
+  .app-main .page-header:first-child h2,
+  .app-main .request-page .container > h2 {
+    animation: none;
+    background-size: 100% 0.3em;
+  }
+
+  .app-main .hstatus,
+  .app-main .status-badge {
+    animation: none;
+  }
+}
+
+/* ----- Crash fallback (components/ErrorBoundary.tsx) ----- */
+.app-main .app-crash p {
+  max-width: 52ch;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.app-crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.app-main .app-crash-actions .btn-primary,
+.app-main .app-crash-actions .btn-secondary {
+  width: auto;
+}
+
+/* Whole-site version: no layout around it, so it brings its own page and buttons. */
+.app-crash-site {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px 16px;
+  background: var(--paper);
+  color: var(--ink);
+  text-align: center;
+}
+
+.app-crash-site img {
+  width: 72px;
+  height: 72px;
+  margin-bottom: 20px;
+}
+
+.app-crash-site h1 {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 5vw, 44px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.app-crash-site p {
+  max-width: 44ch;
+  margin-top: 12px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.app-crash-site .app-crash-actions {
+  justify-content: center;
+}
+
+.app-crash-site .btn-primary,
+.app-crash-site .btn-secondary {
+  width: auto;
+  padding: 12px 24px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.app-crash-site .btn-primary {
+  background: var(--ink);
+  color: #f4f7fc;
+}
+
+.app-crash-site .btn-secondary {
+  background: transparent;
+  border: 2px solid var(--ink);
+  color: var(--ink);
+}

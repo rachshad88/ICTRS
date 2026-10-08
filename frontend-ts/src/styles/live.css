@@ -1,0 +1,345 @@
+/* Wall display at /live (pages/LiveQueue.tsx). Light palette matching the app's tokens, with its own
+   darker accent shades so text stays readable on a TV. Sized in vw so it reads from across a room on any TV. Avoids :has(), color-mix(), dvh, inset and
+   flex gap, which older TV and phone browsers lack. */
+
+.live-board {
+  --live-bg: #eef2f7;
+  --live-lane-bg: #ffffff;
+  --live-card-bg: #f4f7fb;
+  --live-text: #182235;
+  --live-muted: #5d6b80;
+  --live-border: rgba(24, 34, 53, 0.14);
+  --live-amber: #a36200;
+  --live-red: #d64545;
+  --live-green: #178c66;
+  --live-lane-it: #c96f2c;
+  --live-lane-multimedia: #2f7fc4;
+  --live-lane-digital_media: #1296a2;
+  --live-lane-print_materials: #178c66;
+
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 1.2vw 1.4vw;
+  background: #eef2f7;
+  background: var(--live-bg);
+  color: var(--live-text);
+  font-size: clamp(14px, 1.05vw, 28px);
+  line-height: 1.3;
+}
+
+.live-board--message {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: clamp(18px, 1.8vw, 40px);
+  color: var(--live-muted);
+}
+
+/* Header */
+
+.live-head {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 1.1vw;
+}
+
+.live-head-logo {
+  width: 3.4em;
+  height: 3.4em;
+  margin-right: 0.9em;
+  object-fit: contain;
+}
+
+.live-head-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.live-head-title h1 {
+  margin: 0;
+  font-size: 2.1em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.live-head-title span {
+  color: var(--live-muted);
+  font-size: 1.15em;
+}
+
+.live-head-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-right: 1.4em;
+}
+
+.live-head-time {
+  font-size: 2.1em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-head-date {
+  color: var(--live-muted);
+}
+
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35em 0.9em;
+  border: 1px solid var(--live-border);
+  border-radius: 999px;
+  color: var(--live-amber);
+  font-weight: 600;
+}
+
+.live-status::before {
+  content: '';
+  width: 0.65em;
+  height: 0.65em;
+  margin-right: 0.5em;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.live-status--on {
+  color: var(--live-green);
+}
+
+.live-status--on::before {
+  animation: live-blink 2s ease-in-out infinite;
+}
+
+/* Lanes */
+
+.live-lanes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-gap: 1vw;
+  gap: 1vw;
+}
+
+.live-lane {
+  --lane-color: var(--live-muted);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--live-border);
+  border-top: 0.3em solid var(--lane-color);
+  border-radius: 12px;
+  background: var(--live-lane-bg);
+  box-shadow: 0 4px 14px rgba(24, 34, 53, 0.08);
+  overflow: hidden;
+}
+
+.live-lane--it { --lane-color: var(--live-lane-it); }
+.live-lane--multimedia { --lane-color: var(--live-lane-multimedia); }
+.live-lane--digital_media { --lane-color: var(--live-lane-digital_media); }
+.live-lane--print_materials { --lane-color: var(--live-lane-print_materials); }
+
+.live-lane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0.8em 1em;
+  border-bottom: 1px solid var(--live-border);
+}
+
+.live-lane-head h2 {
+  margin: 0;
+  font-size: 1.35em;
+  font-weight: 700;
+  color: var(--lane-color);
+}
+
+.live-lane-count {
+  min-width: 1.8em;
+  padding: 0.1em 0.55em;
+  border-radius: 999px;
+  background: rgba(24, 34, 53, 0.07);
+  font-size: 1.35em;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cards are measured against this box (LaneColumn), so it must be their offsetParent. */
+.live-lane-list {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 0.8em;
+  overflow: hidden;
+}
+
+.live-lane-empty {
+  margin: 2em 0;
+  color: var(--live-muted);
+  text-align: center;
+}
+
+.live-lane-more {
+  flex-shrink: 0;
+  padding: 0.6em 1em;
+  border-top: 1px solid var(--live-border);
+  color: var(--live-muted);
+  font-weight: 600;
+  text-align: center;
+}
+
+.live-lane-more--new {
+  color: var(--live-text);
+  animation: live-more-flash 1.2s ease-in-out 5;
+}
+
+/* Cards */
+
+.live-card {
+  margin-bottom: 0.7em;
+  padding: 0.75em 0.9em;
+  border: 2px solid transparent;
+  border-left: 0.35em solid var(--lane-color);
+  border-radius: 10px;
+  background: var(--live-card-bg);
+  box-shadow: 0 1px 3px rgba(24, 34, 53, 0.08);
+  transition: border-color 0.4s ease, background-color 0.4s ease;
+}
+
+.live-card--age-warn {
+  border-color: var(--live-amber);
+}
+
+.live-card--age-alert {
+  border-color: var(--live-red);
+}
+
+.live-card--urgent {
+  border-left-color: var(--live-red);
+}
+
+.live-card--new {
+  animation: live-card-pulse 1.25s ease-in-out 8;
+}
+
+.live-card--accepted {
+  border-color: var(--live-green);
+  background: rgba(23, 140, 102, 0.12);
+}
+
+.live-card--declined,
+.live-card--cancelled {
+  border-color: var(--live-border);
+  background: rgba(24, 34, 53, 0.04);
+  opacity: 0.75;
+}
+
+.live-card-top {
+  display: flex;
+  align-items: center;
+}
+
+.live-card-code {
+  font-size: 1.3em;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-card-priority {
+  margin-left: 0.6em;
+  padding: 0.1em 0.5em;
+  border-radius: 6px;
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.live-card-priority--urgent {
+  background: var(--live-red);
+  color: #ffffff;
+}
+
+.live-card-priority--low {
+  background: rgba(24, 34, 53, 0.08);
+  color: var(--live-muted);
+}
+
+.live-card-wait {
+  margin-left: auto;
+  padding-left: 0.6em;
+  color: var(--live-muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.live-card--age-warn .live-card-wait { color: var(--live-amber); }
+.live-card--age-alert .live-card-wait { color: var(--live-red); }
+
+.live-card-summary {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  margin: 0.35em 0 0;
+  font-size: 1.05em;
+  word-break: break-word;
+}
+
+.live-card-meta {
+  margin: 0.35em 0 0;
+  color: var(--live-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-card-outcome {
+  margin: 0.45em 0 0;
+  font-size: 1.1em;
+  font-weight: 700;
+}
+
+.live-card--accepted .live-card-outcome { color: var(--live-green); }
+
+/* Sound hint */
+
+.live-sound-hint {
+  position: absolute;
+  bottom: 1.2vw;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.6em 1.3em;
+  border: 1px solid var(--live-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 8px 24px rgba(24, 34, 53, 0.12);
+  color: var(--live-muted);
+  white-space: nowrap;
+}
+
+@keyframes live-card-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(47, 127, 196, 0); }
+  50% { box-shadow: 0 0 0 0.35em rgba(47, 127, 196, 0.45); }
+}
+
+@keyframes live-more-flash {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(47, 127, 196, 0.18); }
+}
+
+@keyframes live-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}

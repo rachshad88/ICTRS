@@ -1,9 +1,57 @@
 /* ========== LOGIN PAGE ========== */
-/* Single source of truth for login styling. Colors come from tokens.css so
-   both themes work without per-theme overrides. */
+/* Matches the landing page: paper background, seal navy/cobalt as ink, seal yellow as the only
+   accent, and the sign-in form drawn as an ITRS ticket. Shared form classes (.form-group,
+   .btn-primary, .error-message...) are only restyled under .login-container.
+   Corners: ticket 14px, inputs 12px, stamps 6px, buttons and links you can press are pills.
+   Fonts come from fonts.css. Tablet and phone layout: login-mobile.css. */
+
+.login-container {
+  --lg-paper: #eef1f6;
+  --lg-card: #fbfcfe;
+  --lg-ink: #0c1f4a;
+  --lg-ink-soft: #4a5875;
+  --lg-navy: #0b3a8c;
+  --lg-cobalt: #1452c9;
+  --lg-yellow: #ffd91a;
+  --lg-display: var(--public-display);
+  --lg-mono: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+
+  font-family: var(--public-body);
+
+  position: relative;
+  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--lg-paper);
+  color: var(--lg-ink);
+}
+
+/* Paper grain, fixed so it never repaints while scrolling */
+.login-container::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0.07;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Form controls don't inherit the page font by default. */
+.login-container input,
+.login-container button {
+  font-family: inherit;
+}
+
+.login-container a:focus-visible,
+.login-container button:focus-visible {
+  outline: 3px solid var(--lg-cobalt);
+  outline-offset: 3px;
+}
 
 @keyframes loginFadeIn {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -11,305 +59,933 @@
   to { transform: rotate(360deg); }
 }
 
-.login-container {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(16px, 2.4vw, 32px);
-  background: var(--bg-primary);
+@keyframes loginGearTurn {
+  to { transform: rotate(360deg); }
 }
 
-.login-inner {
-  display: flex;
-  width: min(100%, 980px);
-  max-width: 980px;
-  min-height: min(82vh, 720px);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-light);
-  box-shadow: var(--elevation-3);
-  overflow: hidden;
-  background: var(--bg-card);
+@keyframes loginSwipe {
+  to { transform: skewX(-8deg) scaleX(1); }
 }
 
-/* ----- Brand panel ----- */
-.login-brand-panel {
-  flex: 0 0 46%;
-  min-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(28px, 3vw, 44px);
-  background: var(--bg-primary);
-  border-right: 1px solid var(--border-light);
+/* Line-art gear from the seal, behind the headline */
+.login-gear {
+  position: absolute;
+  width: min(72vw, 940px);
+  height: min(72vw, 940px);
+  left: -22vw;
+  bottom: -38vw;
+  fill: none;
+  stroke: rgba(20, 82, 201, 0.1);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+  pointer-events: none;
+  animation: loginGearTurn 180s linear infinite;
+}
+
+/* ----- Top bar ----- */
+.login-topbar {
   position: relative;
+  z-index: 2;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px 40px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.login-brand-panel::before {
+.login-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--lg-ink);
+  font-family: var(--lg-display);
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.login-brand img {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.login-container .login-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: 2px solid var(--lg-ink);
+  border-radius: 999px;
+  color: var(--lg-ink);
+  font-family: var(--lg-display);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 150ms ease, color 150ms ease, transform 160ms var(--ease-out);
+}
+
+.login-container .login-back-link:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .login-container .login-back-link:hover {
+    background: var(--lg-ink);
+    color: #f4f7fc;
+  }
+}
+
+/* ----- Layout ----- */
+.login-layout {
+  position: relative;
+  z-index: 1;
+  max-width: 1320px;
+  min-height: calc(100vh - 84px);
+  margin: 0 auto;
+  padding: 32px 40px 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  gap: 64px;
+  align-items: center;
+}
+
+/* ----- Intro (left) ----- */
+.login-place {
+  margin-bottom: 20px;
+  font-family: var(--lg-mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lg-cobalt);
+}
+
+.login-headline {
+  font-family: var(--lg-display);
+  font-size: clamp(64px, 8.4vw, 148px);
+  font-weight: 800;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  color: var(--lg-ink);
+}
+
+.login-line {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.07em;
+}
+
+.login-line > span {
+  display: inline-block;
+}
+
+.login-highlight {
+  position: relative;
+  z-index: 0;
+  white-space: nowrap;
+}
+
+/* Highlighter swipe behind "back." */
+.login-highlight::before {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: var(--purple);
+  z-index: -1;
+  left: -0.05em;
+  right: -0.06em;
+  bottom: 0.06em;
+  height: 0.4em;
+  background: var(--lg-yellow);
+  transform-origin: left center;
+  transform: skewX(-8deg) scaleX(0);
+  /* --intro-delay: how long the page waits for its transition to open (set by the page) */
+  animation: loginSwipe 0.7s var(--ease-out) calc(0.8s + var(--intro-delay, 0s)) forwards;
 }
 
-.login-brand-content {
+/* Decoding headline (DecodeText): the real letter keeps its space, invisible, while a random
+   glyph flickers over it; when it locks, the letter lands with a brief cobalt flash. */
+.dc-ch {
   position: relative;
+}
+
+.dc-ch:not(.is-locked) {
+  color: transparent;
+}
+
+.dc-glyph {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
   text-align: center;
-  color: var(--text-primary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 100%;
+  font-size: 0.86em;
+  letter-spacing: 0;
+  color: var(--lg-cobalt);
+  opacity: 0.85;
 }
 
-.login-brand-decoration {
-  margin-bottom: 4px;
+.dc-ch.is-locked {
+  animation: dcLock 0.45s ease-out;
 }
 
-.login-seal {
-  width: 84px;
-  height: 84px;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  padding: 12px;
+@keyframes dcLock {
+  from { color: var(--lg-cobalt); text-shadow: 0 0 18px rgba(20, 82, 201, 0.45); }
 }
 
-.login-brand-title {
-  font-size: clamp(26px, 2.4vw, 34px);
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  margin-bottom: 0;
-  color: var(--text-primary);
+/* Sign-up: the ticket prints out under a glowing head that rides the edge of the paper */
+.signup-printhead {
+  position: absolute;
+  z-index: 3;
+  left: -10px;
+  right: -10px;
+  height: 4px;
+  margin-top: -4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(20, 82, 201, 0), #1452c9 18%, #ffd91a 50%, #1452c9 82%, rgba(20, 82, 201, 0));
+  box-shadow: 0 0 14px 2px rgba(20, 82, 201, 0.45), 0 0 4px rgba(255, 217, 26, 0.9);
+  pointer-events: none;
 }
 
-.login-brand-subtitle {
-  font-size: 14px;
+/* Sign-up headline words are inked in by scaling down, so their lines must not crop them */
+.signup-page .login-line {
+  overflow: visible;
+}
+
+.signup-steps li > span:last-child {
+  display: inline-block;
+}
+
+.login-lede {
+  margin-top: 26px;
+  max-width: 34ch;
+  font-size: 19px;
   line-height: 1.6;
-  margin: 0;
-  font-weight: 500;
-  max-width: 260px;
-  color: var(--text-secondary);
+  color: var(--lg-ink-soft);
 }
 
-.login-brand-footer {
-  margin-top: 18px;
-  font-size: 12px;
-  white-space: nowrap;
-  color: var(--text-secondary);
+/* Services as rubber-stamped tags */
+.login-services {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 14px;
+  margin-top: 34px;
+  max-width: 520px;
 }
 
-/* ----- Form panel ----- */
-.login-form-panel {
-  flex: 1 1 0;
-  min-width: 0;
+.login-service {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border: 2px solid currentColor;
+  border-radius: 6px;
+  font-family: var(--lg-display);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--lg-ink);
+  rotate: -2deg;
+}
+
+.login-service:nth-child(2) { color: var(--lg-cobalt); rotate: 1.5deg; }
+.login-service:nth-child(3) { rotate: -1deg; }
+.login-service:nth-child(4) { color: var(--lg-cobalt); rotate: 2.5deg; }
+
+.login-credit {
+  margin-top: 48px;
+  font-family: var(--lg-mono);
+  font-size: 11.5px;
+  color: var(--lg-ink-soft);
+}
+
+/* ----- Ticket (right) ----- */
+.login-ticket-wrap {
+  position: relative;
+  justify-self: end;
+  width: 440px;
+  max-width: 100%;
+}
+
+/* A second ticket peeking out underneath */
+.login-ticket-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 26px -18px -16px 22px;
+  border-radius: 14px;
+  background: #e4eaf3;
+  box-shadow: 0 20px 40px -24px rgba(11, 58, 140, 0.35);
+  transform: rotate(4deg);
+}
+
+.login-ticket {
+  position: relative;
+  z-index: 1;
+  border-radius: 14px;
+  background: var(--lg-card);
+  box-shadow: 0 40px 70px -30px rgba(11, 58, 140, 0.5), 0 2px 0 rgba(11, 58, 140, 0.06);
+}
+
+.login-ticket-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: clamp(28px, 3.5vw, 48px);
-  background: var(--bg-card);
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 14px 14px 0 0;
+  background: var(--lg-navy);
+  background: linear-gradient(100deg, var(--lg-navy), var(--lg-cobalt));
+  color: #f4f7fc;
+  font-family: var(--lg-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.login-form-content {
-  width: min(100%, 400px);
+.login-ticket-head img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
+.login-ticket-tag {
+  margin-left: auto;
+  color: var(--lg-yellow);
+}
+
+.login-ticket-body {
+  padding: 26px 28px 6px;
 }
 
 .login-form-header {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .login-form-header h2 {
-  font-size: 28px;
+  font-family: var(--lg-display);
+  font-size: 32px;
   font-weight: 800;
-  color: var(--text-primary);
-  margin-bottom: 8px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--lg-ink);
 }
 
 .login-form-header p {
-  color: var(--text-secondary);
+  margin-top: 8px;
   font-size: 14px;
-  margin: 0;
+  font-weight: 500;
+  color: var(--lg-ink-soft);
+}
+
+/* Fields */
+.login-container .form-group {
+  margin-bottom: 16px;
+}
+
+.login-container .form-group label {
+  margin-bottom: 7px;
+  font-family: var(--lg-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lg-ink-soft);
+}
+
+.login-container .form-group input {
+  height: 52px;
+  border: 2px solid rgba(12, 31, 74, 0.14);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--lg-ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.login-container .form-group input::placeholder {
+  color: #66748c;
   font-weight: 500;
 }
 
-.login-info-message {
-  background: color-mix(in srgb, var(--purple) 14%, transparent);
-  color: var(--text-primary);
-  border-left: 3px solid var(--purple);
-  padding: 14px 16px;
-  border-radius: var(--radius-sm);
-  margin-bottom: 22px;
-  font-size: 13px;
-  font-weight: 600;
-  animation: loginFadeIn 0.3s ease;
+.login-container .form-group input:focus {
+  border-color: var(--lg-cobalt);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(20, 82, 201, 0.14);
+}
+
+.login-container .input-wrapper .input-icon {
+  color: var(--lg-ink-soft);
+}
+
+.login-container .input-wrapper:focus-within .input-icon {
+  color: var(--lg-cobalt);
 }
 
 .password-toggle {
   position: absolute;
-  right: 14px;
+  right: 10px;
   top: 50%;
   transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  color: var(--text-secondary);
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s ease, background 0.15s ease;
-  z-index: 1;
+  padding: 7px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--lg-ink-soft);
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
 }
 
 .password-toggle:hover {
-  color: var(--purple);
-  background: color-mix(in srgb, var(--purple) 12%, transparent);
+  color: var(--lg-cobalt);
+  background: rgba(20, 82, 201, 0.1);
 }
 
 .capslock-warning {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--lg-yellow);
+  color: var(--lg-ink);
   font-size: 12px;
-  color: var(--yellow);
-  font-weight: 600;
+  font-weight: 700;
   animation: loginFadeIn 0.2s ease;
 }
 
 .form-options {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 24px;
+  margin: -4px 0 10px;
 }
 
 .forgot-password {
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.15s ease;
-}
-
-.forgot-password:hover {
-  color: var(--purple);
-  text-decoration: underline;
-}
-
-/* Rectangular primary action. Overrides the global pill .btn-primary for login only. */
-.login-form-panel .btn-primary {
-  background: var(--purple);
-  color: #0b1a26;
+  padding: 4px 0;
   border: none;
-  border-radius: var(--radius-sm);
-  box-shadow: none;
+  background: none;
+  font: inherit;
+  font-size: 13px;
   font-weight: 700;
+  color: var(--lg-cobalt);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.login-form-panel .btn-primary:hover {
-  background: var(--purple-light);
-  transform: none;
-  box-shadow: var(--elevation-1);
+.login-reset-help {
+  margin: 0 0 16px;
+  overflow: hidden;
 }
 
-.login-form-panel .btn-primary:focus-visible {
-  outline: 2px solid var(--purple-light);
-  outline-offset: 2px;
+.login-reset-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--lg-yellow);
+  border-radius: 8px;
+  background: rgba(255, 217, 26, 0.22);
+  color: var(--lg-ink);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.login-form-panel .btn-primary:disabled {
-  background: color-mix(in srgb, var(--purple) 35%, transparent);
-  color: var(--text-secondary);
-  cursor: not-allowed;
+.login-reset-key {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  color: var(--lg-cobalt);
+}
+
+.login-reset-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.login-reset-line {
+  display: block;
+  overflow: hidden;
+}
+
+.login-reset-line > span {
+  display: block;
+}
+
+.login-reset-line strong {
+  font-size: 14px;
+}
+
+/* Notices */
+.login-info-message {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 2px dashed rgba(20, 82, 201, 0.35);
+  border-radius: 12px;
+  color: var(--lg-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  animation: loginFadeIn 0.3s ease;
+}
+
+.login-stamp {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border: 3px double currentColor;
+  border-radius: 6px;
+  color: #c2571a;
+  font-family: var(--lg-display);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(-8deg);
+}
+
+.login-container .error-message {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(178, 34, 34, 0.22);
+  border-left: 4px solid #b22222;
+  border-radius: 12px;
+  background: rgba(178, 34, 34, 0.06);
+  color: #8f1b1b;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* Perforation with punched notches on both edges */
+.login-ticket-tear {
+  position: relative;
+  margin: 8px 18px 0;
+  border-top: 2px dashed rgba(12, 31, 74, 0.2);
+}
+
+.login-ticket-tear::before,
+.login-ticket-tear::after {
+  content: '';
+  position: absolute;
+  top: -12px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--lg-paper);
+}
+
+.login-ticket-tear::before {
+  left: -30px;
+}
+
+.login-ticket-tear::after {
+  right: -30px;
+}
+
+.login-ticket-stub {
+  padding: 20px 28px 24px;
+}
+
+/* Ink pill primary action. Overrides the global .btn-primary for login only. */
+.login-container .btn-primary {
+  height: 54px;
+  padding: 0 24px;
+  border-radius: 999px;
+  background: var(--lg-ink);
+  color: #f4f7fc;
   box-shadow: none;
+  font-family: var(--lg-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.login-container .btn-primary svg {
+  transition: transform 200ms var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .login-container .btn-primary:hover:not(:disabled) {
+    background: var(--lg-cobalt);
+    transform: none;
+    box-shadow: none;
+  }
+
+  .login-container .btn-primary:hover:not(:disabled) svg {
+    transform: translateX(4px);
+  }
+}
+
+.login-container .btn-primary:disabled {
+  background: rgba(12, 31, 74, 0.5);
+  color: rgba(244, 247, 252, 0.9);
+  cursor: not-allowed;
 }
 
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(11, 26, 38, 0.3);
-  border-top-color: #0b1a26;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: loginSpin 0.6s linear infinite;
 }
 
-.login-version {
-  text-align: center;
-  margin-top: 16px;
-  font-size: 12px;
-  color: var(--text-secondary);
+.login-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 12px;
+  font-family: var(--lg-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--lg-ink-soft);
 }
 
-@media (min-width: 900px) and (orientation: landscape) {
-  .login-inner {
-    max-width: 1080px;
-    min-height: 78vh;
-  }
+.login-or::before,
+.login-or::after {
+  content: '';
+  flex: 1;
+  border-top: 2px dashed rgba(12, 31, 74, 0.16);
+}
 
-  .login-brand-panel {
-    flex-basis: 44%;
-    padding: clamp(36px, 3.4vw, 52px);
-  }
+/* Secondary pill under Sign In; same size, outlined. */
+.login-signup-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 50px;
+  padding: 0 24px;
+  border: 2px solid var(--lg-ink);
+  border-radius: 999px;
+  color: var(--lg-ink);
+  font-family: var(--lg-display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: background-color 150ms ease, color 150ms ease, transform 160ms var(--ease-out);
+}
 
-  .login-brand-content {
-    align-items: flex-start;
-    text-align: left;
-    gap: 14px;
-  }
+.login-signup-btn:active {
+  transform: scale(0.97);
+}
 
-  .login-brand-title {
-    font-size: clamp(30px, 2vw, 38px);
-  }
-
-  .login-brand-subtitle {
-    max-width: 100%;
-    font-size: 15px;
-  }
-
-  .login-form-panel {
-    padding: clamp(36px, 4vw, 56px);
-  }
-
-  .login-form-content {
-    max-width: 420px;
+@media (hover: hover) and (pointer: fine) {
+  .login-signup-btn:hover {
+    background: var(--lg-ink);
+    color: #f4f7fc;
   }
 }
 
-/* ========== LOGIN PAGE - LIGHT THEME ========== */
-/* Only what tokens cannot express: white text on the darker light-mode blue. */
-[data-theme='light'] .login-form-panel .btn-primary {
-  color: #fff;
-}
-
-[data-theme='light'] .login-form-panel .btn-primary:hover {
-  background: color-mix(in srgb, var(--purple) 88%, #000);
-}
-
-[data-theme='light'] .spinner {
-  border-color: rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
-}
-
-/* ----- Link to the client guide ----- */
 .login-guide-link {
-  margin: 24px 0 0;
+  margin-top: 16px;
   text-align: center;
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--lg-ink-soft);
 }
 
 .login-guide-link a {
-  color: var(--purple);
+  color: var(--lg-cobalt);
   font-weight: 700;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
-.login-guide-link a:hover {
-  text-decoration: underline;
+/* ----- Sign-up page (reuses the login layout and ticket) ----- */
+.signup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 0;
+  list-style: none;
+}
+
+.signup-steps li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  max-width: 420px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--lg-ink);
+}
+
+.signup-step-no {
+  flex-shrink: 0;
+  font-family: var(--lg-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--lg-cobalt);
+}
+
+.signup-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+
+.signup-page .form-group input {
+  height: 48px;
+  font-size: 15px;
+}
+
+.signup-names {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+/* ----- Office picker (components/OfficePicker.tsx) ----- */
+.office-picker {
+  position: relative;
+}
+
+.office-picker-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 48px;
+  padding: 0 14px 0 16px;
+  border: 2px solid rgba(12, 31, 74, 0.14);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--lg-ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.office-picker-button:focus-visible,
+.office-picker.is-open .office-picker-button {
+  outline: none;
+  border-color: var(--lg-cobalt);
+  box-shadow: 0 0 0 4px rgba(20, 82, 201, 0.14);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .office-picker-button:hover {
+    border-color: rgba(12, 31, 74, 0.32);
+  }
+}
+
+.office-picker-value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.office-picker-group {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(20, 82, 201, 0.1);
+  color: var(--lg-cobalt);
+  font-family: var(--lg-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.office-picker-name,
+.office-picker-placeholder {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.office-picker-placeholder {
+  color: #66748c;
+  font-weight: 500;
+}
+
+.office-picker-chevron {
+  flex-shrink: 0;
+  color: var(--lg-ink-soft);
+  transition: transform 220ms var(--ease-out), color 150ms ease;
+}
+
+.office-picker.is-open .office-picker-chevron {
+  transform: rotate(180deg);
+  color: var(--lg-cobalt);
+}
+
+/* Invisible, under the button: only there so the browser can flag an empty office on submit */
+.office-picker-validity {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.office-picker-panel {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  overflow: hidden;
+  border: 1px solid rgba(12, 31, 74, 0.1);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 28px 56px -22px rgba(11, 58, 140, 0.45), 0 2px 0 rgba(11, 58, 140, 0.05);
+}
+
+.office-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 2px dashed rgba(12, 31, 74, 0.12);
+  color: var(--lg-ink-soft);
+}
+
+/* Flush with the panel: undo the form's field styling, which would otherwise apply here too */
+.login-container .office-picker-search input,
+.login-container .office-picker-search input:focus {
+  height: 32px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.office-picker-search input {
+  flex: 1;
+  min-width: 0;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--lg-ink);
+  font: inherit;
+  /* 16px keeps iOS from zooming in on focus */
+  font-size: 16px;
+  font-weight: 600;
+  outline: none;
+}
+
+.office-picker-search input::placeholder {
+  color: #66748c;
+  font-weight: 500;
+}
+
+.office-picker-count {
+  font-family: var(--lg-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--lg-ink-soft);
+}
+
+.office-picker-list {
+  max-height: min(300px, 45vh);
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.office-picker-heading {
+  display: block;
+  padding: 10px 10px 4px;
+  font-family: var(--lg-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--lg-cobalt);
+}
+
+.office-picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  color: var(--lg-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.office-picker-option.is-active {
+  background: rgba(20, 82, 201, 0.08);
+}
+
+.office-picker-option.is-selected {
+  color: var(--lg-cobalt);
+}
+
+.office-picker-option svg {
+  flex-shrink: 0;
+}
+
+.office-picker-option mark {
+  padding: 0 1px;
+  border-radius: 3px;
+  background: rgba(255, 217, 26, 0.55);
+  color: inherit;
+}
+
+.office-picker-empty {
+  padding: 18px 10px;
+  color: var(--lg-ink-soft);
+  font-size: 14px;
+  text-align: center;
+}
+
+.signup-password-note {
+  margin: 4px 0 12px;
+}
+
+/* The credit sits under the headline; narrow screens show it under the ticket instead. */
+.login-mobile-footer {
+  display: none;
+}
+
+/* The global reduced-motion rule shortens animations; loops must stop outright instead. */
+@media (prefers-reduced-motion: reduce) {
+  .login-gear,
+  .spinner {
+    animation: none;
+  }
+
+  .login-highlight::before {
+    animation: none;
+    transform: skewX(-8deg) scaleX(1);
+  }
 }

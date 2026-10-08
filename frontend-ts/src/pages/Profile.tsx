@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLogoutTransition } from '../components/LogoutTransition';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
 import { OFFICES } from '../data/offices';
 
 function Profile() {
-  const { user, logout, updateUser, refreshUser } = useAuth();
-  const navigate = useNavigate();
+  const { user, updateUser, refreshUser } = useAuth();
+  const { signOut } = useLogoutTransition();
   const mustChangePassword = !!user?.is_default_password;
   const [activeSection, setActiveSection] = useState<'profile' | 'password' | null>(mustChangePassword ? 'password' : null);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -18,6 +18,7 @@ function Profile() {
   const [middleName, setMiddleName] = useState(user?.middle_name || '');
   const [lastName, setLastName] = useState(user?.last_name || '');
   const [office, setOffice] = useState(user?.office || '');
+  const [position, setPosition] = useState(user?.position || '');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -81,7 +82,8 @@ function Profile() {
         first_name: firstName, 
         middle_name: middleName, 
         last_name: lastName,
-        office: office
+        office: office,
+        position: position
       });
       setSuccess('Profile updated successfully');
       setActiveSection(null);
@@ -99,6 +101,7 @@ function Profile() {
     setMiddleName(user?.middle_name || '');
     setLastName(user?.last_name || '');
     setOffice(user?.office || '');
+    setPosition(user?.position || '');
     setError('');
     setSuccess('');
     setActiveSection('profile');
@@ -156,7 +159,7 @@ function Profile() {
               </button>
             </div>
             
-            <button onClick={() => { logout(); navigate('/'); }} className="btn btn-danger btn-logout">
+            <button onClick={signOut} className="btn btn-danger btn-logout">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
                 <polyline points="16 17 21 12 16 7"></polyline>
@@ -281,6 +284,16 @@ function Profile() {
                           <option key={off} value={off}>{off}</option>
                         ))}
                       </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Position</label>
+                      <input
+                        type="text"
+                        value={position}
+                        maxLength={120}
+                        placeholder="e.g. Computer Programmer I"
+                        onChange={(e) => setPosition(e.target.value)}
+                      />
                     </div>
                   </div>
                   <div className="form-actions">

@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { initSocket, getSocket } from '../services/socket';
+import { queryClient, refreshService } from '../services/queryClient';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { truncateCell } from '../lib/truncate';
-import { NotesList, DeclineReason, AddNoteForm, RequestNote } from '../components/RequestNotes';
+import { openRating } from '../services/rating';
+import { NotesList, DeclineReason, StaffReport, AddNoteForm, RequestNote } from '../components/RequestNotes';
+import SearchBox from '../components/SearchBox';
 
 
 interface MyRequest {
@@ -18,6 +21,8 @@ interface MyRequest {
   status: string;
   assigned_to: string | null;
   finished: string | null;
+  remarks?: string | null;
+  recommendation?: string | null;
   created_at: string;
   completed_at: string | null;
   decline_reason?: string | null;
@@ -31,6 +36,14 @@ interface Counts {
   declined_count: number;
 }
 
+interface MyRequestsData {
+  requests: MyRequest[];
+  counts: Counts;
+  total: number;
+}
+
+const NO_COUNTS: Counts = { pending_count: 0, progress_count: 0, done_count: 0, declined_count: 0 };
+
 const OPEN_STATUSES = ['PENDING', 'IN_PROGRESS'];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -43,92 +56,40 @@ const STATUS_LABELS: Record<string, string> = {
 
 function Requested() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<MyRequest[]>([]);
-  const [counts, setCounts] = useState<Counts>({ pending_count: 0, progress_count: 0, done_count: 0, declined_count: 0 });
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
   const [selectedRequest, setSelectedRequest] = useState<MyRequest | null>(null);
 
-  const fetchData = useCallback(async (search?: string, page?: number) => {
-    try {
-      const params: Record<string, string | number> = {};
-      if (search) params.search = search;
-      params.page = page || currentPage;
-      params.limit = 10;
-      const response = await api.get('/requests/my_requests', { params });
-      const fresh: MyRequest[] = response.data.requests;
-      setRequests(fresh);
-      // Keep an open details modal in sync, e.g. when the request is declined while it is being viewed.
-      setSelectedRequest((prev) => (prev ? fresh.find((r) => r._id === prev._id) || prev : prev));
-      setCounts(response.data.counts);
-      setTotal(response.data.total);
-      setError('');
-    } catch (error) {
-      console.error('Failed to fetch requests:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const sendToCSF = (requestCode: string) => {
-    try {
-      const ratingUrl = `${import.meta.env.VITE_RATING_SYSTEM_URL || 'http://192.168.110.19/'}?request_code=${requestCode}&type=it_request`;
-      window.open(ratingUrl, '_blank');
-    } catch (error) {
-      console.error('Failed to send data to rating system:', error);
-    }
-  }
-
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
-  const searchTermRef = useRef(searchTerm);
-  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
-  const pageRef = useRef(currentPage);
-  useEffect(() => { pageRef.current = currentPage; }, [currentPage]);
+  // Cached per search and page (services/queryClient.ts); IT socket events, including the
+  // my_request_* ones about this client's own requests, refresh it.
+  const params = { page: currentPage, limit: 10, ...(searchTerm && { search: searchTerm }) };
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['it', 'my-requests', params],
+    queryFn: () => api.get<MyRequestsData>('/requests/my_requests', { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or search loads.
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const requests = data?.requests ?? [];
+  const counts = data?.counts ?? NO_COUNTS;
+  const total = data?.total ?? 0;
 
   useEffect(() => {
-    const timer = setTimeout(() => fetchData(searchTerm, currentPage), 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm, currentPage, fetchData]);
-
-  useEffect(() => {
-    
-    if (user) {
-      initSocket();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      fetchData(undefined, 1);
-    }
-  }, [user, fetchData]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    const handler = () => fetchData(searchTermRef.current, pageRef.current);
-    socket.on('my_request_accepted', handler);
-    socket.on('my_request_finished', handler);
-    socket.on('my_request_declined', handler);
-    socket.on('request_update', handler);
-    return () => {
-      socket.off('my_request_accepted', handler);
-      socket.off('my_request_finished', handler);
-      socket.off('my_request_declined', handler);
-      socket.off('request_update', handler);
-    };
-  }, [user, fetchData]);
+    if (!data) return;
+    setError('');
+    // Keep an open details modal in sync, e.g. when the request is declined while it is being viewed.
+    setSelectedRequest((prev) => (prev ? data.requests.find((r) => r._id === prev._id) || prev : prev));
+  }, [data]);
 
   const handleCancel = async (requestId: string) => {
     if (!window.confirm('Are you sure you want to cancel this request?')) return;
     
     try {
       await api.post('/requests/cancel_request', { request_id: requestId });
-      fetchData(searchTerm, currentPage);
+      refreshService('it');
     } catch (error) {
       setError('Failed to cancel request');
     }
@@ -157,7 +118,10 @@ function Requested() {
     if (!selectedRequest) return;
     const updated = { ...selectedRequest, notes: [...(selectedRequest.notes || []), note] };
     setSelectedRequest(updated);
-    setRequests((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
+    // Show the note in the list straight away, without a round trip.
+    queryClient.setQueryData<MyRequestsData>(['it', 'my-requests', params], (prev) =>
+      prev && { ...prev, requests: prev.requests.map((r) => (r._id === updated._id ? updated : r)) },
+    );
   };
 
   return (
@@ -189,7 +153,7 @@ function Requested() {
         </div>
 
         <div className="filters-row">
-          <input type="text" placeholder="Search by code, issue, office..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+          <SearchBox placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
         </div>
 
         {error && <div className="error-message">{error}</div>}
@@ -252,7 +216,7 @@ function Requested() {
                             </span>
                             <button 
                               className="btn-rate"
-                              onClick={() => sendToCSF(req.request_code)}
+                              onClick={() => openRating(req._id, req.request_code, 'it_request')}
                               style={{ padding: '6px 12px', fontSize: '11px' }}
                             >
                               Rate
@@ -282,6 +246,15 @@ function Requested() {
                 <p><strong>Created:</strong> {formatDate(selectedRequest.created_at)}</p>
                 {selectedRequest.completed_at && <p><strong>Completed:</strong> {formatDate(selectedRequest.completed_at)}</p>}
               </div>
+              {selectedRequest.status === 'DONE' && (
+                <StaffReport
+                  title="Technician's report"
+                  result={selectedRequest.finished === 'repaired' ? 'Repaired' : 'Beyond Repair'}
+                  remarks={selectedRequest.remarks}
+                  recommendation={selectedRequest.recommendation}
+                  showRecommendation
+                />
+              )}
               <DeclineReason reason={selectedRequest.decline_reason} />
               <NotesList notes={selectedRequest.notes} heading="Your notes" />
               {OPEN_STATUSES.includes(selectedRequest.status) && (

@@ -2,7 +2,7 @@ import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
 import { RedisClientType, createClient } from 'redis';
 import { Priority } from '../utils/priority';
 
-export const ALL_ROLE_VALUES = ['ADMIN', 'TECHNICIAN', 'CLIENT', 'MULTIMEDIA', 'IT_ADMIN', 'MULTIMEDIA_ADMIN', 'PROGRAMMER'] as const;
+export const ALL_ROLE_VALUES = ['ADMIN', 'TECHNICIAN', 'CLIENT', 'MULTIMEDIA', 'IT_ADMIN', 'MULTIMEDIA_ADMIN'] as const;
 export type Role = typeof ALL_ROLE_VALUES[number];
 
 export interface User {
@@ -16,6 +16,7 @@ export interface User {
   roles: Role[];
   primary_role: Role;
   office?: string;
+  position?: string;
   created_at?: Date;
   // Bumped when an admin changes the user's access or password; sessions started under an
   // older version are rejected (see isAuthenticated).
@@ -116,6 +117,29 @@ export interface AuditLog {
   metadata?: Record<string, unknown>;
 }
 
+export type NotificationLevel = 'info' | 'success' | 'warning' | 'error';
+
+// One row per recipient, so read state is per user.
+export interface Notification {
+  _id?: ObjectId;
+  user_id: ObjectId;
+  level: NotificationLevel;
+  title: string;
+  message: string;
+  // In-app path the notification opens, e.g. '/requested'.
+  link: string | null;
+  request_code: string | null;
+  // Set on "request completed" notifications so the requester can open the rating form straight from it.
+  rate?: NotificationRate | null;
+  read_at: Date | null;
+  created_at: Date;
+}
+
+export interface NotificationRate {
+  request_id: string;
+  type: string; // the rating system's request type, e.g. 'it_request'
+}
+
 export interface PrintMaterialsRequest extends DeclineAndNotes, PriorityAndDue {
   _id?: ObjectId;
   request_code: string;
@@ -136,23 +160,19 @@ export interface PrintMaterialsRequest extends DeclineAndNotes, PriorityAndDue {
   completed_at: Date | null;
 }
 
-export interface SoftwareRequest {
-  _id?: ObjectId;
-  request_code: string;
-  created_by: ObjectId;
-  assigned_to: ObjectId | null;
-  reviewed_by: ObjectId | null;
-  proposed_title: string;
-  client_name_office: string;
-  statement_of_problem: string;
-  objective: string;
-  formal_request_letter: string;
-  process_flow: string;
-  status: 'PENDING' | 'ASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'NOT_APPROVED' | 'CANCELLED';
-  rejection_reason: string | null;
-  remarks: string | null;
-  created_at: Date;
-  completed_at: Date | null;
+// Names printed on the signature lines of the Daily Accomplishment Report.
+export interface Signatories {
+  supervisor_name: string;
+  supervisor_position: string;
+  mayor_name: string;
+  updated_at?: Date;
+  updated_by?: string;
+}
+
+// App-wide settings, one document per setting keyed by name.
+export interface SettingDoc {
+  _id: string;
+  value: Signatories;
 }
 
 let client: MongoClient;
@@ -223,18 +243,18 @@ async function createIndexes(): Promise<void> {
     await printMaterialsCollection.createIndex({ status: 1 });
     await printMaterialsCollection.createIndex({ created_at: -1 });
 
-    const softwareCollection = db.collection<SoftwareRequest>('software_requests');
-    await softwareCollection.createIndex({ request_code: 1 }, { unique: true });
-    await softwareCollection.createIndex({ created_by: 1 });
-    await softwareCollection.createIndex({ assigned_to: 1 });
-    await softwareCollection.createIndex({ status: 1 });
-    await softwareCollection.createIndex({ created_at: -1 });
 
     const auditCollection = db.collection<AuditLog>('audit_logs');
     await auditCollection.createIndex({ timestamp: -1 });
     await auditCollection.createIndex({ user_id: 1, timestamp: -1 });
     await auditCollection.createIndex({ action: 1, timestamp: -1 });
     await auditCollection.createIndex({ entity_id: 1 });
+
+    const notificationsCollection = db.collection<Notification>('notifications');
+    await notificationsCollection.createIndex({ user_id: 1, created_at: -1 });
+    await notificationsCollection.createIndex({ user_id: 1, read_at: 1 });
+    // Old notifications clean themselves up after 90 days.
+    await notificationsCollection.createIndex({ created_at: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
   } catch (e) {
     // Indexes may already exist
   }
@@ -277,12 +297,16 @@ export function getPrintMaterialsRequestsCollection(): Collection<PrintMaterials
   return db.collection<PrintMaterialsRequest>('print_materials_requests');
 }
 
-export function getSoftwareRequestsCollection(): Collection<SoftwareRequest> {
-  return db.collection<SoftwareRequest>('software_requests');
-}
-
 export function getAuditLogsCollection(): Collection<AuditLog> {
   return db.collection<AuditLog>('audit_logs');
+}
+
+export function getNotificationsCollection(): Collection<Notification> {
+  return db.collection<Notification>('notifications');
+}
+
+export function getSettingsCollection(): Collection<SettingDoc> {
+  return db.collection<SettingDoc>('settings');
 }
 
 export async function logAudit(

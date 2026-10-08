@@ -15,7 +15,7 @@ const config: HistoryTableConfig = {
   searchPlaceholder: 'Search by code, description, event, requestor...',
   emptyMessage: 'No print materials requests yet',
   cancelStatus: 'PENDING',
-  socketPrefix: 'print_materials',
+  service: 'printMaterials',
   rateType: 'print_materials',
   modalTitleKey: 'form_of_printed_media',
   modalFields: [
@@ -26,7 +26,6 @@ const config: HistoryTableConfig = {
     { label: 'Target Date', key: 'target_date', date: true },
     { label: 'Requestor', key: 'requestor_name' },
     { label: 'Contact', key: 'requestor_contact' },
-    { label: 'Remarks', key: 'remarks' },
   ],
   fileViewer: { fileKey: 'supporting_files', type: 'printmaterials', isArray: true },
 };

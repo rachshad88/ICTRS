@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { initSocket, getSocket } from '../services/socket';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, RequestNote } from '../components/RequestNotes';
 import { RequestFlags, PRIORITY_OPTIONS, priorityLabel, formatDay } from '../components/Priority';
+import SearchBox from '../components/SearchBox';
 
 interface OverviewRequest {
   _id: string;
@@ -92,8 +93,8 @@ const MANAGE_PAGES: Record<string, { to: string; role: string; label: string }> 
   print_materials: { to: '/print-materials-management', role: 'MULTIMEDIA_ADMIN', label: 'Print Materials Management' },
 };
 
-const REFRESH_EVENTS = ['request_update', ...['multimedia', 'digital_media', 'print_materials'].flatMap((p) =>
-  ['created', 'assigned_admin', 'completed', 'cancelled', 'declined', 'priority_changed'].map((e) => `${p}_request_${e}`))];
+const NO_META: Meta = { types: [], staff: [], offices: [] };
+const NO_COUNTS: Counts = { total: 0, open: 0, unassigned: 0, urgent_open: 0, overdue: 0, done: 0 };
 
 const STORAGE_KEY = 'all-requests-filters';
 const PAGE_SIZE = 15;
@@ -125,15 +126,8 @@ function dayBoundary(day: string, end: boolean) {
 function AllRequests() {
   const { user } = useAuth();
   const roles = user?.roles || (user ? [user.role] : []);
-  const [meta, setMeta] = useState<Meta>({ types: [], staff: [], offices: [] });
   const [filters, setFilters] = useState<Filters>(loadFilters);
-  const [search, setSearch] = useState(filters.search);
-  const [requests, setRequests] = useState<OverviewRequest[]>([]);
-  const [counts, setCounts] = useState<Counts>({ total: 0, open: 0, unassigned: 0, urgent_open: 0, overdue: 0, done: 0 });
-  const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [selected, setSelected] = useState<OverviewRequest | null>(null);
 
   useEffect(() => {
@@ -146,67 +140,42 @@ function AllRequests() {
     setCurrentPage(1);
   }, []);
 
-  // Debounce typing into the search box.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (search !== filters.search) updateFilters((f) => ({ ...f, search }));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [search, filters.search, updateFilters]);
+  // Filter options (request types, staff, offices) change only with accounts and settings.
+  const metaQuery = useQuery({
+    queryKey: ['meta', 'overview'],
+    queryFn: () => api.get<Meta>('/overview/meta').then((r) => r.data),
+    staleTime: 5 * 60_000,
+    enabled: !!user,
+  });
+  const meta = metaQuery.data ?? NO_META;
 
-  useEffect(() => {
-    api.get('/overview/meta')
-      .then((res) => setMeta(res.data))
-      .catch(() => setError('Could not load the filter options.'));
-  }, []);
+  const params: Record<string, string | number> = { page: currentPage, limit: PAGE_SIZE, sort: filters.sort };
+  if (filters.search.trim()) params.search = filters.search.trim();
+  if (filters.type) params.type = filters.type;
+  if (filters.status) params.status = filters.status;
+  if (filters.priority) params.priority = filters.priority;
+  if (filters.office) params.office = filters.office;
+  if (filters.assigned_to) params.assigned_to = filters.assigned_to;
+  if (filters.overdue) params.overdue = '1';
+  if (filters.from) params.from = dayBoundary(filters.from, false);
+  if (filters.to) params.to = dayBoundary(filters.to, true);
 
-  const fetchData = useCallback(async () => {
-    const params: Record<string, string | number> = { page: currentPage, limit: PAGE_SIZE, sort: filters.sort };
-    if (filters.search.trim()) params.search = filters.search.trim();
-    if (filters.type) params.type = filters.type;
-    if (filters.status) params.status = filters.status;
-    if (filters.priority) params.priority = filters.priority;
-    if (filters.office) params.office = filters.office;
-    if (filters.assigned_to) params.assigned_to = filters.assigned_to;
-    if (filters.overdue) params.overdue = '1';
-    if (filters.from) params.from = dayBoundary(filters.from, false);
-    if (filters.to) params.to = dayBoundary(filters.to, true);
-    try {
-      const res = await api.get('/overview/requests', { params });
-      setRequests(res.data.requests);
-      setCounts(res.data.counts);
-      setTotalPages(res.data.totalPages || 0);
-      setError('');
-    } catch {
-      setError('Could not load requests. Try again in a moment.');
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, currentPage]);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
-
-  useEffect(() => {
-    if (user) initSocket();
-  }, [user]);
-
-  // Live updates: refetch shortly after any request changes, batching bursts of events.
-  const fetchRef = useRef(fetchData);
-  useEffect(() => { fetchRef.current = fetchData; }, [fetchData]);
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const handler = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => fetchRef.current(), 500);
-    };
-    REFRESH_EVENTS.forEach((e) => socket.on(e, handler));
-    return () => {
-      clearTimeout(timer);
-      REFRESH_EVENTS.forEach((e) => socket.off(e, handler));
-    };
-  }, [user]);
+  // Every service's requests, cached per filter set and page. Socket events from any service
+  // refresh it, batched per burst (['overview'] in services/queryClient.ts).
+  const listQuery = useQuery({
+    queryKey: ['overview', 'requests', params],
+    queryFn: () => api.get<{ requests: OverviewRequest[]; counts: Counts; totalPages?: number }>('/overview/requests', { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or filter loads.
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const requests = listQuery.data?.requests ?? [];
+  const counts = listQuery.data?.counts ?? NO_COUNTS;
+  const totalPages = listQuery.data?.totalPages || 0;
+  const loading = listQuery.isPending;
+  const error = listQuery.isError
+    ? 'Could not load requests. Try again in a moment.'
+    : metaQuery.isError ? 'Could not load the filter options.' : '';
 
   const setFilter = <K extends keyof Filters>(key: K, value: Filters[K]) => updateFilters((f) => ({ ...f, [key]: value }));
 
@@ -225,7 +194,6 @@ function AllRequests() {
   };
 
   const resetFilters = () => {
-    setSearch('');
     updateFilters(() => DEFAULT_FILTERS);
   };
 
@@ -259,15 +227,14 @@ function AllRequests() {
       </div>
 
       <div className="overview-filters">
-        <label className="overview-search">
-          Search
-          <input
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+        <div className="overview-search">
+          <span>Search</span>
+          <SearchBox
+            value={filters.search}
+            onSearch={(term) => setFilter('search', term)}
             placeholder="Code, title, office, requester or staff name"
           />
-        </label>
+        </div>
         {meta.types.length > 1 && (
           <label>
             Type

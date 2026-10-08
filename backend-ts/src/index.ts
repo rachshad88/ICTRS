@@ -12,6 +12,7 @@ import { Socket } from 'socket.io';
 import helmet from 'helmet';
 import { ObjectId } from 'mongodb';
 import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection, isSessionCurrent } from './config/database';
+import { startRatingSync } from './utils/ratingSync';
 import { initSocket } from './config/socket';
 
 import authRoutes from './routes/auth';
@@ -27,6 +28,8 @@ import notificationRoutes from './routes/notifications';
 import csfRoutes from './routes/csf_route';
 import dashboardRoutes from './routes/dashboard';
 import overviewRoutes from './routes/overview';
+import signatoryRoutes from './routes/signatories';
+import liveRoutes, { registerLiveNamespace } from './routes/live';
 
 const app: Express = express();
 // nginx and the Vite dev proxy run on this machine; trust their X-Forwarded-* headers only.
@@ -52,6 +55,7 @@ const CORS_ORIGINS = (process.env.CORS_ORIGINS || 'http://192.168.110.19')
   .filter(Boolean);
 
 const io = initSocket(httpServer, false);
+registerLiveNamespace(io);
 
 app.set('io', io);
 
@@ -139,14 +143,15 @@ io.on('connection', async (socket) => {
     if (roles.includes('ADMIN') || roles.includes('MULTIMEDIA_ADMIN')) {
       socket.join('admins');
     }
+    // Only the super admin gets IT request events alongside IT staff; multimedia admins don't.
+    if (roles.includes('ADMIN')) {
+      socket.join('super_admins');
+    }
     if (roles.includes('MULTIMEDIA')) {
       socket.join('multimedia_staff');
     }
     if (roles.includes('TECHNICIAN') || roles.includes('IT_ADMIN')) {
       socket.join('technicians');
-    }
-    if (roles.includes('PROGRAMMER')) {
-      socket.join('programmers');
     }
     if (roles.includes('CLIENT')) {
       socket.join('clients');
@@ -180,10 +185,12 @@ app.use('/api/printmaterials', printMaterialsRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/audit', auditRoutes);
 app.use('/api/notifications', notificationRoutes);
-// Software development requests (routes/software.ts) have no screens yet, so their routes are not mounted.
 app.use('/api/csf', csfRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/overview', overviewRoutes);
+app.use('/api/signatories', signatoryRoutes);
+// Wall display queue: no login, limited to LIVE_ALLOWED_CIDRS (see routes/live.ts).
+app.use('/api/live', liveRoutes);
 
 const rawPort = process.env.PORT || '3000';
 const PORT = parseInt(rawPort, 10);
@@ -201,6 +208,8 @@ async function startServer() {
   try {
     await connectDB();
     console.log('Connected to MongoDB');
+    // Copy request statuses into the shared rating database now and every 10 minutes (deploy/RATING_DB.md).
+    startRatingSync();
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
     console.log('Server will start but database operations will fail');

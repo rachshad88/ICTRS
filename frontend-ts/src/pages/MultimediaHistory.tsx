@@ -15,7 +15,7 @@ const config: HistoryTableConfig = {
   searchPlaceholder: 'Search by code, event, location...',
   emptyMessage: 'No multimedia requests yet',
   cancelStatus: 'UNASSIGNED',
-  socketPrefix: 'multimedia',
+  service: 'multimedia',
   rateType: 'multimedia',
   modalTitleKey: 'event_title',
   modalFields: [
@@ -26,6 +26,7 @@ const config: HistoryTableConfig = {
     { label: 'Contact', key: 'contact_number' },
   ],
   fileViewer: { fileKey: 'program_file', type: 'multimedia', isArray: false },
+  hasRecommendation: true,
 };
 
 function MultimediaHistory() {

@@ -1,11 +1,321 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ITRS - Information Technology Request Systems</title>
+    <link rel="preload" href="/fonts/plus-jakarta-sans-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
+    <script>
+      // The boot loader only runs for the landing page; main.tsx lifts it.
+      if (location.pathname === '/') document.documentElement.classList.add('boot');
+    </script>
+    <style>
+      /* ===== Boot loader (landing page only) =====
+         The four request types orbit the Solano seal and are pulled in as loading progresses;
+         at 100% they collapse into the seal and the screen splits open onto the page. */
+      #boot { display: none; }
+      .boot #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 10001;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: #f4f7fc;
+        font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+        /* Safety net: never strand the visitor if the app fails to start */
+        animation: bootGiveUp 0.4s ease 10s forwards;
+      }
+      .boot-done #boot { pointer-events: none; }
+
+      /* Background in two halves so it can split open on exit */
+      .boot-half {
+        position: absolute;
+        left: 0;
+        right: 0;
+        height: 50.5%;
+        background: #0b3a8c;
+        background-image:
+          repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 22px),
+          radial-gradient(ellipse 90% 70% at 50% 50%, #1d5fd6 0%, #0b3a8c 55%, #061f52 100%);
+        background-size: 100% 100%, 100% 200%;
+        /* Waits for the icons to collapse into the seal before splitting */
+        transition: transform 0.85s cubic-bezier(0.76, 0, 0.24, 1) 0.3s;
+      }
+      .boot-half-top { top: 0; background-position: 0 0, 0 0; }
+      .boot-half-bottom { bottom: 0; background-position: 0 0, 0 100%; }
+      .boot-done .boot-half-top { transform: translateY(-101%); }
+      .boot-done .boot-half-bottom { transform: translateY(101%); }
+
+      /* Seam light that flashes along the split */
+      .boot-seam {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 2px;
+        margin-top: -1px;
+        background: linear-gradient(90deg, transparent, #ffd91a 30%, #fff6c4 50%, #ffd91a 70%, transparent);
+        transform: scaleX(0);
+        opacity: 0;
+      }
+      .boot-done .boot-seam { animation: bootSeam 0.5s ease-out 0.2s forwards; }
+
+      /* Outlined words drifting behind everything */
+      .boot-marquee {
+        position: absolute;
+        left: 0;
+        display: flex;
+        width: max-content;
+        white-space: nowrap;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: clamp(56px, 11vw, 150px);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        line-height: 1;
+        color: transparent;
+        -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.08);
+        animation: bootMarquee 26s linear infinite;
+        transition: opacity 0.3s ease;
+      }
+      .boot-marquee span { padding-right: 0.4em; }
+      .boot-marquee-a { top: 9%; }
+      .boot-marquee-b { bottom: 9%; animation-direction: reverse; animation-duration: 32s; }
+      .boot-done .boot-marquee { opacity: 0; }
+
+      .boot-content {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease 0.15s;
+        animation: bootRise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .boot-done .boot-content { transform: scale(1.08); opacity: 0; transition-delay: 0.25s, 0.3s; }
+
+      .boot-stage { --r: 118px; position: relative; width: 280px; height: 280px; }
+
+      .boot-orbit {
+        position: absolute;
+        inset: 0;
+        animation: bootSpin 9s linear infinite;
+      }
+      .boot-orbit-path {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: calc(var(--r) * 2);
+        height: calc(var(--r) * 2);
+        margin: calc(var(--r) * -1) 0 0 calc(var(--r) * -1);
+        border: 1px dashed rgba(255, 255, 255, 0.18);
+        border-radius: 50%;
+      }
+      .boot-chip {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 44px;
+        height: 44px;
+        margin: -22px 0 0 -22px;
+        transform: rotate(var(--a)) translateX(var(--r)) rotate(calc(var(--a) * -1));
+      }
+      .boot-done .boot-chip {
+        transform: rotate(var(--a)) translateX(0) rotate(calc(var(--a) * -1)) scale(0.2);
+        opacity: 0;
+        transition: transform 0.45s cubic-bezier(0.7, 0, 0.84, 0), opacity 0.2s ease 0.25s;
+      }
+      .boot-chip-face {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 100%;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        color: #ffd91a;
+        box-shadow: 0 10px 24px -12px rgba(0, 0, 0, 0.6);
+        /* Counter-spin so the icons stay upright while the orbit turns */
+        animation: bootSpin 9s linear infinite reverse;
+      }
+      .boot-chip svg { animation: bootBob 1.2s ease-in-out var(--d) infinite alternate; width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+      .boot-ring { position: absolute; top: 50%; left: 50%; width: 132px; height: 132px; margin: -66px 0 0 -66px; transform: rotate(-90deg); }
+      .boot-ring circle { fill: none; stroke-width: 4; stroke-linecap: round; }
+      .boot-ring .track { stroke: rgba(255, 255, 255, 0.14); }
+      .boot-ring .arc { stroke: #ffd91a; stroke-dasharray: 390; stroke-dashoffset: 390; filter: drop-shadow(0 0 6px rgba(255, 217, 26, 0.6)); }
+
+      .boot-seal {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 96px;
+        height: 96px;
+        margin: -48px 0 0 -48px;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        background: #fbfcfe;
+        animation: bootPulse 1.8s ease-in-out infinite;
+      }
+      .boot-done .boot-seal { animation: bootPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+      .boot-seal img { width: 74%; height: 74%; object-fit: contain; opacity: 0; transition: opacity 0.4s ease; }
+      .boot-seal img.ok { opacity: 1; }
+
+      .boot-pct {
+        margin-top: 6px;
+        font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+        font-size: 56px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        color: #fff;
+      }
+      .boot-pct small { margin-left: 4px; font-size: 24px; color: #ffd91a; }
+
+      .boot-status {
+        height: 18px;
+        margin-top: 12px;
+        overflow: hidden;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: rgba(244, 247, 252, 0.72);
+      }
+      .boot-status span { display: block; }
+      .boot-status span.swap { animation: bootSwap 0.45s cubic-bezier(0.16, 1, 0.3, 1); }
+
+      .boot-place {
+        margin-top: 22px;
+        padding: 6px 14px;
+        border: 1px solid rgba(255, 217, 26, 0.45);
+        border-radius: 999px;
+        font-size: 10px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #ffd91a;
+      }
+
+      @keyframes bootSpin { to { transform: rotate(360deg); } }
+      @keyframes bootBob { from { transform: translateY(-3px); } to { transform: translateY(3px); } }
+      @keyframes bootMarquee { to { transform: translateX(-50%); } }
+      @keyframes bootPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 217, 26, 0.45), 0 18px 40px -14px rgba(0, 0, 0, 0.5); }
+        50% { box-shadow: 0 0 0 16px rgba(255, 217, 26, 0), 0 18px 40px -14px rgba(0, 0, 0, 0.5); }
+      }
+      @keyframes bootPop {
+        0% { transform: scale(1); }
+        45% { transform: scale(1.25); box-shadow: 0 0 0 10px rgba(255, 217, 26, 0.5), 0 0 60px rgba(255, 217, 26, 0.6); }
+        100% { transform: scale(0.9); }
+      }
+      @keyframes bootSwap { from { transform: translateY(100%); opacity: 0; } to { transform: none; opacity: 1; } }
+      @keyframes bootRise { from { transform: translateY(16px) scale(0.96); opacity: 0; } }
+      @keyframes bootSeam {
+        0% { transform: scaleX(0); opacity: 1; }
+        60% { transform: scaleX(1); opacity: 1; }
+        100% { transform: scaleX(1); opacity: 0; }
+      }
+      @keyframes bootGiveUp { to { opacity: 0; visibility: hidden; } }
+
+      @media (max-width: 480px) {
+        .boot-stage { width: 240px; height: 240px; }
+        .boot-pct { font-size: 46px; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-orbit, .boot-chip-face, .boot-chip svg, .boot-marquee, .boot-seal { animation: none; }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" role="status" aria-label="Loading ITRS">
+      <div class="boot-half boot-half-top"></div>
+      <div class="boot-half boot-half-bottom"></div>
+      <div class="boot-seam"></div>
+
+      <div class="boot-marquee boot-marquee-a" aria-hidden="true">
+        <span>IT Support · Multimedia · Digital Media · Print ·</span><span>IT Support · Multimedia · Digital Media · Print ·</span>
+      </div>
+      <div class="boot-marquee boot-marquee-b" aria-hidden="true">
+        <span>Ask once · Track it · Get it done ·</span><span>Ask once · Track it · Get it done ·</span>
+      </div>
+
+      <div class="boot-content">
+        <div class="boot-stage" id="boot-stage" aria-hidden="true">
+          <div class="boot-orbit">
+            <div class="boot-orbit-path"></div>
+            <div class="boot-chip" style="--a: 0deg; --d: 0s"><div class="boot-chip-face"><svg viewBox="0 0 24 24"><path d="M2 3h20v14H2z" /><path d="M8 21h8" /><path d="M12 17v4" /></svg></div></div>
+            <div class="boot-chip" style="--a: 90deg; --d: -0.6s"><div class="boot-chip-face"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg></div></div>
+            <div class="boot-chip" style="--a: 180deg; --d: -1.2s"><div class="boot-chip-face"><svg viewBox="0 0 24 24"><path d="M3 3h18v18H3z" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg></div></div>
+            <div class="boot-chip" style="--a: 270deg; --d: -1.8s"><div class="boot-chip-face"><svg viewBox="0 0 24 24"><path d="M6 9V2h12v7" /><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 14h12v8H6z" /></svg></div></div>
+          </div>
+          <svg class="boot-ring" viewBox="0 0 132 132">
+            <circle class="track" cx="66" cy="66" r="62" />
+            <circle class="arc" cx="66" cy="66" r="62" />
+          </svg>
+          <div class="boot-seal">
+            <img src="/solano-logo.png" alt="" onload="this.classList.add('ok')" />
+          </div>
+        </div>
+        <div class="boot-pct"><span id="boot-pct">0</span><small>%</small></div>
+        <div class="boot-status"><span id="boot-status">Gathering requests</span></div>
+        <div class="boot-place">ITRS · Municipality of Solano</div>
+      </div>
+    </div>
+    <script>
+      // Loading percentage: creeps toward 90% while the app downloads; window.__bootFinish()
+      // (called from main.tsx once ready) runs it up to 100% and resolves when it gets there.
+      // The ring fills with the same value and the orbit tightens around the seal.
+      (function () {
+        if (!document.documentElement.classList.contains('boot')) return;
+        var label = document.getElementById('boot-pct');
+        var status = document.getElementById('boot-status');
+        var stage = document.getElementById('boot-stage');
+        var arc = document.querySelector('#boot .arc');
+        var small = window.matchMedia('(max-width: 480px)').matches;
+        var rMax = small ? 104 : 122, rMin = small ? 78 : 90;
+        var STEPS = [[0, 'Gathering requests'], [35, 'Sorting the queue'], [70, 'Opening the desk'], [100, 'Ready']];
+        var p = 0, target = 90, finishing = null, done = null, step = 0;
+        function paint() {
+          label.textContent = Math.round(p);
+          arc.style.strokeDashoffset = String(390 * (1 - p / 100));
+          stage.style.setProperty('--r', (rMax - (rMax - rMin) * (p / 100)).toFixed(1) + 'px');
+          var next = step;
+          while (next + 1 < STEPS.length && p >= STEPS[next + 1][0] - 0.5) next++;
+          if (next !== step) {
+            step = next;
+            status.textContent = STEPS[step][1];
+            status.classList.remove('swap');
+            void status.offsetWidth;
+            status.classList.add('swap');
+            // main.tsx plays a note for each step (src/services/sfx.ts).
+            window.dispatchEvent(new CustomEvent('boot-step', { detail: step }));
+          }
+        }
+        function tick() {
+          if (finishing) {
+            var t = Math.min(1, (performance.now() - finishing.start) / 420);
+            p = finishing.from + (100 - finishing.from) * (1 - Math.pow(1 - t, 3));
+            paint();
+            if (t < 1) return requestAnimationFrame(tick);
+            return setTimeout(done, 260);
+          }
+          p += (target - p) * 0.03;
+          paint();
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+        window.__bootFinish = function () {
+          return new Promise(function (resolve) {
+            done = resolve;
+            finishing = { from: p, start: performance.now() };
+          });
+        };
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

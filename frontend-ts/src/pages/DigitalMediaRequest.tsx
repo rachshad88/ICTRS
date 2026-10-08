@@ -124,7 +124,7 @@ function DigitalMediaRequest() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="request-form">
+        <form onSubmit={handleSubmit} className="request-form" data-ticket="Digital Media">
           <div className="form-group">
             <label>Title *</label>
             <input
@@ -253,6 +253,8 @@ function DigitalMediaRequest() {
             )}
             <small>Max 10 files. Allowed: PDF, JPG, PNG, Word, PowerPoint (.pptx), MP4, WebM (max 10MB each)</small>
           </div>
+
+          <div className="ticket-tear" aria-hidden="true" />
 
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit Request'}

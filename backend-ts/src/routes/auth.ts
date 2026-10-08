@@ -2,13 +2,15 @@ import { Router, Request, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { getUsersCollection, logAudit, Role } from '../config/database';
+import { getUsersCollection, logAudit, redisClient, Role, User } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { loginSchema, changePasswordSchema, updateProfileSchema } from '../middleware/validation';
-import { loginRetryAfter, recordLoginFailure, recordLoginSuccess } from '../middleware/loginThrottle';
+import { loginSchema, changePasswordSchema, updateProfileSchema, signupSchema } from '../middleware/validation';
+import { loginRetryAfter, recordLoginFailure, recordLoginSuccess, recordSignup, signupRetryAfter } from '../middleware/loginThrottle';
 
 const router = Router();
+// Same default as routes/users.ts; accounts on it must change it before using the app.
+const DEFAULT_PASSWORD = '12345';
 
 async function passwordMatchesDefault(userPassword: string): Promise<boolean> {
   if (!userPassword) return false;
@@ -17,10 +19,10 @@ async function passwordMatchesDefault(userPassword: string): Promise<boolean> {
     const hashToCheck = userPassword.startsWith('$2y$')
       ? '$2b$' + userPassword.substring(4)
       : userPassword;
-    return bcrypt.compare('12345', hashToCheck);
+    return bcrypt.compare(DEFAULT_PASSWORD, hashToCheck);
   }
 
-  const md5Hash = crypto.createHash('md5').update('12345').digest('hex');
+  const md5Hash = crypto.createHash('md5').update(DEFAULT_PASSWORD).digest('hex');
   return md5Hash === userPassword;
 }
 
@@ -85,50 +87,119 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     }
     recordLoginSuccess(username, ip);
 
-    const roles = user.roles || [user.role];
-    const primary_role = user.primary_role || user.role;
     const isDefaultPassword = await passwordMatchesDefault(user.password);
+    const userData = await startSession(req, user, isDefaultPassword);
+    await logAudit(user._id!, user.username, userData.primary_role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
 
-    req.session.regenerate(async (err) => {
-      if (err) {
-        console.error('Session regeneration error:', err);
-        return res.status(500).json({ error: 'Internal server error' });
-      }
-
-      try {
-        req.session.user_id = user._id?.toString();
-        req.session.username = user.username;
-        req.session.first_name = user.first_name;
-        req.session.middle_name = user.middle_name;
-        req.session.last_name = user.last_name;
-        req.session.roles = roles;
-        req.session.primary_role = primary_role;
-        req.session.office = user.office || '';
-        req.session.is_default_password = isDefaultPassword;
-        req.session.session_version = user.session_version || 0;
-
-        await logAudit(user._id!, user.username, primary_role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
-
-        const userData = {
-          user_id: user._id?.toString(),
-          username: user.username,
-          first_name: user.first_name,
-          middle_name: user.middle_name,
-          last_name: user.last_name,
-          roles,
-          primary_role,
-          office: user.office || '',
-          is_default_password: isDefaultPassword
-        };
-
-        return res.json({ redirect: getRedirect(primary_role), user: userData });
-      } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-      }
-    });
+    return res.json({ redirect: getRedirect(userData.primary_role), user: userData });
   } catch (error) {
     console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Signs the user in on a fresh session id (so a session id set before login can't be reused) and
+// returns the user details the frontend keeps.
+function startSession(req: Request, user: User, isDefaultPassword: boolean) {
+  const roles = user.roles || [user.role];
+  const primary_role = user.primary_role || user.role;
+
+  return new Promise<{
+    user_id: string; username: string; first_name: string; middle_name: string; last_name: string;
+    roles: Role[]; primary_role: Role; office: string; position: string; is_default_password: boolean;
+  }>((resolve, reject) => {
+    req.session.regenerate((err) => {
+      if (err) return reject(err);
+
+      req.session.user_id = user._id!.toString();
+      req.session.username = user.username;
+      req.session.first_name = user.first_name;
+      req.session.middle_name = user.middle_name;
+      req.session.last_name = user.last_name;
+      req.session.roles = roles;
+      req.session.primary_role = primary_role;
+      req.session.office = user.office || '';
+      req.session.is_default_password = isDefaultPassword;
+      req.session.session_version = user.session_version || 0;
+
+      resolve({
+        user_id: user._id!.toString(),
+        username: user.username,
+        first_name: user.first_name,
+        middle_name: user.middle_name,
+        last_name: user.last_name,
+        roles,
+        primary_role,
+        office: user.office || '',
+        position: user.position || '',
+        is_default_password: isDefaultPassword
+      });
+    });
+  });
+}
+
+// Public sign-up for clients. The account always gets the CLIENT role and the default password,
+// and is signed in straight away; isAuthenticated then keeps it on the Profile page until the
+// password is changed, so nobody else can use the known default for long.
+router.post('/signup', validateBody(signupSchema), async (req: Request, res: Response) => {
+  try {
+    const ip = req.ip || '';
+    const retryAfter = signupRetryAfter(ip);
+    if (retryAfter > 0) {
+      const minutes = Math.ceil(retryAfter / 60);
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({ error: `Too many new accounts from this computer. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.` });
+    }
+
+    // validateBody only checks; parse again to get the trimmed values.
+    const { username, first_name, middle_name, last_name, office, position } = signupSchema.parse(req.body);
+
+    const usersCollection = getUsersCollection();
+    // Usernames are matched exactly at login, but "Juan" and "juan" side by side would only confuse people.
+    const taken = await usersCollection.findOne(
+      { username },
+      { collation: { locale: 'en', strength: 2 }, projection: { _id: 1 } }
+    );
+    if (taken) {
+      return res.status(409).json({ error: 'That username is already taken. Please choose another.' });
+    }
+
+    const newUser: User = {
+      username,
+      password: await bcrypt.hash(DEFAULT_PASSWORD, 10),
+      first_name,
+      middle_name: middle_name || '',
+      last_name,
+      role: 'CLIENT',
+      roles: ['CLIENT'],
+      primary_role: 'CLIENT',
+      office,
+      position,
+      created_at: new Date()
+    };
+
+    try {
+      const result = await usersCollection.insertOne(newUser);
+      newUser._id = result.insertedId;
+    } catch (error) {
+      // Lost a race with someone taking the same username (unique index).
+      if ((error as { code?: number }).code === 11000) {
+        return res.status(409).json({ error: 'That username is already taken. Please choose another.' });
+      }
+      throw error;
+    }
+    recordSignup(ip);
+
+    if (redisClient) {
+      await redisClient.del('users:all:non-admin').catch(() => {});
+    }
+
+    await logAudit(newUser._id!, username, 'CLIENT', 'SIGNUP', 'USER', newUser._id!.toString(), `User ${username} signed up (${office})`);
+
+    const userData = await startSession(req, newUser, true);
+    return res.status(201).json({ redirect: '/profile', user: userData });
+  } catch (error) {
+    console.error('Signup error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -155,6 +226,10 @@ router.post('/logout', async (req: Request, res: Response) => {
 });
 
 router.get('/me', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
+  // Read from the database rather than the session so a position set by an admin shows up without re-login.
+  const stored = await getUsersCollection()
+    .findOne({ _id: new ObjectId(req.user!.user_id) }, { projection: { position: 1 } })
+    .catch(() => null);
   res.json({
     user_id: req.user?.user_id,
     username: req.user?.username,
@@ -164,6 +239,7 @@ router.get('/me', isAuthenticated, async (req: AuthenticatedRequest, res: Respon
     roles: req.user?.roles,
     primary_role: req.user?.primary_role,
     office: req.user?.office,
+    position: stored?.position || '',
     is_default_password: req.user?.is_default_password || false
   });
 });
@@ -217,7 +293,7 @@ router.post('/change_password', isAuthenticated, validateBody(changePasswordSche
 
 router.put('/update_profile', isAuthenticated, validateBody(updateProfileSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { username, first_name, middle_name, last_name, office } = req.body;
+    const { username, first_name, middle_name, last_name, office, position } = req.body;
     const userId = req.user!.user_id;
 
     const usersCollection = getUsersCollection();
@@ -241,6 +317,10 @@ router.put('/update_profile', isAuthenticated, validateBody(updateProfileSchema)
 
     if (office !== undefined) {
       updateData.office = office;
+    }
+
+    if (position !== undefined) {
+      updateData.position = position.trim();
     }
 
     await usersCollection.updateOne(

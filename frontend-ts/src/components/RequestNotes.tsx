@@ -31,6 +31,43 @@ export function DeclineReason({ reason }: { reason?: string | null }) {
   );
 }
 
+/**
+ * What the staff member wrote when finishing a request, shown to the client in the request details.
+ * `result` is the IT outcome (Repaired / Beyond Repair); pass `showRecommendation` for request types whose
+ * completion form asks for one (IT and Multimedia). Empty fields say so instead of disappearing.
+ */
+export function StaffReport({ title, result, remarks, recommendation, showRecommendation = false }: {
+  title: string;
+  result?: string;
+  remarks?: string | null;
+  recommendation?: string | null;
+  showRecommendation?: boolean;
+}) {
+  return (
+    <div className="staff-report">
+      <p className="staff-report-title">{title}</p>
+      <dl>
+        {result && (
+          <div>
+            <dt>Result</dt>
+            <dd>{result}</dd>
+          </div>
+        )}
+        <div>
+          <dt>Remarks</dt>
+          <dd className={remarks ? '' : 'staff-report-empty'}>{remarks || 'No remarks given'}</dd>
+        </div>
+        {showRecommendation && (
+          <div>
+            <dt>Recommendation</dt>
+            <dd className={recommendation ? '' : 'staff-report-empty'}>{recommendation || 'No recommendation given'}</dd>
+          </div>
+        )}
+      </dl>
+    </div>
+  );
+}
+
 /** Read-only list of client notes. Renders nothing when there are none. */
 export function NotesList({ notes, heading = 'Notes from the client' }: { notes?: RequestNote[]; heading?: string }) {
   if (!notes || notes.length === 0) return null;

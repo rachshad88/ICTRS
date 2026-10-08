@@ -123,7 +123,7 @@ function PrintMaterialsRequest() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="request-form">
+        <form onSubmit={handleSubmit} className="request-form" data-ticket="Print Materials">
           <div className="form-group">
             <label>Form of Printed Media Being Requested *</label>
             <select
@@ -252,6 +252,8 @@ function PrintMaterialsRequest() {
             )}
             <small>Max 10 files. Allowed: PDF, JPG, PNG, Word, PowerPoint (.pptx), EPS, Photoshop, TIFF (max 10MB each). Save Illustrator files as PDF or EPS.</small>
           </div>
+
+          <div className="ticket-tear" aria-hidden="true" />
 
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit Request'}

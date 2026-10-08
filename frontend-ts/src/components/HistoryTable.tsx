@@ -1,13 +1,17 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { EASE_OUT } from '../lib/motion';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import { initSocket, getSocket } from '../services/socket';
+import { queryClient, refreshService, type Service } from '../services/queryClient';
 import FileViewer from './FileViewer';
 import Skeleton from './Skeleton';
 import Pagination from './Pagination';
 import { truncateCell } from '../lib/truncate';
-import { NotesList, DeclineReason, AddNoteForm, RequestNote } from './RequestNotes';
+import { openRating } from '../services/rating';
+import { NotesList, DeclineReason, AddNoteForm, RequestNote, StaffReport } from './RequestNotes';
+import SearchBox from './SearchBox';
 
 export interface ColumnDef {
   key: string;
@@ -37,15 +41,16 @@ export interface HistoryTableConfig {
   searchPlaceholder: string;
   emptyMessage: string;
   cancelStatus: string;
-  /** Prefix of this request type's socket events, e.g. 'multimedia' for multimedia_request_declined. */
-  socketPrefix: string;
+  /** Which service the requests belong to; its socket events refresh the table (services/queryClient.ts). */
+  service: Service;
   rateType: string;
   modalTitleKey: string;
   modalFields: ModalField[];
   fileViewer?: FileViewerConfig;
+  /** True when staff fill in a recommendation on completion (Multimedia); remarks are always shown. */
+  hasRecommendation?: boolean;
 }
 
-const RATING_URL = import.meta.env.VITE_RATING_SYSTEM_URL || 'http://192.168.110.19';
 const ITEMS_PER_PAGE = 10;
 
 export function formatDate(d: string) {
@@ -70,62 +75,38 @@ export function renderStatusBadge(status: string) {
 
 export function HistoryTable({ config }: { config: HistoryTableConfig }) {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
-  const searchTermRef = useRef(searchTerm);
-  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
-
-  const fetchRequests = useCallback(async (search?: string) => {
-    try {
-      const params: Record<string, string | number> = { page: currentPage, limit: ITEMS_PER_PAGE };
-      if (search) params.search = search;
-      const response = await api.get(config.fetchEndpoint, { params });
-      const fresh: any[] = response.data.requests;
-      setRequests(fresh);
-      setTotal(response.data.total || 0);
-      // Keep an open details modal in sync, e.g. when the request is declined while it is being viewed.
-      setSelectedRequest((prev: any) => (prev ? fresh.find((r) => r._id === prev._id) || prev : prev));
-      setError('');
-    } catch (error) {
-      console.error(`Failed to fetch ${config.title.toLowerCase()}:`, error);
-    } finally { setLoading(false); }
-  }, [currentPage, config.fetchEndpoint]);
+  // Cached per search and page; any of this service's socket events refreshes it.
+  const params = { page: currentPage, limit: ITEMS_PER_PAGE, ...(searchTerm && { search: searchTerm }) };
+  const queryKey = [config.service, 'history', params];
+  const { data, isPending: loading } = useQuery({
+    queryKey,
+    queryFn: () => api.get<{ requests: any[]; total?: number }>(config.fetchEndpoint, { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or search loads.
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const requests = data?.requests ?? [];
+  const total = data?.total || 0;
 
   useEffect(() => {
-    const timer = setTimeout(() => fetchRequests(searchTerm || undefined), 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm, fetchRequests]);
-
-  useEffect(() => {
-    if (user) {
-      initSocket();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    const handler = () => fetchRequests(searchTermRef.current || undefined);
-    const events = ['assigned', 'reassigned', 'completed', 'cancelled', 'declined'].map((e) => `${config.socketPrefix}_request_${e}`);
-    events.forEach((e) => socket.on(e, handler));
-    return () => {
-      events.forEach((e) => socket.off(e, handler));
-    };
-  }, [user, fetchRequests, config.socketPrefix]);
+    if (!data) return;
+    setError('');
+    // Keep an open details modal in sync, e.g. when the request is declined while it is being viewed.
+    setSelectedRequest((prev: any) => (prev ? data.requests.find((r) => r._id === prev._id) || prev : prev));
+  }, [data]);
 
   const handleCancel = async (requestId: string) => {
     if (!window.confirm('Are you sure you want to cancel this request?')) return;
     try {
       await api.post(config.cancelEndpoint, { request_id: requestId });
-      fetchRequests(searchTerm);
+      refreshService(config.service);
       setError('');
     } catch (error) {
       setError('Failed to cancel request');
@@ -136,7 +117,10 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
     if (!selectedRequest) return;
     const updated = { ...selectedRequest, notes: [...(selectedRequest.notes || []), note] };
     setSelectedRequest(updated);
-    setRequests((prev) => prev.map((r) => (r._id === updated._id ? updated : r)));
+    // Show the note in the list straight away, without a round trip.
+    queryClient.setQueryData<{ requests: any[]; total?: number }>(queryKey, (prev) =>
+      prev && { ...prev, requests: prev.requests.map((r) => (r._id === updated._id ? updated : r)) },
+    );
   };
 
   const canAddNote = (status: string) => status === config.cancelStatus || status === 'IN_PROGRESS';
@@ -171,7 +155,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
       </div>
 
       <div className="filters-row">
-        <input type="text" placeholder={config.searchPlaceholder} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+        <SearchBox placeholder={config.searchPlaceholder} value={searchTerm} onSearch={setSearchTerm} />
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -201,7 +185,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                     key={request._id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.26, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
+                    transition={{ duration: 0.26, delay: Math.min(idx, 8) * 0.03, ease: EASE_OUT }}
                   >
                     <td data-label="Status">{renderStatusBadge(request.status)}</td>
                     <td className="td-code" data-label="Code">{request.request_code}</td>
@@ -217,7 +201,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                           </button>
                         )}
                         {request.status === 'DONE' && (
-                          <button className="hbtn hbtn-rate" onClick={() => window.open(`${RATING_URL}?request_code=${request.request_code}&type=${config.rateType}`, '_blank')}>
+                          <button className="hbtn hbtn-rate" onClick={() => openRating(request._id, request.request_code, config.rateType)}>
                             Rate
                           </button>
                         )}
@@ -262,6 +246,14 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                 </div>
               )}
             </div>
+            {selectedRequest.status === 'DONE' && (
+              <StaffReport
+                title="Staff report"
+                remarks={selectedRequest.remarks}
+                recommendation={selectedRequest.recommendation}
+                showRecommendation={config.hasRecommendation}
+              />
+            )}
             <DeclineReason reason={selectedRequest.decline_reason} />
             <NotesList notes={selectedRequest.notes} heading="Your notes" />
             {canAddNote(selectedRequest.status) && (

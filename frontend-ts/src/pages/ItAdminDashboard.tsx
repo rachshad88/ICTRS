@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
-import { initSocket, getSocket } from '../services/socket';
+import { refreshService } from '../services/queryClient';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
+import FinishRequestModal from '../components/FinishRequestModal';
 import { RequestFlags, PriorityForm, ReassignForm, PRIORITY_OPTIONS, suggestedDueDate, priorityLabel, formatDay } from '../components/Priority';
+import SearchBox from '../components/SearchBox';
 
 interface Request {
   _id: string;
@@ -44,23 +47,28 @@ interface Counts {
   overdue_count: number;
 }
 
+const NO_COUNTS: Counts = {
+  pending_count: 0,
+  progress_count: 0,
+  done_count: 0,
+  declined_count: 0,
+  repaired_count: 0,
+  beyond_repair_count: 0,
+  urgent_count: 0,
+  overdue_count: 0
+};
+
+interface DashboardData {
+  requests: Request[];
+  counts: Partial<Counts>;
+  total?: number;
+}
+
 function ItAdminDashboard() {
   const { user } = useAuth();
-  const [requests, setRequests] = useState<Request[]>([]);
-  const [counts, setCounts] = useState<Counts>({
-    pending_count: 0,
-    progress_count: 0,
-    done_count: 0,
-    declined_count: 0,
-    repaired_count: 0,
-    beyond_repair_count: 0,
-    urgent_count: 0,
-    overdue_count: 0
-  });
   const [filterType, setFilterType] = useState('all');
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [showDone, setShowDone] = useState('1');
-  const [loading, setLoading] = useState(true);
 
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
@@ -72,53 +80,28 @@ function ItAdminDashboard() {
   const [submitting, setSubmitting] = useState(false);
   const [declineTarget, setDeclineTarget] = useState<Request | null>(null);
   const [viewTarget, setViewTarget] = useState<Request | null>(null);
+  const [finishTarget, setFinishTarget] = useState<Request | null>(null);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const ITEMS_PER_PAGE = 10;
   useEffect(() => { setCurrentPage(1); }, [filterType, selectedDate, showDone, searchTerm]);
 
-  useEffect(() => {
-    if (user) {
-      initSocket();
-    }
-  }, [user]);
-
-  const searchTermRef = useRef(searchTerm);
-  useEffect(() => { searchTermRef.current = searchTerm; }, [searchTerm]);
-
-  const fetchData = useCallback(async (search?: string) => {
-    try {
-      const params: Record<string, string | number> = { filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: 10 };
-      if (search) params.search = search;
-      const response = await api.get('/requests/get_dashboard', { params });
-      setRequests(response.data.requests);
-      setCounts((prev) => ({ ...prev, ...response.data.counts }));
-      setTotal(response.data.total || 0);
-      setError('');
-    } catch (error) {
-      console.error('Failed to fetch dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [filterType, selectedDate, showDone, currentPage]);
-
-  useEffect(() => {
-    if (user) {
-      fetchData(searchTerm);
-    }
-  }, [user, fetchData, searchTerm]);
-
-  useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-    const handler = () => fetchData(searchTermRef.current);
-    socket.on('request_update', handler);
-    return () => {
-      socket.off('request_update', handler);
-    };
-  }, [user, fetchData]);
+  // Cached per filter and page, shared with the technician dashboard's identical requests
+  // (services/queryClient.ts); IT socket events refresh it.
+  const params = { filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: 10, ...(searchTerm && { search: searchTerm }) };
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['it', 'dashboard', params],
+    queryFn: () => api.get<DashboardData>('/requests/get_dashboard', { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or filter loads.
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const requests = data?.requests ?? [];
+  const counts: Counts = { ...NO_COUNTS, ...data?.counts };
+  const total = data?.total || 0;
+  // A successful refresh clears an earlier action error, as the hand-rolled fetch used to.
+  useEffect(() => { setError(''); }, [data]);
 
   const fetchTechnicians = async () => {
     try {
@@ -152,22 +135,23 @@ function ItAdminDashboard() {
 
   const closeManageModal = () => {
     setManageTarget(null);
-    fetchData(searchTermRef.current);
+    refreshService('it');
   };
 
-  const handleAssign = async () => {
-    if (!selectedRequest || !selectedTechnician) return;
+  // "Take" passes the signed-in IT admin's own id instead of the selected technician.
+  const handleAssign = async (assigneeId = selectedTechnician) => {
+    if (!selectedRequest || !assigneeId) return;
     setSubmitting(true);
     try {
       await api.post('/requests/accept_request', {
         request_id: selectedRequest._id,
-        technician_id: selectedTechnician,
+        technician_id: assigneeId,
         priority: assignPriority,
         due_date: assignDue
       });
       setShowAssignModal(false);
       setSelectedRequest(null);
-      fetchData(searchTerm);
+      refreshService('it');
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       setError(err.response?.data?.message || 'Failed to assign request');
@@ -197,7 +181,14 @@ function ItAdminDashboard() {
       );
     }
     if (req.status === 'IN_PROGRESS') {
-      return <button className="hbtn hbtn-view" onClick={() => openManageModal(req)}>Manage</button>;
+      return (
+        <div className="history-actions">
+          {req.assigned_to === user?.user_id && (
+            <button className="hbtn hbtn-assign" onClick={() => setFinishTarget(req)}>Mark Done</button>
+          )}
+          <button className="hbtn hbtn-view" onClick={() => openManageModal(req)}>Manage</button>
+        </div>
+      );
     }
     return null;
   };
@@ -211,7 +202,7 @@ function ItAdminDashboard() {
       {error && <div className="error-message">{error}</div>}
 
       <div className="filters-row">
-        <input type="text" placeholder="Search by code, issue, office..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="search-input" />
+        <SearchBox placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
 
         <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
           <option value="all">All</option>
@@ -355,8 +346,11 @@ function ItAdminDashboard() {
             </div>
 
             <div className="modal-actions">
-              <button className="btn-primary" onClick={handleAssign} disabled={submitting || !selectedTechnician}>
+              <button className="btn-primary" onClick={() => handleAssign()} disabled={submitting || !selectedTechnician}>
                 {submitting ? 'Assigning...' : 'Assign'}
+              </button>
+              <button className="btn-primary" onClick={() => user && handleAssign(user.user_id)} disabled={submitting}>
+                Take
               </button>
               <button className="btn-secondary" onClick={() => setShowAssignModal(false)}>Cancel</button>
             </div>
@@ -411,10 +405,19 @@ function ItAdminDashboard() {
               endpoint="/requests/decline_request"
               requestId={declineTarget._id}
               onBack={() => setDeclineTarget(null)}
-              onDeclined={() => { setDeclineTarget(null); fetchData(searchTerm); }}
+              onDeclined={() => { setDeclineTarget(null); refreshService('it'); }}
             />
           </div>
         </div>
+      )}
+
+      {finishTarget && (
+        <FinishRequestModal
+          request={finishTarget}
+          onClose={() => setFinishTarget(null)}
+          onFinished={() => { setFinishTarget(null); refreshService('it'); }}
+          onError={setError}
+        />
       )}
 
       {viewTarget && (

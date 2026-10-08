@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { EASE_OUT } from '../lib/motion';
 import {
   AlignmentType,
   BorderStyle,
@@ -22,12 +24,15 @@ import {
   TextRun,
   VerticalAlign,
   VerticalPositionRelativeFrom,
+  UnderlineType,
   WidthType,
 } from 'docx';
 import { api } from '../services/api';
+import { queryClient } from '../services/queryClient';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { useAuth } from '../contexts/AuthContext';
+import SearchBox from '../components/SearchBox';
 
 interface Column {
   key: string;
@@ -88,7 +93,6 @@ const ROLE_TABS: Record<string, TabConfig[]> = {
   IT_ADMIN: [ALL_TABS[0]],
   MULTIMEDIA: ALL_TABS.slice(1, 4),
   MULTIMEDIA_ADMIN: ALL_TABS.slice(1, 4),
-  PROGRAMMER: [ALL_TABS[0]],
 };
 
 const REPORT_TYPE_LABELS: Record<TabKey, string> = {
@@ -196,6 +200,18 @@ interface DarMeta {
   date: string;
   from?: string;
   to?: string;
+  signatories: DarSignatories;
+  // The user downloading the report, printed on the left signature line.
+  preparedBy: string;
+  // Their position from Profile / User Management, printed below the name.
+  preparedByPosition: string;
+}
+
+// Set by an admin on the Signatories page; blank fields print as empty signature lines.
+interface DarSignatories {
+  supervisor_name: string;
+  supervisor_position: string;
+  mayor_name: string;
 }
 
 // Parse a YYYY-MM-DD input value as a local date (new Date('YYYY-MM-DD') would be UTC).
@@ -367,6 +383,7 @@ interface TrOpts {
   color?: string;
   font?: DarFont;
   charSpace?: number;
+  underline?: boolean;
 }
 
 function tr(text: string, halfPoints: number, opts: TrOpts = {}): TextRun {
@@ -377,6 +394,7 @@ function tr(text: string, halfPoints: number, opts: TrOpts = {}): TextRun {
     bold: opts.bold ?? false,
     italics: opts.italic ?? false,
     color: opts.color ?? '000000',
+    ...(opts.underline ? { underline: { type: UnderlineType.SINGLE } } : {}),
     ...(opts.charSpace ? { characterSpacing: opts.charSpace } : {}),
   });
 }
@@ -430,7 +448,6 @@ const gridBorders = {
 };
 
 const DAR_BLUE_HEX = '1F4E79';
-const DIVIDER_GRAYBLUE_HEX = '96AAC8';
 const PAGE_BLUE_HEX = '9CC3E5';
 
 function buildDarHeader(imgs: DarImages, period: string): Header {
@@ -478,7 +495,7 @@ function buildDarHeader(imgs: DarImages, period: string): Header {
               new Paragraph({
                 alignment: AlignmentType.LEFT,
                 spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO },
-                children: [tr('OFFICE OF THE MUNICIPAL MAYOR', 28, { bold: true, color: DAR_BLUE_HEX, font: 'Balthazar' })],
+                children: [tr('OFFICE OF THE MUNICIPAL MAYOR', 32, { bold: true, color: DAR_BLUE_HEX, font: 'Balthazar' })],
               }),
               new Paragraph({
                 alignment: AlignmentType.LEFT,
@@ -488,7 +505,7 @@ function buildDarHeader(imgs: DarImages, period: string): Header {
               new Paragraph({
                 alignment: AlignmentType.LEFT,
                 spacing: { before: 0, after: 0, line: 240, lineRule: LineRuleType.AUTO },
-                children: [tr(DAR_UNIT, 18, { color: DAR_BLUE_HEX, font: 'Bookman Old Style' })],
+                children: [tr(DAR_UNIT, 18, { font: 'Bookman Old Style' })],
               }),
             ],
           }),
@@ -560,7 +577,7 @@ function buildDarHeader(imgs: DarImages, period: string): Header {
     children: [
       headerTable,
       new Paragraph({
-        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: DIVIDER_GRAYBLUE_HEX } },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' } },
         spacing: { before: 80, after: 200 },
         children: [],
       }),
@@ -689,7 +706,7 @@ function buildDarFooter(imgs: DarImages): Footer {
           }),
         ],
       }),
-      new Paragraph({ spacing: { line: 940, lineRule: LineRuleType.EXACT }, children: [] }),
+      new Paragraph({ spacing: { line: 400, lineRule: LineRuleType.EXACT }, children: [] }),
     ],
   });
 }
@@ -771,15 +788,22 @@ async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<Blob> {
     children: [tr(DAR_NOTE, 18)],
   });
 
+  // Signature names and labels print at 12pt (24 half-points).
+  const SIG_SIZE = 24;
   const sigNameLine = '_______________________';
   const sigDesignationLine = '_________________';
-  const sigSlot = (): TableCell =>
+  const { supervisor_name, supervisor_position, mayor_name } = meta.signatories;
+  const sigSlot = (name = '', designation = ''): TableCell =>
     new TableCell({
       width: { size: 7699, type: WidthType.DXA },
       borders: noCellBorders,
       children: [
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 500 }, children: [tr(sigNameLine, 20, { bold: true })] }),
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 200 }, children: [tr(sigDesignationLine, 20)] }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 500 },
+          children: [name ? tr(name.toUpperCase(), SIG_SIZE, { bold: true, underline: true }) : tr(sigNameLine, SIG_SIZE, { bold: true })],
+        }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: name ? 0 : 200 }, children: [tr(designation || sigDesignationLine, SIG_SIZE)] }),
       ],
     });
 
@@ -790,7 +814,7 @@ async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<Blob> {
     borders: noTableBorders,
     rows: [
       new TableRow({
-        children: [sigSlot(), sigSlot()],
+        children: [sigSlot(meta.preparedBy, meta.preparedByPosition), sigSlot(supervisor_name, supervisor_position)],
       }),
     ],
   });
@@ -799,16 +823,22 @@ async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<Blob> {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 600 },
-      children: [tr('__________________________', 20, { bold: true })],
+      children: [mayor_name
+        ? tr(mayor_name.toUpperCase(), SIG_SIZE, { bold: true, underline: true })
+        : tr('__________________________', SIG_SIZE, { bold: true })],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [tr('Municipal Mayor', 20)],
+      children: [tr('Municipal Mayor', SIG_SIZE)],
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
       spacing: { before: 300 },
-      children: [tr('_______________', 20, { italic: true })],
+      children: [tr(fmt(new Date()), SIG_SIZE, { bold: true, italic: true, underline: true })],
+    }),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [tr('Date', SIG_SIZE, { italic: true })],
     }),
   ];
 
@@ -818,7 +848,7 @@ async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<Blob> {
         properties: {
           page: {
             size: { orientation: PageOrientation.LANDSCAPE, width: 11906, height: 16838 },
-            margin: { top: 280, right: 720, bottom: 2300, left: 720, header: 280, footer: 0 },
+            margin: { top: 280, right: 720, bottom: 2300, left: 720, header: 900, footer: 0 },
           },
         },
         headers: { default: buildDarHeader(imgs, period) },
@@ -925,10 +955,7 @@ function Reports() {
   const [filterType, setFilterType] = useState('daily');
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [showDone, setShowDone] = useState('1');
-  const [reports, setReports] = useState<Record<string, unknown>[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printFilterType, setPrintFilterType] = useState<ReportPrintFilter>('range');
@@ -948,26 +975,18 @@ function Reports() {
 
   const ITEMS_PER_PAGE = 10;
 
-  const fetchReports = useCallback(async (search?: string) => {
-    setLoading(true);
-    try {
-      const params: Record<string, string | number> = { type: activeTab, filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: ITEMS_PER_PAGE };
-      if (search) params.search = search;
-      const response = await api.get('/reports/get_reports', { params });
-      setReports(response.data.reports);
-      setTotal(response.data.total || 0);
-    } catch (error) {
-      console.error('Failed to fetch reports:', error);
-      setReports([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchTerm, filterType, selectedDate, showDone, activeTab, currentPage]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => fetchReports(searchTerm), 300);
-    return () => clearTimeout(timer);
-  }, [searchTerm, filterType, selectedDate, showDone, activeTab, currentPage, fetchReports]);
+  // Cached per tab, filter and page. Request changes in any service refresh it, batched per
+  // burst (['overview'] in services/queryClient.ts).
+  const params = { type: activeTab, filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: ITEMS_PER_PAGE, ...(searchTerm && { search: searchTerm }) };
+  const { data, isPending: loading } = useQuery({
+    queryKey: ['overview', 'reports', params],
+    queryFn: () => api.get<{ reports: Record<string, unknown>[]; total?: number }>('/reports/get_reports', { params }).then((r) => r.data),
+    // Keep the current rows on screen while another page or filter loads.
+    placeholderData: keepPreviousData,
+    enabled: !!user,
+  });
+  const reports = data?.reports ?? [];
+  const total = data?.total || 0;
 
   const exportToExcel = () => {
     const params = new URLSearchParams({ type: activeTab, filter: filterType, date: selectedDate, show_done: showDone });
@@ -1061,7 +1080,18 @@ function Reports() {
         return (Number.isNaN(aTime) ? Infinity : aTime) - (Number.isNaN(bTime) ? Infinity : bTime);
       });
 
+      // Shared with the Signatories page, so names saved there are used without another request.
+      const signatories = await queryClient
+        .fetchQuery({ queryKey: ['meta', 'signatories'], queryFn: () => api.get<DarSignatories>('/signatories').then((res) => res.data) })
+        .catch(() => ({ supervisor_name: '', supervisor_position: '', mayor_name: '' }));
+
+      const middleInitial = user?.middle_name?.trim() ? ` ${user.middle_name.trim().charAt(0)}.` : '';
+      const preparedBy = user ? `${user.first_name.trim()}${middleInitial} ${user.last_name.trim()}`.trim() : '';
+
       const docxBlob = await buildDesignedDocx(rows, {
+        signatories,
+        preparedBy,
+        preparedByPosition: user?.position?.trim() || '',
         filter: printFilterType,
         status: printStatusScope,
         date: effectiveDate,
@@ -1104,7 +1134,7 @@ function Reports() {
       <div className="page-header">
         <h2>Reports</h2>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button onClick={() => setShowPrintModal(true)} className="btn-export" style={{ background: '#7c3aed' }}>
+          <button onClick={() => setShowPrintModal(true)} className="btn-export btn-export-alt">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
               <path d="M6 9V2h12v7" />
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
@@ -1144,13 +1174,7 @@ function Reports() {
         </div>
 
         <div className="filters-row">
-          <input
-            type="text"
-            placeholder="Search by code, description, name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
-          />
+          <SearchBox placeholder="Search by code, description, name..." value={searchTerm} onSearch={setSearchTerm} />
 
           <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
             <option value="all">All</option>
@@ -1192,7 +1216,7 @@ function Reports() {
                   key={report.request_code as string || idx}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.26, delay: idx * 0.03, ease: [0.16, 1, 0.3, 1] }}
+                  transition={{ duration: 0.26, delay: Math.min(idx, 8) * 0.03, ease: EASE_OUT }}
                 >
                   {columns.map(col => (
                     <td key={col.key} className={col.key === 'request_code' ? 'td-code' : 'td-cell'} data-label={col.label}>

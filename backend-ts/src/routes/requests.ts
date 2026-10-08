@@ -2,22 +2,45 @@ import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import { Server } from 'socket.io';
 import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
-import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isTechnicianOnly, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
+import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
-import { formatDateTime, todayString } from '../utils/dates';
+import { formatDateTime, todayString, semesterFor } from '../utils/dates';
 import { normalizePriority, parseDueDate, isOverdue, overdueExpr, toDay, OPEN_STATUSES } from '../utils/priority';
+import { liveRequestAdded, liveRequestChanged, liveRequestRemoved } from './live';
+import { notify } from '../utils/notify';
+import { syncRatingStatus, ratingTypeFor } from '../utils/ratingSync';
+
+// Where each kind of recipient follows up on an IT request.
+const OWNER_PAGE = '/requested';
+const TECH_PAGE = '/dashboard';
+const IT_ADMIN_PAGE = '/it-dashboard';
+
+// IT requests can go to a technician, or the IT admin making the change can take it themselves.
+function findAssignableStaff(staffId: string, actor: AuthenticatedRequest['user']) {
+  const filter = staffId === actor!.user_id
+    ? { _id: new ObjectId(staffId) }
+    : { _id: new ObjectId(staffId), roles: 'TECHNICIAN' as const };
+  return getUsersCollection().findOne(filter);
+}
+
+function clip(text: string, max = 80): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
 
 const router = Router();
 
-// IT request events go to IT staff, admins and the request's owner, never to every socket.
+// IT request events go to IT staff, the super admin and the request's owner, never to every socket
+// (and not to multimedia admins, who only handle media requests).
 function itAudience(io: Server, ownerId?: string) {
-  return io.to(['technicians', 'admins', ...(ownerId ? [`user_${ownerId}`] : [])]);
+  return io.to(['technicians', 'super_admins', ...(ownerId ? [`user_${ownerId}`] : [])]);
 }
 
 router.post('/send_request', isAuthenticated, validateBody(createRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { unit, semester, issue } = req.body;
+    const { unit, unit_other, issue } = req.body;
+    // "Others" is saved together with what the requester typed, e.g. "others: printer".
+    const unitLabel = unit === 'others' ? `others: ${String(unit_other).trim()}` : unit;
     const created_by = req.user!.user_id;
 
     // Filed under the requester's own office (read fresh, in case an admin changed it), never one from the form.
@@ -31,6 +54,8 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
 
     let result;
     let request_code;
+    // The semester follows the submission date rather than anything the requester picks.
+    const created_at = new Date();
 
     for (let i = 0; i < 100; i++) {
       request_code = await generateRequestCode('IT', 'it_requests');
@@ -40,8 +65,8 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
           request_code,
           created_by: new ObjectId(created_by),
           office: sanitizeInput(office),
-          unit: sanitizeInput(unit || ''),
-          semester: sanitizeInput(semester || ''),
+          unit: sanitizeInput(unitLabel || ''),
+          semester: semesterFor(created_at),
           issue: sanitizeInput(issue),
           priority: normalizePriority(req.body.priority),
           due_date: null,
@@ -50,7 +75,7 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
           finished: null,
           remarks: null,
           recommendation: null,
-          created_at: new Date(),
+          created_at,
           completed_at: null
         });
         break;
@@ -66,6 +91,8 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
       return res.status(500).json({ status: 'error', message: 'Failed to generate unique request code' });
     }
 
+    void syncRatingStatus('requests', result.insertedId);
+
     await logAudit(new ObjectId(created_by), req.user!.username, req.user!.primary_role, 'CREATE_REQUEST', 'IT_REQUEST', result.insertedId.toString(), `User ${req.user!.username} created IT request ${request_code}`, { office, issue: sanitizeInput(issue) });
 
     const io = req.app.get('io');
@@ -80,6 +107,11 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
         timestamp: new Date()
       });
     }
+    liveRequestAdded('it', result.insertedId);
+    notify({ roles: ['IT_ADMIN'] }, {
+      level: 'info', title: 'New IT request', request_code, link: IT_ADMIN_PAGE,
+      message: `${request_code} from ${office}: ${clip(String(issue).trim())}`,
+    }, created_by);
 
     res.json({ status: 'success', request_code });
   } catch (error) {
@@ -96,8 +128,7 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
       return res.status(400).json({ status: 'error', message: 'Request ID and technician ID required' });
     }
 
-    const usersCollection = getUsersCollection();
-    const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), roles: 'TECHNICIAN' });
+    const technician = await findAssignableStaff(technician_id, req.user);
     if (!technician) {
       return res.status(404).json({ error: 'Technician not found' });
     }
@@ -118,8 +149,12 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
       return res.status(404).json({ status: 'error', message: 'Request not found or already accepted' });
     }
 
+    void syncRatingStatus('requests', result.value._id);
+
     const assignedTo = `${technician.first_name} ${technician.last_name}`;
-    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'ACCEPT_REQUEST', 'IT_REQUEST', request_id, `IT Admin ${req.user!.username} assigned request to ${assignedTo}`);
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'ACCEPT_REQUEST', 'IT_REQUEST', request_id, technician_id === req.user!.user_id
+      ? `IT Admin ${req.user!.username} took request ${result.value.request_code}`
+      : `IT Admin ${req.user!.username} assigned request to ${assignedTo}`);
 
     const io = req.app.get('io');
     if (io) {
@@ -141,6 +176,15 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
         request_code: result.value.request_code
       });
     }
+    liveRequestRemoved('it', request_id, 'ACCEPTED', assignedTo);
+    notify(result.value.created_by, {
+      level: 'success', title: 'Request accepted', request_code: result.value.request_code, link: OWNER_PAGE,
+      message: `${result.value.request_code} was assigned to ${assignedTo}.`,
+    }, req.user!.user_id);
+    notify(technician_id, {
+      level: 'info', title: 'Assigned to you', request_code: result.value.request_code, link: TECH_PAGE,
+      message: `IT request ${result.value.request_code} is now yours.`,
+    }, req.user!.user_id);
 
     res.json({ status: 'success' });
   } catch (error) {
@@ -154,8 +198,7 @@ router.post('/reassign', isAuthenticated, isItAdmin, validateBody(reassignReques
     const { request_id, technician_id } = req.body;
     const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
 
-    const usersCollection = getUsersCollection();
-    const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), roles: 'TECHNICIAN' });
+    const technician = await findAssignableStaff(technician_id, req.user);
     if (!technician) {
       return res.status(404).json({ status: 'error', message: 'Technician not found' });
     }
@@ -187,6 +230,19 @@ router.post('/reassign', isAuthenticated, isItAdmin, validateBody(reassignReques
         io.to(`user_${previousTechId}`).emit('request_reassigned_from_you', { request_id, request_code: requestCode });
       }
     }
+    const actorId = req.user!.user_id;
+    notify(technician_id, {
+      level: 'info', title: 'Assigned to you', request_code: requestCode, link: TECH_PAGE,
+      message: `IT request ${requestCode} was reassigned to you.`,
+    }, actorId);
+    notify(previousTechId, {
+      level: 'info', title: 'Request reassigned', request_code: requestCode, link: TECH_PAGE,
+      message: `${requestCode} was moved to ${assignedTo}.`,
+    }, actorId);
+    notify(result.value.created_by, {
+      level: 'info', title: 'Technician changed', request_code: requestCode, link: OWNER_PAGE,
+      message: `${requestCode} is now handled by ${assignedTo}.`,
+    }, actorId);
 
     res.json({ status: 'success' });
   } catch (error) {
@@ -224,6 +280,11 @@ router.post('/set_priority', isAuthenticated, isItAdmin, validateBody(setPriorit
     if (io) {
       io.to('technicians').emit('request_update', { event: 'priority_changed', request_id, request_code: requestCode, timestamp: new Date() });
     }
+    liveRequestChanged('it', result.value);
+    notify(result.value.assigned_to, {
+      level: priority === 'URGENT' ? 'warning' : 'info', title: 'Priority changed', request_code: requestCode, link: TECH_PAGE,
+      message: `${requestCode} is now ${priority.toLowerCase()} priority${dueText}.`,
+    }, req.user!.user_id);
 
     res.json({ status: 'success' });
   } catch (error) {
@@ -232,7 +293,7 @@ router.post('/set_priority', isAuthenticated, isItAdmin, validateBody(setPriorit
   }
 });
 
-router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(finishRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/request_finish', isAuthenticated, isItAdminOrTechnician, validateBody(finishRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { request_id, finished, remarks, recommendation } = req.body;
 
@@ -246,8 +307,8 @@ router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(f
     let filter: Record<string, unknown>;
     if (req.user!.roles.includes('ADMIN')) {
       filter = { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } };
-    } else if (req.user!.roles.includes('TECHNICIAN')) {
-      // Technician can only finish requests assigned to them
+    } else if (req.user!.roles.includes('TECHNICIAN') || req.user!.roles.includes('IT_ADMIN')) {
+      // Technicians and IT admins can only finish requests assigned to them
       filter = { 
         _id: new ObjectId(request_id),
         assigned_to: new ObjectId(userId),
@@ -275,8 +336,10 @@ router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(f
       return res.status(404).json({ status: 'error', message: 'Request not found or not assigned to you' });
     }
 
+    void syncRatingStatus('requests', result.value._id);
+
     const requestCode = result.value.request_code || 'unknown';
-    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'FINISH_REQUEST', 'IT_REQUEST', request_id, `${req.user!.roles.includes('ADMIN') ? 'Admin' : 'Technician'} ${req.user!.username} marked request ${requestCode} as ${finished}`, { finished, remarks: remarks || null, recommendation: recommendation || null });
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'FINISH_REQUEST', 'IT_REQUEST', request_id, `${req.user!.roles.includes('ADMIN') ? 'Admin' : req.user!.roles.includes('TECHNICIAN') ? 'Technician' : 'IT Admin'} ${req.user!.username} marked request ${requestCode} as ${finished}`, { finished, remarks: remarks || null, recommendation: recommendation || null });
 
     const io = req.app.get('io');
     if (io) {
@@ -289,6 +352,11 @@ router.post('/request_finish', isAuthenticated, isTechnicianOnly, validateBody(f
       });
       io.to(`user_${result.value?.created_by?.toString()}`).emit('my_request_finished', { request_id, request_code: requestCode });
     }
+    notify(result.value.created_by, {
+      level: 'success', title: 'Request completed', request_code: requestCode, link: OWNER_PAGE,
+      message: `${requestCode} is done (${finished}).`,
+      rate: { request_id: result.value._id!.toString(), type: ratingTypeFor('requests')! },
+    }, userId);
 
     res.json({ status: 'success' });
   } catch (error) {
@@ -321,12 +389,15 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
     const result = await requestsCollection.findOneAndUpdate(
       filter,
       { $set: { status: 'CANCELLED', assigned_to: null } },
-      { returnDocument: 'after' }
+      // 'before' so the technician who had it can be told.
+      { returnDocument: 'before' }
     );
 
     if (!result || !result.value) {
       return res.status(404).json({ status: 'error', message: 'Request not found or cannot be cancelled' });
     }
+
+    void syncRatingStatus('requests', result.value._id);
 
     const cancelledCode = result.value.request_code || 'unknown';
     await logAudit(new ObjectId(user_id), req.user!.username, req.user!.primary_role, 'CANCEL_REQUEST', 'IT_REQUEST', request_id, `${req.user!.primary_role} ${req.user!.username} cancelled request ${cancelledCode}`);
@@ -341,6 +412,12 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
         timestamp: new Date()
       });
     }
+    liveRequestRemoved('it', request_id, 'CANCELLED');
+    const cancelledBy = `${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username;
+    const cancelled = { level: 'warning' as const, title: 'Request cancelled', request_code: cancelledCode, message: `${cancelledCode} was cancelled by ${cancelledBy}.` };
+    notify(result.value.created_by, { ...cancelled, link: OWNER_PAGE }, user_id);
+    notify(result.value.assigned_to, { ...cancelled, link: TECH_PAGE }, user_id);
+    notify({ roles: ['IT_ADMIN'] }, { ...cancelled, link: IT_ADMIN_PAGE }, user_id);
 
     res.json({ status: 'success' });
   } catch (error) {
@@ -365,6 +442,8 @@ router.post('/decline_request', isAuthenticated, isItAdmin, validateBody(decline
       return res.status(404).json({ status: 'error', message: 'Request not found or already assigned' });
     }
 
+    void syncRatingStatus('requests', result.value._id);
+
     const requestCode = result.value.request_code || 'unknown';
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'DECLINE_REQUEST', 'IT_REQUEST', request_id, `IT Admin ${req.user!.username} declined request ${requestCode}: ${reason}`, { reason });
 
@@ -383,6 +462,11 @@ router.post('/decline_request', isAuthenticated, isItAdmin, validateBody(decline
         reason
       });
     }
+    liveRequestRemoved('it', request_id, 'DECLINED');
+    notify(result.value.created_by, {
+      level: 'warning', title: 'Request declined', request_code: requestCode, link: OWNER_PAGE,
+      message: `${requestCode} was declined. Reason: ${reason}`,
+    }, req.user!.user_id);
 
     res.json({ status: 'success' });
   } catch (error) {
@@ -438,6 +522,12 @@ router.post('/add_note', isAuthenticated, validateBody(addNoteSchema), async (re
         });
       }
     }
+    // The assigned technician, or whoever will assign it while it is still waiting.
+    notify(result.value.assigned_to ?? { roles: ['IT_ADMIN'] }, {
+      level: 'info', title: 'New note', request_code: requestCode,
+      link: result.value.assigned_to ? TECH_PAGE : IT_ADMIN_PAGE,
+      message: `${note.author_name} added a note to ${requestCode}: ${clip(note.text)}`,
+    }, userId);
 
     res.json({ status: 'success', note });
   } catch (error) {
@@ -696,6 +786,10 @@ router.post('/shared_access', isAuthenticated, validateBody(sharedAccessSchema),
         granted_by
       });
     }
+    notify(user_id, {
+      level: 'info', title: 'Request shared with you', request_code: sharedCode, link: OWNER_PAGE,
+      message: `${`${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username} shared ${sharedCode} with you.`,
+    }, granted_by);
 
     res.json({ status: 'success' });
   } catch (error) {
