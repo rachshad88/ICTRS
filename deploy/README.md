@@ -10,6 +10,10 @@ nginx serves the built app from `/var/www/itrs`, so frontend edits are not live 
 It type-checks, builds, pre-compresses the text files (`.br` and `.gz` copies, via `deploy/precompress.mjs`),
 and copies the result to `/var/www/itrs` (asks for sudo for the copy).
 
+Browsers cache the built JS/CSS and the fonts for a year, and the seal logo for a week (`nginx-itrs.conf`).
+Built files get new names on every change, but fonts don't: **when a font changes, give the file a new name**
+in `frontend-ts/public/fonts/` and update `src/styles/fonts.css`, or returning visitors keep the old one.
+
 ## Backend (after any change under `backend-ts/`)
 ```
 cd backend-ts && npm run build && sudo pm2 restart backend
