@@ -26,6 +26,30 @@ function homeFor(user: User) {
   return '/dashboard';
 }
 
+// The server pauses sign-in for a username after too many wrong passwords (backend
+// loginThrottle.ts) and says for how long (Retry-After). Remember it per username, so the button
+// stays disabled with a countdown, even after a reload; other usernames on this PC still work.
+const LOCK_KEY = 'itrs-login-lock';
+interface LoginLock { username: string; until: number }
+const normalize = (u: string) => u.trim().toLowerCase();
+function readLock(): LoginLock | null {
+  try {
+    const lock = JSON.parse(localStorage.getItem(LOCK_KEY) || 'null') as LoginLock | null;
+    return lock && lock.until > Date.now() ? lock : null;
+  } catch {
+    return null;
+  }
+}
+function saveLock(lock: LoginLock | null) {
+  try {
+    if (lock) localStorage.setItem(LOCK_KEY, JSON.stringify(lock));
+    else localStorage.removeItem(LOCK_KEY);
+  } catch {
+    /* storage unavailable: the lock still holds until the page is reloaded */
+  }
+}
+const formatWait = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
 // How long the stamp gets to land on the ticket before the curtain closes.
 const STAMP_BEAT_MS = 750;
 
@@ -61,6 +85,8 @@ function Login() {
   const [loading, setLoading] = useState(false);
   const [showResetHelp, setShowResetHelp] = useState(false);
   const [granted, setGranted] = useState(false);
+  const [lock, setLock] = useState<LoginLock | null>(readLock);
+  const [now, setNow] = useState(() => Date.now());
   const { login, user } = useAuth();
   const { play } = useLoginTransition();
   const signingIn = useRef(false);
@@ -85,12 +111,27 @@ function Login() {
     if (user && !signingIn.current) navigate(homeFor(user));
   }, [user, navigate]);
 
+  // Tick once a second while a lock is active; drop it when the wait is over.
+  useEffect(() => {
+    if (!lock) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [lock]);
+  useEffect(() => {
+    if (lock && lock.until <= now) {
+      setLock(null);
+      saveLock(null);
+    }
+  }, [lock, now]);
+  const lockedFor = lock && lock.username === normalize(username) ? Math.max(0, Math.ceil((lock.until - now) / 1000)) : 0;
+
   const handleCapsLock = (e: React.KeyboardEvent) => {
     setCapsLock(e.getModifierState('CapsLock'));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (lockedFor > 0) return;
     setError('');
     setSessionExpired(false);
     setLoading(true);
@@ -99,6 +140,7 @@ function Login() {
     try {
       const me = await login(username, password);
       if (!me) throw new Error('No user returned');
+      saveLock(null);
       setGranted(true);
       playApprovedStamp();
       window.setTimeout(() => {
@@ -111,7 +153,11 @@ function Login() {
         const status = err.response.status;
         const msg = err.response.data?.error;
         if (status === 429) {
-          setError(msg || 'Too many attempts. Please wait before trying again.');
+          const seconds = Number(err.response.headers['retry-after']) || 15 * 60;
+          const next = { username: normalize(username), until: Date.now() + seconds * 1000 };
+          setLock(next);
+          setNow(Date.now());
+          saveLock(next);
         } else if (msg) {
           setError(msg);
         } else {
@@ -249,7 +295,14 @@ function Login() {
                   </div>
                 )}
 
-                {error && <div className="error-message" role="alert">{error}</div>}
+                {lockedFor > 0 ? (
+                  <div className="error-message" role="alert">
+                    Too many failed attempts for this username, so sign-in is paused for a few minutes. If you forgot
+                    your password, ask the IT section to reset it.
+                  </div>
+                ) : (
+                  error && <div className="error-message" role="alert">{error}</div>
+                )}
 
                 <motion.div className="form-group" custom={d + 0.55} variants={pin} initial="hidden" animate="visible">
                   <label htmlFor="username">Username</label>
@@ -392,8 +445,10 @@ function Login() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: d + 0.95, ease: EASE_OUT }}
               >
-                <button type="submit" className={`btn-primary ${granted ? 'is-granted' : ''}`} disabled={loading || granted}>
-                  {granted ? (
+                <button type="submit" className={`btn-primary ${granted ? 'is-granted' : ''}`} disabled={loading || granted || lockedFor > 0}>
+                  {lockedFor > 0 ? (
+                    <span className="btn-loading">Try again in {formatWait(lockedFor)}</span>
+                  ) : granted ? (
                     <span className="btn-loading">
                       <Icon d="M20 6L9 17l-5-5" />
                       Welcome in
