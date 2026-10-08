@@ -7,6 +7,7 @@ import { AuthenticatedRequest, isAuthenticated, isMultimediaAdmin } from '../mid
 import { validateBody } from '../middleware/validate';
 import { assignMultimediaSchema, assignWithPrioritySchema, completeMultimediaSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
 import { normalizePriority, priorityExpr, overdueExpr, toDay } from '../utils/priority';
+import { watchOverdue } from '../utils/overdueAlerts';
 import { formatDateTime } from '../utils/dates';
 import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId } from '../config/database';
 import { getIO } from '../config/socket';
@@ -76,6 +77,16 @@ function displayName(user: { first_name: string; last_name: string; username: st
 
 export function createRequestRouter(config: RouteConfig): Router {
   const router = Router();
+
+  // Overdue alerts once the event/target date has passed (utils/overdueAlerts.ts).
+  watchOverdue({
+    label: config.label,
+    getCollection: config.getCollection,
+    dueField: config.dueField,
+    summaryField: config.summaryField,
+    adminRoles: ['MULTIMEDIA_ADMIN'],
+    pages: { staff: config.pages.staff, admin: config.pages.admin },
+  });
   // Lets the requester rate a finished request straight from its notification.
   const ratingType = ratingTypeFor(config.collectionName);
 

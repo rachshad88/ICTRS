@@ -13,6 +13,7 @@ import helmet from 'helmet';
 import { ObjectId } from 'mongodb';
 import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection, isSessionCurrent } from './config/database';
 import { startRatingSync } from './utils/ratingSync';
+import { startOverdueAlerts } from './utils/overdueAlerts';
 import { initSocket } from './config/socket';
 
 import authRoutes from './routes/auth';
@@ -210,6 +211,8 @@ async function startServer() {
     console.log('Connected to MongoDB');
     // Copy request statuses into the shared rating database now and every 10 minutes (deploy/RATING_DB.md).
     startRatingSync();
+    // Notify staff and admins about requests past their due/event/target date, every 30 minutes.
+    startOverdueAlerts();
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
     console.log('Server will start but database operations will fail');

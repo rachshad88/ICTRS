@@ -7,6 +7,7 @@ import { validateBody } from '../middleware/validate';
 import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
 import { formatDateTime, todayString, semesterFor } from '../utils/dates';
 import { normalizePriority, parseDueDate, isOverdue, overdueExpr, toDay, OPEN_STATUSES } from '../utils/priority';
+import { watchOverdue } from '../utils/overdueAlerts';
 import { liveRequestAdded, liveRequestChanged, liveRequestRemoved } from './live';
 import { notify } from '../utils/notify';
 import { syncRatingStatus, ratingTypeFor } from '../utils/ratingSync';
@@ -15,6 +16,16 @@ import { syncRatingStatus, ratingTypeFor } from '../utils/ratingSync';
 const OWNER_PAGE = '/requested';
 const TECH_PAGE = '/dashboard';
 const IT_ADMIN_PAGE = '/it-dashboard';
+
+// Overdue alerts for IT requests (utils/overdueAlerts.ts).
+watchOverdue({
+  label: 'IT',
+  getCollection: getRequestsCollection,
+  dueField: 'due_date',
+  summaryField: 'issue',
+  adminRoles: ['IT_ADMIN'],
+  pages: { staff: TECH_PAGE, admin: IT_ADMIN_PAGE },
+});
 
 // IT requests can go to a technician, or the IT admin making the change can take it themselves.
 function findAssignableStaff(staffId: string, actor: AuthenticatedRequest['user']) {
