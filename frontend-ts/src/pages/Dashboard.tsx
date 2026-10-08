@@ -49,7 +49,7 @@ const NO_COUNTS: Counts = { pending_count: 0, progress_count: 0, done_count: 0, 
 
 function Dashboard() {
   const { user } = useAuth();
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState('daily');
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [showDone, setShowDone] = useState('1');
 

@@ -66,7 +66,7 @@ interface DashboardData {
 
 function ItAdminDashboard() {
   const { user } = useAuth();
-  const [filterType, setFilterType] = useState('all');
+  const [filterType, setFilterType] = useState('daily');
   const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [showDone, setShowDone] = useState('1');
 
