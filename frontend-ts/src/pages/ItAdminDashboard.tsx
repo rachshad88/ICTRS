@@ -380,7 +380,7 @@ function ItAdminDashboard() {
               <button className="btn-primary" onClick={() => user && handleAssign(user.user_id)} disabled={submitting}>
                 Take
               </button>
-              <button className="btn-secondary" onClick={() => setShowAssignModal(false)}>Cancel</button>
+              <button data-modal-dismiss className="btn-secondary" onClick={() => setShowAssignModal(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -415,7 +415,7 @@ function ItAdminDashboard() {
               onDone={closeManageModal}
             />
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setManageTarget(null)}>Close</button>
+              <button data-modal-dismiss className="btn-secondary" onClick={() => setManageTarget(null)}>Close</button>
             </div>
           </div>
         </div>
@@ -458,7 +458,7 @@ function ItAdminDashboard() {
             <DeclineReason reason={viewTarget.decline_reason} />
             <NotesList notes={viewTarget.notes} />
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={() => setViewTarget(null)}>Close</button>
+              <button data-modal-dismiss className="btn-secondary" onClick={() => setViewTarget(null)}>Close</button>
             </div>
           </div>
         </div>

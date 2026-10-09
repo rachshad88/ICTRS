@@ -39,15 +39,10 @@ export function useConfirm() {
 function ConfirmDialog({ title, message, confirmLabel = 'Confirm', cancelLabel = 'Go back', danger, onAnswer }: ConfirmOptions & { onAnswer: (ok: boolean) => void }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
 
-  // Focus starts on the safe choice; Escape backs out.
+  // Focus starts on the safe choice; Escape backs out (useModalEscape in App.tsx presses data-modal-dismiss).
   useEffect(() => {
     cancelRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onAnswer(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onAnswer]);
+  }, []);
 
   return (
     <div className="modal confirm-modal" onClick={(e) => e.target === e.currentTarget && onAnswer(false)}>
@@ -55,7 +50,7 @@ function ConfirmDialog({ title, message, confirmLabel = 'Confirm', cancelLabel =
         <h3 id="confirm-title">{title}</h3>
         {message && <p id="confirm-message" className="confirm-message">{message}</p>}
         <div className="modal-actions">
-          <button type="button" className="btn-secondary" ref={cancelRef} onClick={() => onAnswer(false)}>
+          <button data-modal-dismiss type="button" className="btn-secondary" ref={cancelRef} onClick={() => onAnswer(false)}>
             {cancelLabel}
           </button>
           <button type="button" className={danger ? 'btn-danger' : 'btn-primary'} onClick={() => onAnswer(true)}>

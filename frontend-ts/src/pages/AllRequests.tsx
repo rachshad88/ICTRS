@@ -393,7 +393,7 @@ function AllRequests() {
               {manage && roles.includes(manage.role) && (
                 <Link to={manage.to} className="btn-primary">Open {manage.label}</Link>
               )}
-              <button type="button" className="btn-secondary" onClick={() => setSelected(null)}>Close</button>
+              <button data-modal-dismiss type="button" className="btn-secondary" onClick={() => setSelected(null)}>Close</button>
             </div>
           </div>
         </div>

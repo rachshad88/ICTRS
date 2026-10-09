@@ -577,7 +577,7 @@ function Reports() {
               </div>
             </div>
             <div className="modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setShowPrintModal(false)}>Cancel</button>
+              <button data-modal-dismiss type="button" className="btn-secondary" onClick={() => setShowPrintModal(false)}>Cancel</button>
               <button type="button" className="btn-primary" onClick={async () => {
                 setShowPrintModal(false);
                 await downloadCombinedReport();

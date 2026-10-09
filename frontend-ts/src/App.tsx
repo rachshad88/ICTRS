@@ -103,11 +103,34 @@ function useDocumentTitle() {
   }, [count, page]);
 }
 
+/**
+ * Escape closes the topmost pop-up by pressing its button marked data-modal-dismiss (its Close,
+ * Cancel or Back), so each pop-up keeps its own closing logic. A confirm dialog sits above the
+ * pop-up it was asked from. Keys already handled inside (an open office list) are left alone.
+ */
+function useModalEscape() {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      const modals = document.querySelectorAll<HTMLElement>('.modal');
+      if (modals.length === 0) return;
+      const top = document.querySelector<HTMLElement>('.modal.confirm-modal') ?? modals[modals.length - 1];
+      const dismiss = top.querySelector<HTMLButtonElement>('[data-modal-dismiss]:not(:disabled)');
+      if (!dismiss) return;
+      e.preventDefault();
+      dismiss.click();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+}
+
 const MOBILE_QUERY = '(max-width: 768px)';
 
 function AppRoutes() {
   const location = useLocation();
   useDocumentTitle();
+  useModalEscape();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(isMobile);
 

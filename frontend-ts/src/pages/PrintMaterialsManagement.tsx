@@ -44,6 +44,7 @@ function PrintMaterialsManagement() {
   const { user } = useAuth();
   const [selectedRequest, setSelectedRequest] = useState<PrintMaterialsRequest | null>(null);
   const [selectedTechnician, setSelectedTechnician] = useState('');
+  const [assigning, setAssigning] = useState(false);
   const [declining, setDeclining] = useState(false);
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'unassigned' | 'all'>('unassigned');
@@ -86,10 +87,12 @@ function PrintMaterialsManagement() {
   const loading = (activeTab === 'unassigned' ? unassignedQuery : allQuery).isPending;
 
   const handleAssign = async () => {
+    if (assigning) return;
     if (!selectedRequest || !selectedTechnician) {
       setMessage('Please select a technician');
       return;
     }
+    setAssigning(true);
     try {
       await api.post('/printmaterials/assign', {
         request_id: selectedRequest._id,
@@ -102,6 +105,8 @@ function PrintMaterialsManagement() {
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
       setMessage(err.response?.data?.error || 'Failed to assign request');
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -279,15 +284,15 @@ function PrintMaterialsManagement() {
               <div className="modal-actions">
                 {selectedRequest.status === 'PENDING' && !selectedRequest.assignedTechnician?.[0] && (
                   <>
-                    <button onClick={handleAssign} className="btn-primary" disabled={!selectedTechnician}>
-                      Assign Request
+                    <button onClick={handleAssign} className="btn-primary" disabled={!selectedTechnician || assigning}>
+                      {assigning ? 'Assigning...' : 'Assign Request'}
                     </button>
                     <button onClick={() => setDeclining(true)} className="btn-danger">
                       Decline
                     </button>
                   </>
                 )}
-                <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
+                <button data-modal-dismiss onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
               </div>
             )}
           </div>

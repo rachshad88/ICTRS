@@ -30,6 +30,7 @@ function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState('');
   const [confirm, confirmDialog] = useConfirm();
+  const [saving, setSaving] = useState(false);
   // Confirmation of the last action (e.g. a password reset); shown in place of the standing warning.
   const [notice, setNotice] = useState('');
 
@@ -98,6 +99,8 @@ function UserManagement() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       if (editingUser) {
         const payload: Record<string, unknown> = {
@@ -122,6 +125,8 @@ function UserManagement() {
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string; details?: Array<{ message: string }> } } };
       setError(err.response?.data?.details?.[0]?.message || err.response?.data?.error || 'Failed to save user');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -333,8 +338,8 @@ function UserManagement() {
                     Reset Password
                   </button>
                 )}
-                <button type="submit" className="btn-primary">Save</button>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
+                <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+                <button data-modal-dismiss type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
               </div>
             </form>
           </div>

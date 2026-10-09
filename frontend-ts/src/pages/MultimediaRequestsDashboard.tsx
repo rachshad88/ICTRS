@@ -36,6 +36,7 @@ function MultimediaRequestsDashboard() {
   const { user } = useAuth();
   const [selectedRequest, setSelectedRequest] = useState<MultimediaRequest | null>(null);
   const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [remarks, setRemarks] = useState('');
   const [recommendation, setRecommendation] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,7 +61,8 @@ function MultimediaRequestsDashboard() {
   useEffect(() => { setError(''); }, [data]);
 
   const handleCompleteRequest = async () => {
-    if (!selectedRequest) return;
+    if (!selectedRequest || completing) return;
+    setCompleting(true);
     try {
       await api.post('/multimedia/complete_request', {
         request_id: selectedRequest._id,
@@ -74,6 +76,8 @@ function MultimediaRequestsDashboard() {
       refreshService('multimedia');
     } catch (error) {
       setError('Failed to complete request');
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -219,7 +223,7 @@ function MultimediaRequestsDashboard() {
               )}
               <NotesList notes={selectedRequest.notes} />
             </div>
-            <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
+            <button data-modal-dismiss onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
           </div>
         </div>
       )}
@@ -239,8 +243,8 @@ function MultimediaRequestsDashboard() {
               <textarea value={recommendation} onChange={(e) => setRecommendation(e.target.value)} placeholder="Recommendations for future events" rows={3} />
             </div>
             <div className="modal-actions">
-              <button onClick={handleCompleteRequest} className="btn-primary">Complete Request</button>
-              <button onClick={() => { setShowCompleteModal(false); setRemarks(''); setRecommendation(''); }} className="btn-secondary">Cancel</button>
+              <button onClick={handleCompleteRequest} className="btn-primary" disabled={completing}>{completing ? 'Saving...' : 'Complete Request'}</button>
+              <button data-modal-dismiss onClick={() => { setShowCompleteModal(false); setRemarks(''); setRecommendation(''); }} className="btn-secondary">Cancel</button>
             </div>
           </div>
         </div>

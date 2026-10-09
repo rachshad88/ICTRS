@@ -69,7 +69,7 @@ function FinishRequestModal({ request, onClose, onFinished, onError }: {
           <button className="btn-primary" onClick={handleMarkDone} disabled={submitting}>
             {submitting ? 'Saving...' : 'Save'}
           </button>
-          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button data-modal-dismiss className="btn-secondary" onClick={onClose}>Cancel</button>
         </div>
       </div>
     </div>

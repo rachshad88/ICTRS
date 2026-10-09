@@ -169,7 +169,7 @@ export function DeclineForm({ endpoint, requestId, onDeclined, onBack }: { endpo
         <button type="button" className="btn-danger" onClick={submit} disabled={!valid || saving}>
           {saving ? 'Declining...' : 'Decline request'}
         </button>
-        <button type="button" className="btn-secondary" onClick={onBack} disabled={saving}>Back</button>
+        <button data-modal-dismiss type="button" className="btn-secondary" onClick={onBack} disabled={saving}>Back</button>
       </div>
     </div>
   );
