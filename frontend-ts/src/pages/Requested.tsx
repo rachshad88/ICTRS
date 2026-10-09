@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { queryClient, refreshService } from '../services/queryClient';
 import Skeleton from '../components/Skeleton';
+import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
@@ -59,6 +60,7 @@ function Requested() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
+  const [confirm, confirmDialog] = useConfirm();
   const [selectedRequest, setSelectedRequest] = useState<MyRequest | null>(null);
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
@@ -85,8 +87,8 @@ function Requested() {
   }, [data]);
 
   const handleCancel = async (requestId: string) => {
-    if (!window.confirm('Are you sure you want to cancel this request?')) return;
-    
+    if (!(await confirm({ title: 'Cancel this request?', message: 'The team will stop working on it. This cannot be undone.', confirmLabel: 'Cancel request', cancelLabel: 'Keep it', danger: true }))) return;
+
     try {
       await api.post('/requests/cancel_request', { request_id: requestId });
       refreshService('it');
@@ -126,6 +128,7 @@ function Requested() {
 
   return (
     <div className="requested-page">
+      {confirmDialog}
 
       <div className="container">
         <div className="page-header">

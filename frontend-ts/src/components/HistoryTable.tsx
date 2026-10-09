@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { queryClient, refreshService, type Service } from '../services/queryClient';
 import FileViewer from './FileViewer';
 import Skeleton from './Skeleton';
+import { useConfirm } from './ConfirmDialog';
 import Pagination from './Pagination';
 import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
@@ -79,6 +80,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState('');
+  const [confirm, confirmDialog] = useConfirm();
 
   useEffect(() => { setCurrentPage(1); }, [searchTerm]);
 
@@ -103,7 +105,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
   }, [data]);
 
   const handleCancel = async (requestId: string) => {
-    if (!window.confirm('Are you sure you want to cancel this request?')) return;
+    if (!(await confirm({ title: 'Cancel this request?', message: 'The team will stop working on it. This cannot be undone.', confirmLabel: 'Cancel request', cancelLabel: 'Keep it', danger: true }))) return;
     try {
       await api.post(config.cancelEndpoint, { request_id: requestId });
       refreshService(config.service);
@@ -140,6 +142,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
 
   return (
     <div className="history-page">
+      {confirmDialog}
       <div className="page-header">
         <h2>{config.title}</h2>
         {requests.length > 0 && (

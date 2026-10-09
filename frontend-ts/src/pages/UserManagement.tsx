@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '../services/queryClient';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
+import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import { OFFICES } from '../data/offices';
 
@@ -28,6 +29,7 @@ function UserManagement() {
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState('');
+  const [confirm, confirmDialog] = useConfirm();
   // Confirmation of the last action (e.g. a password reset); shown in place of the standing warning.
   const [notice, setNotice] = useState('');
 
@@ -124,7 +126,7 @@ function UserManagement() {
   };
 
   const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+    if (!(await confirm({ title: 'Delete this user?', message: 'They will no longer be able to sign in. This cannot be undone.', confirmLabel: 'Delete user', danger: true }))) return;
     try {
       await api.post('/users/delete_user', { user_id: userId });
       refreshUsers();
@@ -136,7 +138,7 @@ function UserManagement() {
 
   const handleResetPassword = async () => {
     if (!editingUser) return;
-    if (!confirm(`Reset ${editingUser.username}'s password to ${DEFAULT_PASSWORD}?`)) return;
+    if (!(await confirm({ title: `Reset ${editingUser.username}'s password?`, message: <>It will be set to <strong>{DEFAULT_PASSWORD}</strong>, They will be signed out and must choose a new password when they next sign in.</>, confirmLabel: 'Reset password' }))) return;
     try {
       await api.post('/users/reset_user_password', { user_id: editingUser._id });
       setNotice(`${editingUser.username}'s password was reset to ${DEFAULT_PASSWORD}.`);

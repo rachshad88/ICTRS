@@ -1550,3 +1550,28 @@
     background-size: 12px 8px;
   }
 }
+
+/* ----- Confirm dialog (components/ConfirmDialog.tsx) ----- */
+/* Above other modals: it can be asked from inside one (reset password in the user editor). */
+.modal.confirm-modal {
+  z-index: 2100;
+}
+
+.app-main .confirm-content {
+  max-width: 420px;
+}
+
+.app-main .confirm-content.is-danger {
+  border-top-color: var(--danger-red);
+}
+
+.app-main .confirm-message {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.app-main .confirm-content .modal-actions .btn-danger {
+  flex: 1;
+}
