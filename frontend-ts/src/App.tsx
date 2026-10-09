@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import Sidebar from './components/Sidebar';
 import ToastNotifications from './components/ToastNotifications';
+import ConnectionBanner from './components/ConnectionBanner';
 import PageTransition from './components/PageTransition';
 import ErrorBoundary from './components/ErrorBoundary';
 import { LoginTransitionProvider } from './components/LoginTransition';
@@ -190,6 +191,7 @@ function App() {
                   <LogoutTransitionProvider>
                     <PageCurtainProvider>
                       <ToastNotifications />
+                      <ConnectionBanner />
                       <AppRoutes />
                     </PageCurtainProvider>
                   </LogoutTransitionProvider>

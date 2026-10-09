@@ -1575,3 +1575,61 @@
 .app-main .confirm-content .modal-actions .btn-danger {
   flex: 1;
 }
+
+/* ----- Connection banner (components/ConnectionBanner.tsx) ----- */
+/* Sits above everything, modals included: an action taken while offline will not save. */
+.conn-banner-slot {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  left: 0;
+  right: 0;
+  z-index: 3000;
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+.conn-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--ink, #0c1f4a);
+  color: #f4f7fc;
+  font-family: 'Nunito', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  box-shadow: 0 10px 28px rgba(12, 31, 74, 0.28);
+}
+
+.conn-banner-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--seal-yellow, #ffd91a);
+  animation: connPulse 1.4s ease-in-out infinite;
+}
+
+.conn-banner.is-offline .conn-banner-dot {
+  background: #ff8a7a;
+}
+
+.conn-banner.is-back .conn-banner-dot {
+  background: #5fd38d;
+  animation: none;
+}
+
+@keyframes connPulse {
+  50% { opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conn-banner-dot {
+    animation: none;
+  }
+}
