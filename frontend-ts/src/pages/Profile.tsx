@@ -3,7 +3,6 @@ import { useLogoutTransition } from '../components/LogoutTransition';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
-import AwaitingApproval from '../components/AwaitingApproval';
 import { OFFICES } from '../data/offices';
 
 function Profile() {
@@ -122,7 +121,6 @@ function Profile() {
             Your account still uses the default password. Change it under Security to continue using the system.
           </div>
         )}
-        <AwaitingApproval />
         
         <div className="profile-layout">
           <div className="profile-sidebar">

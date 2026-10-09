@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { ObjectId } from 'mongodb';
-import { Role, getUsersCollection, isSessionCurrent } from '../config/database';
+import { Role, isSessionCurrent } from '../config/database';
 
 declare module 'express-session' {
   interface SessionData {
@@ -74,22 +73,7 @@ export async function isAuthenticated(req: AuthenticatedRequest, res: Response, 
   next();
 }
 
-export const AWAITING_APPROVAL = 'Your account is waiting for approval by the IT office. You will get a notification once it is approved.';
-
-/** Blocks new requests from self sign-ups an admin has not approved yet (spam protection). */
-export async function isApproved(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const user = await getUsersCollection().findOne({ _id: new ObjectId(req.user!.user_id) }, { projection: { approved: 1 } });
-    if (user?.approved === false) {
-      res.status(403).json({ error: AWAITING_APPROVAL, code: 'AWAITING_APPROVAL' });
-      return;
-    }
-    next();
-  } catch (error) {
-    console.error('Approval check error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
+export const AWAITING_APPROVAL = 'Your account is waiting for approval by the IT office. You can sign in once it is approved.';
 
 function hasRole(req: AuthenticatedRequest, role: Role): boolean {
   return req.user?.roles?.includes(role) || false;

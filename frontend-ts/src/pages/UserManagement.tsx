@@ -19,7 +19,7 @@ interface User {
   office?: string;
   position?: string;
   is_default_password?: boolean;
-  /** false for a self sign-up waiting for approval (it cannot submit requests until approved). */
+  /** false for a self sign-up waiting for approval (it cannot sign in until approved). */
   approved?: boolean;
   created_at?: string;
 }
@@ -142,7 +142,7 @@ function UserManagement() {
     setApprovingId(user._id);
     try {
       await api.post('/users/approve_user', { user_id: user._id });
-      setNotice(`${user.first_name} ${user.last_name} (${user.username}) was approved and can now submit requests.`);
+      setNotice(`${user.first_name} ${user.last_name} (${user.username}) was approved and can now sign in.`);
       await refreshUsers();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
@@ -243,7 +243,7 @@ function UserManagement() {
       {pending.length > 0 && (
         <section className="approval-queue" aria-labelledby="approval-queue-title">
           <h3 id="approval-queue-title">Waiting for approval ({pending.length})</h3>
-          <p className="approval-queue-hint">These people signed up themselves. They can sign in but can't submit requests until you approve them. Reject anything that looks fake.</p>
+          <p className="approval-queue-hint">These people signed up themselves. They can't sign in until you approve them. Reject anything that looks fake.</p>
           <ul>
             {pending.map((u) => (
               <li key={u._id} className="approval-item">

@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import { Server } from 'socket.io';
 import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
-import { AuthenticatedRequest, isAuthenticated, isApproved, isTechnicianOrAdmin, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
+import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
 import { formatDateTime, todayString, semesterFor } from '../utils/dates';
@@ -47,7 +47,7 @@ function itAudience(io: Server, ownerId?: string) {
   return io.to(['technicians', 'super_admins', ...(ownerId ? [`user_${ownerId}`] : [])]);
 }
 
-router.post('/send_request', isAuthenticated, isApproved, validateBody(createRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+router.post('/send_request', isAuthenticated, validateBody(createRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { unit, unit_other, issue } = req.body;
     // "Others" is saved together with what the requester typed, e.g. "others: printer".

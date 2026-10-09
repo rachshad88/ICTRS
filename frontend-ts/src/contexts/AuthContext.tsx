@@ -15,15 +15,14 @@ interface User {
   office?: string;
   position?: string;
   is_default_password?: boolean;
-  /** false for a self sign-up an admin has not approved yet; it cannot submit requests. */
-  approved?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<User | null>;
-  signup: (data: SignupData) => Promise<User | null>;
+  /** Creates a client account. It is not signed in: an admin has to approve it first. */
+  signup: (data: SignupData) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateUser: (data: { username?: string; first_name: string; middle_name: string; last_name: string; office?: string; position?: string }) => Promise<void>;
@@ -100,15 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Creates a client account on the default password and signs it in.
-  const signup = async (data: SignupData): Promise<User | null> => {
-    const response = await api.post('/auth/signup', data);
-    if (!response.data.user) return null;
-    queryClient.clear();
-    const me = await api.get('/auth/me', {
-      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-    });
-    setUser(me.data);
-    return me.data;
+  const signup = async (data: SignupData): Promise<void> => {
+    await api.post('/auth/signup', data);
   };
 
   const logout = async () => {

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import AwaitingApproval, { useAwaitingApproval } from '../components/AwaitingApproval';
 import { PriorityField, Priority } from '../components/Priority';
 
 
@@ -13,7 +12,6 @@ const LOCATION_TYPES = [
 ];
 
 function MultimediaRequest() {
-  const awaitingApproval = useAwaitingApproval();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -124,7 +122,6 @@ function MultimediaRequest() {
           </div>
         )}
         
-        <AwaitingApproval />
         <form onSubmit={handleSubmit} className="request-form" data-ticket="Multimedia">
           <div className="form-group">
             <label>Event Title *</label>
@@ -234,7 +231,7 @@ function MultimediaRequest() {
           
           <div className="ticket-tear" aria-hidden="true" />
           
-          <button type="submit" className="btn-primary" disabled={loading || awaitingApproval}>
+          <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>

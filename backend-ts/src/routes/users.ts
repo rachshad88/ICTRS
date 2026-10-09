@@ -245,7 +245,7 @@ router.post('/reset_user_password', isAuthenticated, isAdmin, validateBody(z.obj
   }
 });
 
-// Lets a self sign-up submit requests (spam protection, see the signup route).
+// Lets a self sign-up sign in (spam protection, see the signup route).
 router.post('/approve_user', isAuthenticated, isAdmin, validateBody(z.object({ user_id: objectIdSchema })), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { user_id } = req.body;
@@ -265,7 +265,7 @@ router.post('/approve_user', isAuthenticated, isAdmin, validateBody(z.object({ u
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'APPROVE_USER', 'USER', user_id, `Admin ${req.user!.username} approved the sign-up of ${result.value.username}`);
     notify(user_id, {
       level: 'success', title: 'Account approved',
-      message: 'Your account has been approved. You can now submit requests.', link: '/request'
+      message: 'Your account was approved by the IT office. Welcome to ITRS!', link: '/request'
     });
     res.json({ status: 'success' });
   } catch (error) {

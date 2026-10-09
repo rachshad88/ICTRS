@@ -1777,27 +1777,7 @@
   }
 }
 
-/* ----- Sign-up approval (components/AwaitingApproval.tsx, UserManagement) ----- */
-.app-main .approval-notice {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 18px;
-  padding: 14px 16px;
-  border-left: 6px solid var(--seal-yellow);
-  border-radius: 10px;
-  background: var(--card);
-  box-shadow: 0 0 0 1px rgba(12, 31, 74, 0.08);
-  color: var(--ink);
-  font-size: 14.5px;
-  line-height: 1.5;
-}
-
-.app-main .approval-notice strong {
-  font-family: var(--font-display);
-  font-size: 16px;
-}
-
+/* ----- Sign-ups waiting for approval (UserManagement) ----- */
 .app-main .approval-queue {
   margin-bottom: 22px;
   padding: 18px 18px 8px;

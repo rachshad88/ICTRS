@@ -21,8 +21,8 @@ export interface User {
   // Bumped when an admin changes the user's access or password; sessions started under an
   // older version are rejected (see isAuthenticated).
   session_version?: number;
-  // false for a self sign-up an admin has not approved yet: it can sign in but not submit requests
-  // (isApproved). Missing means approved: accounts made before this existed, and by admins.
+  // false for a self sign-up an admin has not approved yet: it cannot sign in, and any session it
+  // has is refused (isSessionCurrent). Missing means approved: older accounts, and ones admins made.
   approved?: boolean;
 }
 
@@ -349,8 +349,8 @@ export async function logAudit(
 // Whether a session still belongs to an existing user and was started under their current session version.
 export async function isSessionCurrent(userId: string | undefined, sessionVersion: number | undefined): Promise<boolean> {
   if (!userId || !isValidObjectId(userId)) return false;
-  const user = await getUsersCollection().findOne({ _id: new ObjectId(userId) }, { projection: { session_version: 1 } });
-  return !!user && (user.session_version || 0) === (sessionVersion || 0);
+  const user = await getUsersCollection().findOne({ _id: new ObjectId(userId) }, { projection: { session_version: 1, approved: 1 } });
+  return !!user && user.approved !== false && (user.session_version || 0) === (sessionVersion || 0);
 }
 
 export function getRedisClient(): RedisClientType | null {

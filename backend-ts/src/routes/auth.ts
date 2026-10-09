@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { getUsersCollection, logAudit, redisClient, Role, User } from '../config/database';
 import { notify } from '../utils/notify';
-import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
+import { AuthenticatedRequest, isAuthenticated, AWAITING_APPROVAL } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { loginSchema, changePasswordSchema, updateProfileSchema, signupSchema } from '../middleware/validation';
 import { loginRetryAfter, recordLoginFailure, recordLoginSuccess, recordSignup, signupRetryAfter } from '../middleware/loginThrottle';
@@ -97,6 +97,12 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     }
     recordLoginSuccess(username, ip);
 
+    // Self sign-ups wait for an admin (see the signup route). Only said after the password checked
+    // out, so it tells a guesser nothing.
+    if (user.approved === false) {
+      return res.status(403).json({ error: AWAITING_APPROVAL, code: 'AWAITING_APPROVAL' });
+    }
+
     const isDefaultPassword = await passwordMatchesDefault(user.password);
     const userData = await startSession(req, user, isDefaultPassword);
     await logAudit(user._id!, user.username, userData.primary_role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
@@ -148,14 +154,13 @@ function startSession(req: Request, user: User, isDefaultPassword: boolean) {
   });
 }
 
-// Public sign-up for clients. The account always gets the CLIENT role and the default password,
-// and is signed in straight away; isAuthenticated then keeps it on the Profile page until the
-// password is changed, so nobody else can use the known default for long.
+// Public sign-up for clients. The account always gets the CLIENT role and the default password.
 //
-// Spam: ITRS is reachable from the internet, so a new account cannot submit requests until an
-// admin approves it (approved: false, isApproved), and the admins are told about each one. Forms
-// that fill the hidden "website" field, arrive without form_ms, or were filled in under 3 seconds
-// are bots and get a vague error, so they learn nothing from it.
+// Spam: ITRS is reachable from the internet, so a new account cannot sign in until an admin
+// approves it (approved: false), and the admins are told about each one. After approval the first
+// sign-in uses the default password and isAuthenticated keeps the account on the Profile page until
+// it is changed. Forms that fill the hidden "website" field, arrive without form_ms, or were filled
+// in under 3 seconds are bots and get a vague error, so they learn nothing from it.
 const MIN_FORM_MS = 3000;
 router.post('/signup', validateBody(signupSchema), async (req: Request, res: Response) => {
   try {
@@ -217,11 +222,10 @@ router.post('/signup', validateBody(signupSchema), async (req: Request, res: Res
     await logAudit(newUser._id!, username, 'CLIENT', 'SIGNUP', 'USER', newUser._id!.toString(), `User ${username} signed up (${office})`);
     notify({ roles: ['ADMIN'] }, {
       level: 'info', title: 'Account waiting for approval', link: '/users',
-      message: `${first_name} ${last_name} (${username}) of ${office} signed up and needs approval before they can submit requests.`
+      message: `${first_name} ${last_name} (${username}) of ${office} signed up and needs approval before they can sign in.`
     });
 
-    const userData = await startSession(req, newUser, true);
-    return res.status(201).json({ redirect: '/profile', user: userData });
+    return res.status(201).json({ status: 'pending', message: AWAITING_APPROVAL });
   } catch (error) {
     console.error('Signup error:', error);
     res.status(500).json({ error: 'Internal server error' });
@@ -252,7 +256,7 @@ router.post('/logout', async (req: Request, res: Response) => {
 router.get('/me', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   // Read from the database rather than the session so a position set by an admin shows up without re-login.
   const stored = await getUsersCollection()
-    .findOne({ _id: new ObjectId(req.user!.user_id) }, { projection: { position: 1, approved: 1 } })
+    .findOne({ _id: new ObjectId(req.user!.user_id) }, { projection: { position: 1 } })
     .catch(() => null);
   res.json({
     user_id: req.user?.user_id,
@@ -264,8 +268,7 @@ router.get('/me', isAuthenticated, async (req: AuthenticatedRequest, res: Respon
     primary_role: req.user?.primary_role,
     office: req.user?.office,
     position: stored?.position || '',
-    is_default_password: req.user?.is_default_password || false,
-    approved: stored?.approved !== false
+    is_default_password: req.user?.is_default_password || false
   });
 });
 

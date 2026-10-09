@@ -736,6 +736,34 @@
   color: var(--lg-cobalt);
 }
 
+/* After sign-up (Signup.tsx): the account waits for an admin before it can sign in. */
+.signup-pending {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-left: 5px solid var(--lg-yellow, #ffd91a);
+  border-radius: 8px;
+  background: rgba(255, 217, 26, 0.12);
+  color: var(--lg-ink, #0c1f4a);
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.signup-pending strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 15px;
+}
+
+.signup-pending p {
+  margin: 0 0 8px;
+}
+
+.signup-pending a {
+  color: var(--lg-cobalt, #1452c9);
+  font-weight: 700;
+}
+
 /* Sign-up bot trap (Signup.tsx): off-screen rather than display:none, which some bots skip. */
 .signup-trap {
   position: absolute;

@@ -330,7 +330,7 @@ function ClientGuide() {
         <main className="gd-main">
           <Section id="sign-in" n={1} title="Signing in">
             <ol className="gd-steps">
-              <li>Open ITRS and enter the <strong>username</strong> and <strong>password</strong> given to you by the IT office.</li>
+              <li>Open ITRS and enter your <strong>username</strong> and <strong>password</strong>. If you signed up yourself, wait until the IT office approves your account first; until then, signing in says it is waiting for approval.</li>
               <li>Select <strong>Sign In</strong>. You will land on the IT Request page.</li>
               <li>If you are still using the default password, the system will remind you to change it. Go to <strong>Profile</strong> and set a new one before continuing.</li>
             </ol>

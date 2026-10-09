@@ -64,7 +64,7 @@ const BENEFITS = [
 // How to use it: four queue stubs fed out of a "take a number" dispenser, like the counter at the
 // Municipal Hall. Each stub carries a small sketch of what that step looks like in ITRS.
 const STEPS = [
-  { verb: 'Sign up', body: 'Create a client account with your office and position, or sign in if you already have one. New accounts set their own password first.' },
+  { verb: 'Sign up', body: 'Create a client account with your office and position, or sign in if you already have one. New accounts are approved by the IT office before they can sign in.' },
   { verb: 'Choose', body: 'Pick IT, Multimedia, Digital Media or Print Materials from the sidebar and fill in the form.' },
   { verb: 'Submit', body: 'Set the priority, attach files if they help, and submit. Keep the request code you get.' },
   { verb: 'Track', body: 'Watch the status on your History page. Add notes, cancel while pending, rate when done.' },

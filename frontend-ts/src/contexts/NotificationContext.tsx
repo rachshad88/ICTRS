@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '../services/api';
 import { initSocket } from '../services/socket';
 import { playNotification } from '../services/sfx';
@@ -62,10 +62,7 @@ const NotificationContext = createContext<NotificationContextType>({
 });
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const { user, refreshUser } = useAuth();
-  // Read through a ref: refreshUser is a new function on every render, and the socket listeners below shouldn't re-subscribe for that.
-  const refreshUserRef = useRef(refreshUser);
-  refreshUserRef.current = refreshUser;
+  const { user } = useAuth();
   const [counts, setCounts] = useState<UnassignedCounts>({ total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 });
   const [notifications, setNotifications] = useState<LiveNotification[]>([]);
   const [inbox, setInbox] = useState<InboxNotification[]>([]);
@@ -176,8 +173,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       setUnread((u) => u + 1);
       playNotification(n.title, n.level);
       pushNotification({ title: n.title, message: n.message, type: n.level, source: n });
-      // An admin approved this self sign-up: re-read the account so the request forms unlock.
-      if (n.title === 'Account approved') refreshUserRef.current().catch(() => {});
     };
     socket.on('notification:new', onNotification);
 

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import AwaitingApproval, { useAwaitingApproval } from '../components/AwaitingApproval';
 import { PriorityField, Priority } from '../components/Priority';
 
 
@@ -12,7 +11,6 @@ const FORM_OF_PRINTED_MEDIA = [
 ];
 
 function PrintMaterialsRequest() {
-  const awaitingApproval = useAwaitingApproval();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -125,7 +123,6 @@ function PrintMaterialsRequest() {
           </div>
         )}
         
-        <AwaitingApproval />
         <form onSubmit={handleSubmit} className="request-form" data-ticket="Print Materials">
           <div className="form-group">
             <label>Form of Printed Media Being Requested *</label>
@@ -260,7 +257,7 @@ function PrintMaterialsRequest() {
 
           <div className="ticket-tear" aria-hidden="true" />
 
-          <button type="submit" className="btn-primary" disabled={loading || awaitingApproval}>
+          <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>

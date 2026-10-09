@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb';
 import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { AuthenticatedRequest, isAuthenticated, isApproved, isMultimediaAdmin } from '../middleware/auth';
+import { AuthenticatedRequest, isAuthenticated, isMultimediaAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { assignMultimediaSchema, assignWithPrioritySchema, completeMultimediaSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
 import { normalizePriority, priorityExpr, overdueExpr, toDay } from '../utils/priority';
@@ -205,7 +205,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   }
 
   // POST /create_request
-  router.post('/create_request', isAuthenticated, isApproved, (req, res, next) => {
+  router.post('/create_request', isAuthenticated, (req, res, next) => {
     uploadMiddleware(req, res, (err: any) => {
       if (err) {
         return res.status(400).json({ error: err.message || 'File upload failed' });

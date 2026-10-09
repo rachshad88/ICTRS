@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { TransitionLink } from '../components/PageCurtain';
 import { useAuth } from '../contexts/AuthContext';
-import { useLoginTransition } from '../components/LoginTransition';
 import { EASE_OUT } from '../lib/motion';
 import { playApprovedStamp, playDenied } from '../services/sfx';
 import { OFFICES } from '../data/offices';
@@ -20,13 +19,12 @@ const DEFAULT_PASSWORD = '12345';
 // Matches signupSchema on the backend.
 const USERNAME_PATTERN = '[A-Za-z0-9._\\-]{3,30}';
 
-const STAMP_BEAT_MS = 750;
 const CREDIT = '© 2026 Dave Shadrach B. Lannu · v1.0.0';
 
 const STEPS = [
   'Fill in your details and pick your office.',
-  `You are signed in with the starting password ${DEFAULT_PASSWORD}.`,
-  'Choose your own password, then file requests.',
+  'The IT office checks and approves your account.',
+  `Sign in with the starting password ${DEFAULT_PASSWORD}, then choose your own.`,
 ];
 
 // The sign-up entrance follows the registration-slip transition: the headline is inked in like a
@@ -58,7 +56,6 @@ function Signup() {
   const [granted, setGranted] = useState(false);
   const [printed, setPrinted] = useState(false);
   const { signup, user } = useAuth();
-  const { play } = useLoginTransition();
   const signingUp = useRef(false);
   const navigate = useNavigate();
   const usernameRef = useRef<HTMLInputElement>(null);
@@ -89,13 +86,10 @@ function Signup() {
     signingUp.current = true;
 
     try {
-      const me = await signup({ ...form, website, form_ms: Date.now() - openedAt.current });
-      if (!me) throw new Error('No user returned');
+      // Not signed in: the account waits for an admin's approval (backend signup route).
+      await signup({ ...form, website, form_ms: Date.now() - openedAt.current });
       setGranted(true);
       playApprovedStamp();
-      window.setTimeout(() => {
-        play(me.first_name, () => navigate('/profile'));
-      }, STAMP_BEAT_MS);
     } catch (err: unknown) {
       playDenied();
       signingUp.current = false;
@@ -327,9 +321,20 @@ function Signup() {
                     </span>
                   )}
                 </button>
-                <p className="login-guide-link">
-                  Already have an account? <TransitionLink to="/login">Sign in</TransitionLink>
-                </p>
+                {granted ? (
+                  <div className="signup-pending" role="status">
+                    <strong>Waiting for approval</strong>
+                    <p>
+                      The IT office checks every new account. Once yours is approved, sign in as <b>{form.username}</b> with
+                      the starting password <b>{DEFAULT_PASSWORD}</b>, and you'll then choose your own.
+                    </p>
+                    <TransitionLink to="/login">Go to sign in</TransitionLink>
+                  </div>
+                ) : (
+                  <p className="login-guide-link">
+                    Already have an account? <TransitionLink to="/login">Sign in</TransitionLink>
+                  </p>
+                )}
               </div>
             </form>
           </motion.div>

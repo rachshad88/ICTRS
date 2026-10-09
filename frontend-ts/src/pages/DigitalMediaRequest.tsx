@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import AwaitingApproval, { useAwaitingApproval } from '../components/AwaitingApproval';
 import { PriorityField, Priority } from '../components/Priority';
 
 
@@ -13,7 +12,6 @@ const FORM_OF_DIGITAL_MEDIA = [
 ];
 
 function DigitalMediaRequest() {
-  const awaitingApproval = useAwaitingApproval();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -126,7 +124,6 @@ function DigitalMediaRequest() {
           </div>
         )}
         
-        <AwaitingApproval />
         <form onSubmit={handleSubmit} className="request-form" data-ticket="Digital Media">
           <div className="form-group">
             <label>Title *</label>
@@ -261,7 +258,7 @@ function DigitalMediaRequest() {
 
           <div className="ticket-tear" aria-hidden="true" />
 
-          <button type="submit" className="btn-primary" disabled={loading || awaitingApproval}>
+          <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>
