@@ -28,6 +28,8 @@ interface Request {
   priority?: string;
   due_date?: string | null;
   overdue?: boolean;
+  /** Reopened by the client ("still not fixed") and open again. */
+  reopened?: boolean;
   notes?: RequestNote[];
 }
 
@@ -125,7 +127,7 @@ function Dashboard() {
     >
       <td className="td-code" data-label="Code">
         {req.request_code}
-        <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} />
+        <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} reopened={req.reopened} />
       </td>
       <td className="td-cell" data-label="Office">{req.office}</td>
       <td className="td-cell" data-label="Requested By">{req.client_name}</td>

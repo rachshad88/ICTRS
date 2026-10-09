@@ -10,7 +10,7 @@ import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
-import { NotesList, DeclineReason, StaffReport, AddNoteForm, RequestNote } from '../components/RequestNotes';
+import { NotesList, DeclineReason, StaffReport, AddNoteForm, ReopenForm, canReopen, RequestNote } from '../components/RequestNotes';
 import SearchBox from '../components/SearchBox';
 
 
@@ -31,6 +31,8 @@ interface MyRequest {
   accepted_at?: string | null;
   declined_at?: string | null;
   cancelled_at?: string | null;
+  reopened_at?: string | null;
+  previously_completed_at?: string | null;
   decline_reason?: string | null;
   notes?: RequestNote[];
 }
@@ -263,6 +265,9 @@ function Requested() {
                   recommendation={selectedRequest.recommendation}
                   showRecommendation
                 />
+              )}
+              {canReopen(selectedRequest.status, selectedRequest.completed_at) && (
+                <ReopenForm requestId={selectedRequest._id} onReopened={() => refreshService('it')} />
               )}
               <DeclineReason reason={selectedRequest.decline_reason} />
               <NotesList notes={selectedRequest.notes} heading="Your notes" />

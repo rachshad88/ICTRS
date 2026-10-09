@@ -45,6 +45,11 @@ export interface DeclineAndNotes {
   accepted_at?: Date | null;
   cancelled_at?: Date | null;
   notes?: RequestNote[];
+  // "Still not fixed" (IT only, routes/requests.ts reopen_request): when the client last reopened
+  // it, how many times, and when it had been marked done before that.
+  reopened_at?: Date | null;
+  reopen_count?: number;
+  previously_completed_at?: Date | null;
 }
 
 // Urgency set by the client and adjustable by admins. Only IT requests store a due date;

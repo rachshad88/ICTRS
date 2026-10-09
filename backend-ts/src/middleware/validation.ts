@@ -178,6 +178,12 @@ export const declineRequestSchema = z.object({
   reason: z.string().trim().min(3, 'Please give a reason (at least 3 characters)').max(500, 'Reason must be 500 characters or fewer')
 });
 
+// "Still not fixed": the client says what is still wrong when reopening a finished IT request.
+export const reopenRequestSchema = z.object({
+  request_id: objectIdSchema,
+  reason: z.string().trim().min(3, 'Say briefly what is still wrong').max(500, 'Keep it to 500 characters or fewer')
+});
+
 export const addNoteSchema = z.object({
   request_id: objectIdSchema,
   text: z.string().trim().min(1, 'Note cannot be empty').max(500, 'Note must be 500 characters or fewer')

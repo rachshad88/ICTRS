@@ -129,6 +129,71 @@ export function AddNoteForm({ endpoint, requestId, onAdded }: { endpoint: string
   );
 }
 
+/** Days after being marked done that a client can still reopen an IT request (backend REOPEN_DAYS). */
+export const REOPEN_DAYS = 7;
+
+/** True when this finished IT request can still be sent back as "still not fixed". */
+export function canReopen(status: string, completedAt?: string | null): boolean {
+  if (status !== 'DONE' || !completedAt) return false;
+  return Date.now() - new Date(completedAt).getTime() < REOPEN_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** "Still not fixed?": the client says what is still wrong and the request goes back to its technician. */
+export function ReopenForm({ requestId, onReopened }: { requestId: string; onReopened: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const valid = reason.trim().length >= 3;
+
+  const submit = async () => {
+    if (!valid || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api.post('/requests/reopen_request', { request_id: requestId, reason: reason.trim() });
+      setOpen(false);
+      setReason('');
+      onReopened();
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Failed to reopen the request'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <div className="reopen-prompt">
+        <span>Problem came back, or wasn't fixed?</span>
+        <button type="button" className="hbtn hbtn-cancel" onClick={() => setOpen(true)}>Still not fixed</button>
+      </div>
+    );
+  }
+  return (
+    <div className="form-group add-note reopen-form">
+      <label htmlFor={`reopen-${requestId}`}>What is still wrong?</label>
+      <textarea
+        id={`reopen-${requestId}`}
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        rows={3}
+        maxLength={TEXT_MAX}
+        placeholder="For example: the printer jams again after a few pages"
+        autoFocus
+      />
+      <p className="reopen-hint">It goes back to the technician who handled it, with your note.</p>
+      <div className="add-note-footer">
+        <button type="button" className="hbtn hbtn-view" onClick={() => { setOpen(false); setError(''); }} disabled={saving}>Never mind</button>
+        <button type="button" className="hbtn hbtn-cancel" onClick={submit} disabled={!valid || saving}>
+          {saving ? 'Reopening...' : 'Reopen request'}
+        </button>
+      </div>
+      {error && <p className="add-note-error">{error}</p>}
+    </div>
+  );
+}
+
 /** Reason prompt an admin fills in before declining an unassigned request. */
 export function DeclineForm({ endpoint, requestId, onDeclined, onBack }: { endpoint: string; requestId: string; onDeclined: () => void; onBack: () => void }) {
   const [reason, setReason] = useState('');

@@ -42,11 +42,12 @@ export function formatDay(day: string) {
  * Urgent / Low / Overdue / Due chips shown beside a request code. Normal priority is the default,
  * so it shows nothing; pass `due` only where the due date is not already its own column.
  */
-export function RequestFlags({ priority, overdue, due }: { priority?: string | null; overdue?: boolean; due?: string | null }) {
+export function RequestFlags({ priority, overdue, due, reopened }: { priority?: string | null; overdue?: boolean; due?: string | null; reopened?: boolean }) {
   const showPriority = priority === 'URGENT' || priority === 'LOW';
-  if (!showPriority && !overdue && !due) return null;
+  if (!showPriority && !overdue && !due && !reopened) return null;
   return (
     <span className="req-flags">
+      {reopened && <span className="reopened-badge" title="The client said it is still not fixed">Reopened</span>}
       {showPriority && <span className={`prio-badge ${priority!.toLowerCase()}`}>{priorityLabel(priority)}</span>}
       {overdue && <span className="overdue-badge">Overdue</span>}
       {due && !overdue && <span className="due-chip">Due {formatDay(due)}</span>}

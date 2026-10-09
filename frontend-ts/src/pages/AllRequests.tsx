@@ -28,6 +28,8 @@ interface OverviewRequest {
   accepted_at?: string | null;
   declined_at?: string | null;
   cancelled_at?: string | null;
+  reopened_at?: string | null;
+  previously_completed_at?: string | null;
   decline_reason?: string | null;
   notes?: RequestNote[];
 }
@@ -98,6 +100,8 @@ const MANAGE_PAGES: Record<string, { to: string; role: string; label: string }> 
 };
 
 const NO_META: Meta = { types: [], staff: [], offices: [] };
+// Still being worked on; a reopened request stops being flagged once it is done again.
+const OPEN = ['PENDING', 'UNASSIGNED', 'IN_PROGRESS'];
 const NO_COUNTS: Counts = { total: 0, open: 0, unassigned: 0, urgent_open: 0, overdue: 0, done: 0 };
 
 const STORAGE_KEY = 'all-requests-filters';
@@ -334,7 +338,7 @@ function AllRequests() {
                       </button>
                       <span className="req-flags">
                         <span className={`type-tag ${r.type}`}>{typeLabel(r.type)}</span>
-                        <RequestFlags priority={r.priority} overdue={r.overdue} />
+                        <RequestFlags priority={r.priority} overdue={r.overdue} reopened={!!r.reopened_at && OPEN.includes(r.status)} />
                       </span>
                     </span>
                   </td>

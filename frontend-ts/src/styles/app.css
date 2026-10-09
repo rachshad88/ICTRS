@@ -873,6 +873,20 @@
   color: #ffffff;
 }
 
+/* "Still not fixed" (RequestFlags): sent back by the client after being marked done. */
+.app-main .reopened-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--seal-yellow);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .app-main .note-count {
   background: var(--paper-2);
   color: var(--cobalt);
@@ -1726,6 +1740,11 @@
   background: var(--ink-soft);
 }
 
+.app-main .req-step.is-reopened .req-step-dot {
+  background: var(--ink);
+  box-shadow: 0 0 0 3px var(--card), 0 0 0 5px var(--seal-yellow);
+}
+
 @keyframes reqStepPulse {
   50% { transform: scale(0.82); }
 }
@@ -1834,4 +1853,25 @@
 .app-main .approval-who time {
   font-family: var(--font-mono);
   font-size: 11px;
+}
+
+/* ----- "Still not fixed" (RequestNotes ReopenForm) ----- */
+.app-main .reopen-prompt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 14px;
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--paper);
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.app-main .reopen-hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
 }

@@ -26,6 +26,8 @@ interface Request {
   priority?: string;
   due_date?: string | null;
   overdue?: boolean;
+  /** Reopened by the client ("still not fixed") and open again. */
+  reopened?: boolean;
   decline_reason?: string | null;
   notes?: RequestNote[];
 }
@@ -216,7 +218,7 @@ function ItAdminDashboard() {
     <tr key={req.request_code}>
       <td className="td-code" data-label="Code">
         {req.request_code}
-        <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} />
+        <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} reopened={req.reopened} />
       </td>
       <td className="td-cell td-wrap" data-label="Requested By">
         <span className="td-stack">

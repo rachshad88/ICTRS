@@ -12,9 +12,12 @@ export interface ProgressTimes {
   completed_at?: string | null;
   declined_at?: string | null;
   cancelled_at?: string | null;
+  /** "Still not fixed": when the client sent it back, and when it had been marked done before. */
+  reopened_at?: string | null;
+  previously_completed_at?: string | null;
 }
 
-type StepState = 'done' | 'current' | 'upcoming' | 'declined' | 'cancelled';
+type StepState = 'done' | 'current' | 'upcoming' | 'declined' | 'cancelled' | 'reopened';
 
 interface Step {
   label: string;
@@ -53,6 +56,11 @@ function buildSteps(r: ProgressTimes, assigneeName?: string | null): Step[] {
     steps.push({ label: 'Accepted', state: 'current', note: 'Waiting for the team to accept it' });
   }
 
+  if (r.reopened_at) {
+    steps.push({ label: 'Marked done', at: r.previously_completed_at, state: 'done' });
+    steps.push({ label: 'Reopened', at: r.reopened_at, state: 'reopened', note: 'Sent back as still not fixed' });
+  }
+
   if (r.status === 'DONE') {
     steps.push({ label: 'Done', at: r.completed_at, state: 'done' });
   } else if (r.status === 'DECLINED') {
@@ -60,7 +68,9 @@ function buildSteps(r: ProgressTimes, assigneeName?: string | null): Step[] {
   } else if (r.status === 'CANCELLED') {
     steps.push({ label: 'Cancelled', at: r.cancelled_at, state: 'cancelled' });
   } else {
-    steps.push({ label: 'Done', state: r.status === 'IN_PROGRESS' ? 'current' : 'upcoming', note: r.status === 'IN_PROGRESS' ? 'Being worked on' : undefined });
+    const working = r.status === 'IN_PROGRESS';
+    const note = working ? (r.reopened_at ? 'Being worked on again' : 'Being worked on') : r.reopened_at ? 'Waiting for the IT office to assign it' : undefined;
+    steps.push({ label: 'Done', state: working || r.reopened_at ? 'current' : 'upcoming', note });
   }
   return steps;
 }

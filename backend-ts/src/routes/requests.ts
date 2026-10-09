@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
+import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema, reopenRequestSchema } from '../middleware/validation';
 import { formatDateTime, todayString, semesterFor } from '../utils/dates';
 import { normalizePriority, parseDueDate, isOverdue, overdueExpr, toDay, OPEN_STATUSES } from '../utils/priority';
 import { watchOverdue } from '../utils/overdueAlerts';
@@ -376,6 +376,98 @@ router.post('/request_finish', isAuthenticated, isItAdminOrTechnician, validateB
   }
 });
 
+// "Still not fixed": within REOPEN_DAYS of a request being marked done, the client who filed it can
+// send it back. It returns to the technician who handled it (or to the IT admins' queue if they no
+// longer can take it), the client's reason is added as a note, and both are told.
+const REOPEN_DAYS = 7;
+
+router.post('/reopen_request', isAuthenticated, validateBody(reopenRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { request_id, reason } = req.body;
+    const userId = req.user!.user_id;
+    const requestsCollection = getRequestsCollection();
+    const filter = {
+      _id: new ObjectId(request_id),
+      created_by: new ObjectId(userId),
+      status: 'DONE' as const,
+      completed_at: { $gte: new Date(Date.now() - REOPEN_DAYS * 24 * 60 * 60 * 1000) }
+    };
+
+    const current = await requestsCollection.findOne(filter);
+    if (!current) {
+      return res.status(400).json({ status: 'error', message: `Only your own requests can be reopened, within ${REOPEN_DAYS} days of being marked done.` });
+    }
+
+    // Back to whoever fixed it, if they can still take IT requests.
+    const handler = current.assigned_to
+      ? await getUsersCollection().findOne({ _id: current.assigned_to, roles: { $in: ['TECHNICIAN', 'IT_ADMIN'] } }, { projection: { roles: 1 } })
+      : null;
+    const now = new Date();
+    const note = {
+      _id: new ObjectId(),
+      text: `Still not fixed: ${String(reason).trim()}`,
+      author_id: new ObjectId(userId),
+      author_name: `${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username,
+      created_at: now
+    };
+
+    const result = await requestsCollection.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          status: handler ? 'IN_PROGRESS' : 'PENDING',
+          assigned_to: handler ? handler._id! : null,
+          finished: null,
+          previously_completed_at: current.completed_at,
+          completed_at: null,
+          reopened_at: now
+        },
+        $inc: { reopen_count: 1 },
+        // Keep the newest notes if it is already at the limit; reopening must not fail over that.
+        $push: { notes: { $each: [note], $slice: -MAX_NOTES_PER_REQUEST } }
+      },
+      { returnDocument: 'after' }
+    );
+    if (!result || !result.value) {
+      return res.status(409).json({ status: 'error', message: 'This request changed in the meantime. Refresh and try again.' });
+    }
+
+    void syncRatingStatus('requests', result.value._id);
+    const requestCode = result.value.request_code || 'unknown';
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'REOPEN_REQUEST', 'IT_REQUEST', request_id,
+      `User ${req.user!.username} reopened request ${requestCode} (still not fixed)`, { reason: note.text });
+
+    const io = req.app.get('io');
+    if (io) {
+      itAudience(io, userId).emit('request_update', {
+        event: 'reopened',
+        request_id,
+        request_code: requestCode,
+        status: result.value.status,
+        timestamp: now
+      });
+    }
+    if (!handler) liveRequestAdded('it', result.value._id!);
+
+    const message = `${note.author_name} says ${requestCode} is still not fixed: ${clip(String(reason).trim())}`;
+    if (handler) {
+      notify(handler._id, {
+        level: 'warning', title: 'Request reopened', request_code: requestCode, message,
+        link: handler.roles?.includes('IT_ADMIN') ? IT_ADMIN_PAGE : TECH_PAGE
+      }, userId);
+    }
+    notify({ roles: ['IT_ADMIN'] }, {
+      level: 'warning', title: 'Request reopened', request_code: requestCode, link: IT_ADMIN_PAGE,
+      message: handler ? message : `${message}. Its technician can no longer take it, so it needs assigning.`
+    }, handler ? handler._id!.toString() : userId);
+
+    res.json({ status: 'success', request_status: result.value.status });
+  } catch (error) {
+    console.error('Reopen request error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to reopen request' });
+  }
+});
+
 router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { request_id } = req.body;
@@ -706,6 +798,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
         priority: normalizePriority(r.priority),
         due_date: toDay(r.due_date),
         overdue: isOverdue(status, r.due_date),
+        reopened: !!r.reopened_at && OPEN_STATUSES.includes(status),
         decline_reason: r.decline_reason || null,
         notes: r.notes || []
       };
