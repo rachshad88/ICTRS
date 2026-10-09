@@ -14,6 +14,7 @@ const config: HistoryTableConfig = {
   ],
   searchPlaceholder: 'Search by code, event, location...',
   emptyMessage: 'No multimedia requests yet',
+  newRequest: { to: '/multimedia-request', label: 'Make a multimedia request' },
   cancelStatus: 'UNASSIGNED',
   service: 'multimedia',
   rateType: 'multimedia',

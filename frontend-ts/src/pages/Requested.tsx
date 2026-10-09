@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { queryClient, refreshService } from '../services/queryClient';
 import Skeleton from '../components/Skeleton';
+import EmptyState from '../components/EmptyState';
 import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import { truncateCell } from '../lib/truncate';
@@ -167,11 +168,13 @@ function Requested() {
             <p>Loading your requests...</p>
           </div>
         ) : requests.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📋</div>
-            <h3>No requests yet</h3>
-            <p>You haven't submitted any support requests.</p>
-          </div>
+          <EmptyState
+            title="No requests yet"
+            hint="You haven't submitted any IT support requests."
+            action={{ to: '/request', label: 'Make an IT request' }}
+            searchTerm={searchTerm}
+            onClearSearch={() => setSearchTerm('')}
+          />
         ) : (
           <div className="table-container">
             <table className="requests-table stack-mobile">
@@ -264,7 +267,7 @@ function Requested() {
                 <AddNoteForm endpoint="/requests/add_note" requestId={selectedRequest._id} onAdded={handleNoteAdded} />
               )}
               <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setSelectedRequest(null)}>Close</button>
+                <button data-modal-dismiss className="btn-secondary" onClick={() => setSelectedRequest(null)}>Close</button>
               </div>
             </div>
           </div>

@@ -1082,6 +1082,16 @@
   color: var(--ink);
 }
 
+/* The note's next step (components/EmptyState.tsx) */
+.app-main .empty-state .empty-action {
+  display: inline-block;
+  margin-top: 18px;
+  padding: 11px 20px;
+  border-radius: 10px;
+  text-decoration: none;
+  line-height: 1.2;
+}
+
 /* ----- Cards and panels ----- */
 .app-main .card,
 .app-main .profile-sidebar,

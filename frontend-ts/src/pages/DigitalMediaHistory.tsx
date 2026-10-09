@@ -14,6 +14,7 @@ const config: HistoryTableConfig = {
   ],
   searchPlaceholder: 'Search by code, description, event, requestor...',
   emptyMessage: 'No digital media requests yet',
+  newRequest: { to: '/digital-media-request', label: 'Make a digital media request' },
   cancelStatus: 'PENDING',
   service: 'digitalMedia',
   rateType: 'digital_media',

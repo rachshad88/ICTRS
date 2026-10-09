@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { queryClient, refreshService, type Service } from '../services/queryClient';
 import FileViewer from './FileViewer';
 import Skeleton from './Skeleton';
+import EmptyState from './EmptyState';
 import { useConfirm } from './ConfirmDialog';
 import Pagination from './Pagination';
 import { truncateCell } from '../lib/truncate';
@@ -41,6 +42,8 @@ export interface HistoryTableConfig {
   columns: ColumnDef[];
   searchPlaceholder: string;
   emptyMessage: string;
+  /** Where an empty history sends the client to make their first request. */
+  newRequest: { to: string; label: string };
   cancelStatus: string;
   /** Which service the requests belong to; its socket events refresh the table (services/queryClient.ts). */
   service: Service;
@@ -166,7 +169,13 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
       {loading ? (
         <Skeleton variant="table" rows={5} />
       ) : requests.length === 0 ? (
-        <div className="history-empty">{config.emptyMessage}</div>
+        <EmptyState
+          title={config.emptyMessage}
+          hint="Requests you submit will show up here, with their status."
+          action={config.newRequest}
+          searchTerm={searchTerm}
+          onClearSearch={() => setSearchTerm('')}
+        />
       ) : (
         <>
           <div className="history-table-wrap">
@@ -262,7 +271,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
             {canAddNote(selectedRequest.status) && (
               <AddNoteForm endpoint={config.noteEndpoint} requestId={selectedRequest._id} onAdded={handleNoteAdded} />
             )}
-            <button onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
+            <button data-modal-dismiss onClick={() => setSelectedRequest(null)} className="btn-secondary">Close</button>
           </div>
         </div>
       )}

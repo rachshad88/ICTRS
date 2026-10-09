@@ -14,6 +14,7 @@ const config: HistoryTableConfig = {
   ],
   searchPlaceholder: 'Search by code, description, event, requestor...',
   emptyMessage: 'No print materials requests yet',
+  newRequest: { to: '/print-materials-request', label: 'Make a print materials request' },
   cancelStatus: 'PENDING',
   service: 'printMaterials',
   rateType: 'print_materials',
