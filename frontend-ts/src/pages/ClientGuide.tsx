@@ -171,6 +171,23 @@ const flipDown = {
   visible: (delay: number) => ({ rotateX: 0, opacity: 1, transition: { duration: 0.95, delay, ease: SILK } }),
 };
 
+// Answer height animates through grid rows (0fr -> 1fr); a native <details> can't ease closed.
+function FaqItem({ q, a, id }: { q: string; a: string; id: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`gd-faq-item${open ? ' is-open' : ''}`}>
+      <button type="button" className="gd-faq-q" aria-expanded={open} aria-controls={id} onClick={() => setOpen((o) => !o)}>
+        {q}
+      </button>
+      <div className="gd-faq-a" id={id} role="region">
+        <div>
+          <p>{a}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ClientGuide() {
   const { user } = useAuth();
   const reduce = useReducedMotion();
@@ -416,11 +433,8 @@ function ClientGuide() {
 
           <Section id="faq" n={8} title="Common questions">
             <div className="gd-faq">
-              {FAQ.map((item) => (
-                <details key={item.q}>
-                  <summary>{item.q}</summary>
-                  <p>{item.a}</p>
-                </details>
+              {FAQ.map((item, i) => (
+                <FaqItem key={item.q} id={`faq-a-${i}`} q={item.q} a={item.a} />
               ))}
             </div>
           </Section>

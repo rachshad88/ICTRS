@@ -41,7 +41,8 @@
 }
 
 .gd a:focus-visible,
-.gd summary:focus-visible {
+.gd summary:focus-visible,
+.gd .gd-faq-q:focus-visible {
   outline: 3px solid var(--gd-cobalt);
   outline-offset: 3px;
   border-radius: 999px;
@@ -761,14 +762,20 @@
   gap: 12px;
 }
 
-.gd-faq details {
+.gd-faq-item {
   border: 1px solid rgba(12, 31, 74, 0.07);
   border-radius: 14px;
   background: var(--gd-card);
 }
 
-.gd-faq summary {
+.gd-faq-q {
+  display: block;
+  width: 100%;
   position: relative;
+  text-align: left;
+  background: none;
+  border: 0;
+  -webkit-tap-highlight-color: transparent;
   padding: 18px 60px 18px 22px;
   list-style: none;
   cursor: pointer;
@@ -780,13 +787,9 @@
   border-radius: 14px;
 }
 
-.gd-faq summary::-webkit-details-marker {
-  display: none;
-}
-
 /* A plus that turns into a cross when open. Drawn with two bars rather than a '+' glyph,
    whose vertical position shifts with the font's metrics. */
-.gd-faq summary::after {
+.gd-faq-q::after {
   content: '';
   position: absolute;
   right: 18px;
@@ -799,15 +802,45 @@
     linear-gradient(var(--gd-ink), var(--gd-ink)) center / 12px 2px no-repeat,
     linear-gradient(var(--gd-ink), var(--gd-ink)) center / 2px 12px no-repeat,
     var(--gd-yellow);
-  transition: transform 200ms var(--ease-out);
+  transition: transform 450ms var(--ease-out);
 }
 
-.gd-faq details[open] summary::after {
-  transform: rotate(45deg);
+.gd-faq-item.is-open .gd-faq-q::after {
+  transform: rotate(135deg);
 }
 
-.gd-faq details p {
+.gd-faq-a {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 550ms var(--ease-out), visibility 0s linear 550ms;
+}
+
+.gd-faq-a > div {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.gd-faq-item.is-open .gd-faq-a {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.gd-faq-a p {
   padding: 0 22px 20px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 400ms ease, transform 550ms var(--ease-out);
+}
+
+.gd-faq-item.is-open .gd-faq-a p {
+  opacity: 1;
+  transform: none;
+  transition-delay: 120ms;
+}
+
+.gd-faq-a p {
   font-size: 16px;
   line-height: 1.65;
   color: var(--gd-ink-soft);
@@ -1051,7 +1084,7 @@
     transform: rotate(-0.6deg);
   }
 
-  .gd-faq summary {
+  .gd-faq-q {
     font-size: 16.5px;
   }
 
