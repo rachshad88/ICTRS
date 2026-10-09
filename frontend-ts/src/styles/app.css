@@ -1776,3 +1776,82 @@
     animation: none;
   }
 }
+
+/* ----- Sign-up approval (components/AwaitingApproval.tsx, UserManagement) ----- */
+.app-main .approval-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-left: 6px solid var(--seal-yellow);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 0 0 1px rgba(12, 31, 74, 0.08);
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.app-main .approval-notice strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.app-main .approval-queue {
+  margin-bottom: 22px;
+  padding: 18px 18px 8px;
+  border-top: 6px solid var(--seal-yellow);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: 0 0 0 1px rgba(12, 31, 74, 0.08);
+}
+
+.app-main .approval-queue h3 {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--ink);
+}
+
+.app-main .approval-queue-hint {
+  margin: 0 0 10px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+
+.app-main .approval-queue ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-main .approval-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 0;
+  border-top: 1px dotted rgba(12, 31, 74, 0.22);
+}
+
+.app-main .approval-who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.app-main .approval-who strong {
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.app-main .approval-who time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}

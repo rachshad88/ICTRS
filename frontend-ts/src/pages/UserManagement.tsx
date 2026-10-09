@@ -19,6 +19,9 @@ interface User {
   office?: string;
   position?: string;
   is_default_password?: boolean;
+  /** false for a self sign-up waiting for approval (it cannot submit requests until approved). */
+  approved?: boolean;
+  created_at?: string;
 }
 
 const DEFAULT_PASSWORD = '12345';
@@ -51,7 +54,11 @@ function UserManagement() {
     queryKey: ['users', 'list'],
     queryFn: () => api.get<{ users?: User[] }>('/users/get_users').then((r) => r.data.users || []),
   });
-  const users = data ?? NO_USERS;
+  const allUsers = data ?? NO_USERS;
+  // Self sign-ups waiting for approval get their own section above the list.
+  const pending = allUsers.filter((u) => u.approved === false);
+  const users = allUsers.filter((u) => u.approved !== false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
   // A successful refresh clears an earlier action error, as the hand-rolled fetch used to.
   useEffect(() => { setError(''); }, [data]);
   const defaultPasswordWarning = users.some((u) => u.is_default_password)
@@ -130,6 +137,34 @@ function UserManagement() {
     }
   };
 
+  const handleApprove = async (user: User) => {
+    if (approvingId) return;
+    setApprovingId(user._id);
+    try {
+      await api.post('/users/approve_user', { user_id: user._id });
+      setNotice(`${user.first_name} ${user.last_name} (${user.username}) was approved and can now submit requests.`);
+      await refreshUsers();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setError(err.response?.data?.error || 'Failed to approve the account');
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  // Rejecting a sign-up removes the account, like Delete, but says so in sign-up terms.
+  const handleReject = async (user: User) => {
+    if (!(await confirm({ title: `Reject ${user.username}?`, message: 'The account will be deleted. If it belongs to a real person, they can sign up again.', confirmLabel: 'Reject and delete', danger: true }))) return;
+    try {
+      await api.post('/users/delete_user', { user_id: user._id });
+      setNotice(`The sign-up from ${user.username} was rejected and deleted.`);
+      refreshUsers();
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setError(err.response?.data?.error || 'Failed to reject the account');
+    }
+  };
+
   const handleDelete = async (userId: string) => {
     if (!(await confirm({ title: 'Delete this user?', message: 'They will no longer be able to sign in. This cannot be undone.', confirmLabel: 'Delete user', danger: true }))) return;
     try {
@@ -203,6 +238,30 @@ function UserManagement() {
         <div style={{ marginBottom: '12px', padding: '10px 12px', borderRadius: '6px', background: '#fff7e6', color: '#8a4b00', border: '1px solid #f0c36d' }}>
           {notice || defaultPasswordWarning}
         </div>
+      )}
+
+      {pending.length > 0 && (
+        <section className="approval-queue" aria-labelledby="approval-queue-title">
+          <h3 id="approval-queue-title">Waiting for approval ({pending.length})</h3>
+          <p className="approval-queue-hint">These people signed up themselves. They can sign in but can't submit requests until you approve them. Reject anything that looks fake.</p>
+          <ul>
+            {pending.map((u) => (
+              <li key={u._id} className="approval-item">
+                <div className="approval-who">
+                  <strong>{u.first_name} {u.middle_name} {u.last_name}</strong>
+                  <span>{u.username} · {u.office || 'No office'}{u.position ? ` · ${u.position}` : ''}</span>
+                  {u.created_at && <time dateTime={u.created_at}>Signed up {new Date(u.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>}
+                </div>
+                <div className="history-actions">
+                  <button className="hbtn hbtn-assign" onClick={() => handleApprove(u)} disabled={approvingId !== null}>
+                    {approvingId === u._id ? 'Approving...' : 'Approve'}
+                  </button>
+                  <button className="hbtn hbtn-cancel" onClick={() => handleReject(u)} disabled={approvingId !== null}>Reject</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {loading ? (

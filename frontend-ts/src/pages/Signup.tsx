@@ -62,6 +62,9 @@ function Signup() {
   const signingUp = useRef(false);
   const navigate = useNavigate();
   const usernameRef = useRef<HTMLInputElement>(null);
+  // Bot trap: people never see or fill the "website" field, and take longer than 3s to fill the form.
+  const [website, setWebsite] = useState('');
+  const openedAt = useRef(Date.now());
   // Waits for the registration slip to tear open before the entrance plays.
   const d = useRevealDelay('signup');
 
@@ -86,7 +89,7 @@ function Signup() {
     signingUp.current = true;
 
     try {
-      const me = await signup(form);
+      const me = await signup({ ...form, website, form_ms: Date.now() - openedAt.current });
       if (!me) throw new Error('No user returned');
       setGranted(true);
       playApprovedStamp();
@@ -227,6 +230,12 @@ function Signup() {
                 </div>
 
                 {error && <div className="error-message" role="alert">{error}</div>}
+
+                {/* Bot trap: hidden from people and screen readers; bots that fill every field get turned away. */}
+                <div className="signup-trap" aria-hidden="true">
+                  <label htmlFor="su-website">Website</label>
+                  <input id="su-website" type="text" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+                </div>
 
                 <div className="form-group">
                   <label htmlFor="su-username">Username</label>

@@ -40,7 +40,10 @@ export const signupSchema = z.object({
   middle_name: z.string().trim().max(60, 'Middle name is too long').optional(),
   last_name: z.string().trim().min(1, 'Last name is required').max(60, 'Last name is too long'),
   office: z.enum(OFFICES, { errorMap: () => ({ message: 'Select your office' }) }),
-  position: z.string().trim().min(1, 'Position is required').max(120, 'Position is too long')
+  position: z.string().trim().min(1, 'Position is required').max(120, 'Position is too long'),
+  // Bot trap (routes/auth.ts): a hidden field people never see, and how long the form was open.
+  website: z.string().max(200).optional(),
+  form_ms: z.number().nonnegative().optional()
 });
 
 export const updateProfileSchema = z.object({

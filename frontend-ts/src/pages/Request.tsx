@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import AwaitingApproval, { useAwaitingApproval } from '../components/AwaitingApproval';
 import { PriorityField, Priority } from '../components/Priority';
 
 function Request() {
   const { user } = useAuth();
+  const awaitingApproval = useAwaitingApproval();
   const navigate = useNavigate();
   const [unit, setUnit] = useState('');
   const [unitOther, setUnitOther] = useState('');
@@ -61,6 +63,7 @@ function Request() {
           </div>
         )}
         
+        <AwaitingApproval />
         <form onSubmit={handleSubmit} className="request-form" data-ticket="IT Request">
           {/* Shown for reference only; the server records the actual submission time. */}
           <div className="form-group">
@@ -133,7 +136,7 @@ function Request() {
           
           <div className="ticket-tear" aria-hidden="true" />
           
-          <button type="submit" className="btn-primary" disabled={loading || !user?.office}>
+          <button type="submit" className="btn-primary" disabled={loading || !user?.office || awaitingApproval}>
             {loading ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>

@@ -15,6 +15,8 @@ interface User {
   office?: string;
   position?: string;
   is_default_password?: boolean;
+  /** false for a self sign-up an admin has not approved yet; it cannot submit requests. */
+  approved?: boolean;
 }
 
 interface AuthContextType {
@@ -34,6 +36,9 @@ interface SignupData {
   last_name: string;
   office: string;
   position: string;
+  /** Bot trap: the hidden field's value and how long the form was open (backend signup route). */
+  website?: string;
+  form_ms?: number;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

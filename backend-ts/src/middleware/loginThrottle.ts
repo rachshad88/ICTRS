@@ -54,7 +54,7 @@ export function recordLoginSuccess(username: string, ip: string): void {
 // Self sign-up: at most MAX_SIGNUPS_PER_IP new accounts per IP per hour, so one machine cannot
 // flood the user list. Counts successful sign-ups only.
 const SIGNUP_WINDOW_MS = 60 * 60 * 1000;
-const MAX_SIGNUPS_PER_IP = 10;
+const MAX_SIGNUPS_PER_IP = 5;
 const signupKey = (ip: string) => `signup:${ip}`;
 
 export function signupRetryAfter(ip: string, now = Date.now()): number {

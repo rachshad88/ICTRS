@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { z } from 'zod';
 import { getUsersCollection, getCache, setCache, redisClient, logAudit } from '../config/database';
+import { notify } from '../utils/notify';
 import { AuthenticatedRequest, isAuthenticated, isAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createUserSchema, updateUserSchema, deleteUserSchema, objectIdSchema } from '../middleware/validation';
@@ -69,9 +70,7 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
     }
 
     const usersCollection = getUsersCollection();
-    const users = await usersCollection
-      .find({ roles: { $ne: 'ADMIN' } })
-      .project({
+    const projection = {
         password: 1,
         username: 1,
         first_name: 1,
@@ -82,16 +81,22 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
         primary_role: 1,
         office: 1,
         position: 1,
-        created_at: 1
-      })
-      .limit(100)
-      .toArray();
+        created_at: 1,
+        approved: 1
+    };
+    // Sign-ups waiting for approval always come first and are never cut off by the limit.
+    const [pending, others] = await Promise.all([
+      usersCollection.find({ roles: { $ne: 'ADMIN' }, approved: false }).project(projection).sort({ created_at: -1 }).toArray(),
+      usersCollection.find({ roles: { $ne: 'ADMIN' }, approved: { $ne: false } }).project(projection).limit(100).toArray()
+    ]);
+    const users = [...pending, ...others];
 
     const usersWithStatus = await Promise.all(users.map(async (user) => {
       const { password, ...safeUser } = user;
       return {
         ...safeUser,
-        is_default_password: await passwordMatchesDefault(password)
+        is_default_password: await passwordMatchesDefault(password),
+        approved: user.approved !== false
       };
     }));
 
@@ -128,7 +133,8 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
       primary_role,
       office: office || '',
       position: (position || '').trim(),
-      created_at: new Date()
+      created_at: new Date(),
+      approved: true
     });
 
     if (redisClient) {
@@ -236,6 +242,35 @@ router.post('/reset_user_password', isAuthenticated, isAdmin, validateBody(z.obj
   } catch (error) {
     console.error('Reset user password error:', error);
     res.status(500).json({ error: 'Failed to reset user password' });
+  }
+});
+
+// Lets a self sign-up submit requests (spam protection, see the signup route).
+router.post('/approve_user', isAuthenticated, isAdmin, validateBody(z.object({ user_id: objectIdSchema })), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { user_id } = req.body;
+    const result = await getUsersCollection().findOneAndUpdate(
+      { _id: new ObjectId(user_id), approved: false },
+      { $set: { approved: true } },
+      { returnDocument: 'after', projection: { username: 1 } }
+    );
+    if (!result || !result.value) {
+      return res.status(404).json({ error: 'No account waiting for approval was found. Refresh the list.' });
+    }
+
+    if (redisClient) {
+      await redisClient.del('users:all:non-admin').catch(() => {});
+    }
+
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'APPROVE_USER', 'USER', user_id, `Admin ${req.user!.username} approved the sign-up of ${result.value.username}`);
+    notify(user_id, {
+      level: 'success', title: 'Account approved',
+      message: 'Your account has been approved. You can now submit requests.', link: '/request'
+    });
+    res.json({ status: 'success' });
+  } catch (error) {
+    console.error('Approve user error:', error);
+    res.status(500).json({ error: 'Failed to approve user' });
   }
 });
 
