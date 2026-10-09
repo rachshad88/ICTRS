@@ -94,6 +94,8 @@ function Signatories() {
               <div className="form-group">
                 <label htmlFor="sig-supervisor-name">Full Name</label>
                 <input
+                  autoCapitalize="characters"
+                  spellCheck={false}
                   id="sig-supervisor-name"
                   type="text"
                   value={form.supervisor_name}
@@ -119,6 +121,8 @@ function Signatories() {
             <div className="form-group">
               <label htmlFor="sig-mayor-name">Full Name</label>
               <input
+                autoCapitalize="characters"
+                spellCheck={false}
                 id="sig-mayor-name"
                 type="text"
                 value={form.mayor_name}

@@ -176,6 +176,7 @@ function MultimediaRequest() {
             <div className="form-group">
               <label>Contact Number *</label>
               <input
+                autoComplete="tel"
                 type="tel"
                 name="contact_number"
                 value={formData.contact_number}

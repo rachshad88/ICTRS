@@ -237,6 +237,9 @@ function Profile() {
                     <div className="form-group">
                       <label>Username</label>
                       <input
+                        autoComplete="username"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         type="text"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
@@ -248,6 +251,7 @@ function Profile() {
                     <div className="form-group">
                       <label>First Name *</label>
                       <input
+                        autoComplete="given-name"
                         type="text"
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
@@ -257,6 +261,7 @@ function Profile() {
                     <div className="form-group">
                       <label>Middle Name</label>
                       <input
+                        autoComplete="additional-name"
                         type="text"
                         value={middleName}
                         onChange={(e) => setMiddleName(e.target.value)}
@@ -265,6 +270,7 @@ function Profile() {
                     <div className="form-group">
                       <label>Last Name *</label>
                       <input
+                        autoComplete="family-name"
                         type="text"
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
@@ -288,6 +294,7 @@ function Profile() {
                     <div className="form-group">
                       <label>Position</label>
                       <input
+                        autoComplete="organization-title"
                         type="text"
                         value={position}
                         maxLength={120}
@@ -329,6 +336,7 @@ function Profile() {
                   <div className="form-group">
                     <label>Current Password</label>
                     <input
+                      autoComplete="current-password"
                       type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
@@ -339,6 +347,7 @@ function Profile() {
                     <div className="form-group">
                       <label>New Password</label>
                       <input
+                        autoComplete="new-password"
                         type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
@@ -348,6 +357,7 @@ function Profile() {
                     <div className="form-group">
                       <label>Confirm Password</label>
                       <input
+                        autoComplete="new-password"
                         type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}

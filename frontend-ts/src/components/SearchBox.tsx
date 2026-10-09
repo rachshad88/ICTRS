@@ -23,6 +23,8 @@ function SearchBox({ value, onSearch, placeholder, className = '' }: {
     >
       <input
         type="search"
+        enterKeyHint="search"
+        spellCheck={false}
         className="search-input"
         placeholder={placeholder}
         value={draft}

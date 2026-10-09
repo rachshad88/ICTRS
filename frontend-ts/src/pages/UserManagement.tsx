@@ -259,7 +259,7 @@ function UserManagement() {
             <form onSubmit={handleSubmit}>
               <div className="form-group">
                 <label>Username</label>
-                <input type="text" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} required />
+                <input autoComplete="off" autoCapitalize="none" spellCheck={false} type="text" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} required />
               </div>
               {!editingUser && (
                 <div className="form-group">
@@ -271,15 +271,15 @@ function UserManagement() {
               )}
               <div className="form-group">
                 <label>First Name</label>
-                <input type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
+                <input autoComplete="off" type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
               </div>
               <div className="form-group">
                 <label>Middle Name</label>
-                <input type="text" value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
+                <input autoComplete="off" type="text" value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
               </div>
               <div className="form-group">
                 <label>Last Name</label>
-                <input type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
+                <input autoComplete="off" type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
               </div>
               <div className="form-group">
                 <label>Roles (check all that apply)</label>
@@ -325,7 +325,7 @@ function UserManagement() {
               </div>
               <div className="form-group">
                 <label>Position</label>
-                <input type="text" value={formData.position} maxLength={120} placeholder="e.g. Computer Programmer I" onChange={(e) => setFormData({...formData, position: e.target.value})} />
+                <input autoComplete="off" type="text" value={formData.position} maxLength={120} placeholder="e.g. Computer Programmer I" onChange={(e) => setFormData({...formData, position: e.target.value})} />
               </div>
               <div className="modal-actions">
                 {editingUser && (

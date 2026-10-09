@@ -207,6 +207,7 @@ function PrintMaterialsRequest() {
             <div className="form-group">
               <label>Name of Requestor *</label>
             <input
+              autoComplete="name"
               type="text"
               name="requestor_name"
               value={formData.requestor_name}
@@ -220,6 +221,7 @@ function PrintMaterialsRequest() {
             <div className="form-group">
               <label>Contact Number of Requestor *</label>
             <input
+              autoComplete="tel"
               type="tel"
               name="requestor_contact"
               value={formData.requestor_contact}
