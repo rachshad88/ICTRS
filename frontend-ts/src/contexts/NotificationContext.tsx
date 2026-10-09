@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { api } from '../services/api';
 import { initSocket } from '../services/socket';
+import { playNotification } from '../services/sfx';
 import { useAuth } from './AuthContext';
 
 interface UnassignedCounts {
@@ -170,6 +171,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const onNotification = (n: InboxNotification) => {
       setInbox((prev) => (prev.some((p) => p.id === n.id) ? prev : [n, ...prev].slice(0, 50)));
       setUnread((u) => u + 1);
+      playNotification(n.title, n.level);
       pushNotification({ title: n.title, message: n.message, type: n.level, source: n });
     };
     socket.on('notification:new', onNotification);

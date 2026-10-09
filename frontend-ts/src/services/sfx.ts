@@ -612,3 +612,86 @@ export function playDenied(): CueHandle {
     tone(s, 0.3, 233, 0.26, { gain: 0.1, type: 'triangle', to: 220 });
   });
 }
+
+/* ---------- notifications ---------- */
+// One short sound per kind of event, chosen from the notification's title (backend utils/notify.ts
+// callers), falling back to its level. Kept under a second and quieter than the transitions:
+// they can arrive while someone is reading or on a call.
+
+/** A new request came in: a paper slip landing in the tray, then a two-note doorbell. */
+function cueNewRequest(s: Stage) {
+  whoosh(s, 0, 0.12, { from: 2200, to: 900, gain: 0.05, peakAt: 0.8 });
+  click(s, 0.1, { freq: 1800, gain: 0.08, q: 1.2, dur: 0.02 });
+  bell(s, 0.12, 659, { gain: 0.07, dur: 0.7 });
+  bell(s, 0.3, 988, { gain: 0.07, dur: 0.9 });
+}
+
+/** Taken, assigned or shared: a clipboard clip snapping shut and a bright rising pair. */
+function cueAssigned(s: Stage) {
+  click(s, 0, { freq: 2600, gain: 0.12, q: 2, dur: 0.018 });
+  click(s, 0.035, { freq: 1500, gain: 0.08, q: 2, dur: 0.02 });
+  bell(s, 0.08, 784, { gain: 0.06, dur: 0.6 });
+  bell(s, 0.19, 1047, { gain: 0.06, dur: 0.8 });
+}
+
+/** Transferred to someone else: a swish crossing left to right, handed from one note to the next. */
+function cueTransferred(s: Stage) {
+  whoosh(s, 0, 0.32, { from: 700, to: 2400, gain: 0.07, peakAt: 0.6, pan: [-0.7, 0.7] });
+  bell(s, 0.06, 880, { gain: 0.05, dur: 0.5, pan: -0.5 });
+  bell(s, 0.26, 1175, { gain: 0.055, dur: 0.7, pan: 0.5 });
+}
+
+/** Done: a little rising arpeggio with a soft stamp under the last note. */
+function cueCompleted(s: Stage) {
+  [523, 659, 784].forEach((f, i) => bell(s, i * 0.09, f, { gain: 0.055, dur: 0.6 }));
+  thud(s, 0.27, { from: 160, to: 70, gain: 0.16, dur: 0.18 });
+  bell(s, 0.27, 1047, { gain: 0.065, dur: 1.1 });
+}
+
+/** Declined or cancelled: two soft falling notes, no alarm. */
+function cueDeclined(s: Stage) {
+  tone(s, 0, 392, 0.22, { gain: 0.08, type: 'triangle', attack: 0.01 });
+  tone(s, 0.17, 294, 0.38, { gain: 0.08, type: 'triangle', to: 277, attack: 0.01 });
+}
+
+/** A note was added: a quick pencil scribble and a light tick. */
+function cueNote(s: Stage) {
+  scratch(s, 0, 0.16, { freq: 3200, gain: 0.035, rate: 45, q: 1.2 });
+  bell(s, 0.17, 1319, { gain: 0.045, dur: 0.45 });
+}
+
+/** Overdue or urgent: two quick, slightly insistent pings. */
+function cueAlert(s: Stage) {
+  [0, 0.16].forEach((t) => {
+    tone(s, t, 932, 0.12, { gain: 0.07, type: 'triangle', attack: 0.004 });
+    bell(s, t, 1865, { gain: 0.025, dur: 0.2 });
+  });
+}
+
+/** Anything else: a single soft bell. */
+function cueInfo(s: Stage) {
+  bell(s, 0, 880, { gain: 0.06, dur: 0.7 });
+}
+
+function notificationCue(title: string, level: string): (s: Stage) => void {
+  const t = title.toLowerCase();
+  if (t.startsWith('new ') && t.endsWith(' request')) return cueNewRequest;
+  if (t.includes('completed')) return cueCompleted;
+  if (t.includes('declined') || t.includes('cancelled')) return cueDeclined;
+  if (t.includes('reassigned') || (t.includes('changed') && !t.includes('priority'))) return cueTransferred;
+  if (t.includes('assigned') || t.includes('accepted') || t.includes('shared')) return cueAssigned;
+  if (t.includes('note')) return cueNote;
+  if (t.includes('overdue') || level === 'warning' || level === 'error') return cueAlert;
+  if (level === 'success') return cueCompleted;
+  return cueInfo;
+}
+
+let lastNotificationAt = 0;
+
+/** The sound for an incoming notification. A burst (several at once) plays only the first. */
+export function playNotification(title: string, level: string): CueHandle {
+  const now = Date.now();
+  if (now - lastNotificationAt < 1200) return NOOP;
+  lastNotificationAt = now;
+  return cue(notificationCue(title, level));
+}
