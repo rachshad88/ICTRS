@@ -695,3 +695,8 @@ export function playNotification(title: string, level: string): CueHandle {
   lastNotificationAt = now;
   return cue(notificationCue(title, level));
 }
+
+/** The soft notification bell on its own, so turning sounds on gives a sample of them. */
+export function playSoundPreview(): CueHandle {
+  return cue(cueInfo);
+}

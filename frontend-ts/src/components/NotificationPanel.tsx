@@ -4,8 +4,39 @@ import { useNavigate } from 'react-router-dom';
 import { useNotification, type InboxNotification } from '../contexts/NotificationContext';
 import { EASE_OUT } from '../lib/motion';
 import { openRating } from '../services/rating';
+import { playSoundPreview, setSoundEnabled, soundEnabled } from '../services/sfx';
 
 const EASE_DRAWER = [0.32, 0.72, 0, 1] as const;
+
+/** Turns every sound in the app on or off (notifications and page transitions share the setting). */
+function SoundToggle() {
+  const [on, setOn] = useState(soundEnabled);
+  const toggle = () => {
+    const next = !on;
+    setSoundEnabled(next);
+    setOn(next);
+    if (next) playSoundPreview();
+  };
+  return (
+    <button
+      type="button"
+      className={`notif-sound ${on ? '' : 'off'}`}
+      onClick={toggle}
+      aria-pressed={on}
+      aria-label={on ? 'Sounds on. Turn off' : 'Sounds off. Turn on'}
+      title={on ? 'Sounds on' : 'Sounds off'}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M11 5L6 9H2v6h4l5 4V5z" />
+        {on ? (
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07 M19.07 4.93a10 10 0 0 1 0 14.14" />
+        ) : (
+          <path d="M23 9l-6 6 M17 9l6 6" />
+        )}
+      </svg>
+    </button>
+  );
+}
 
 function timeAgo(iso: string): string {
   const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
@@ -120,18 +151,19 @@ export default function NotificationPanel({ open, onClose, variant, sidebarColla
           >
             <header className="notif-head">
               <h2>Notifications</h2>
-              {inbox.length > 0 && (
-                <div className="notif-head-actions">
-                  {unread > 0 && (
-                    <button type="button" className="notif-mark-all" onClick={markAllRead}>
-                      Mark all as read
-                    </button>
-                  )}
+              <div className="notif-head-actions">
+                {inbox.length > 0 && unread > 0 && (
+                  <button type="button" className="notif-mark-all" onClick={markAllRead}>
+                    Mark all as read
+                  </button>
+                )}
+                {inbox.length > 0 && (
                   <button type="button" className={`notif-mark-all notif-clear-all ${confirmClear ? 'confirm' : ''}`} onClick={onClearAll}>
                     {confirmClear ? 'Tap again to clear' : 'Clear all'}
                   </button>
-                </div>
-              )}
+                )}
+                <SoundToggle />
+              </div>
             </header>
 
             {inbox.length === 0 ? (

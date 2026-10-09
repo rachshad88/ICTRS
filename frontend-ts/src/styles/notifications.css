@@ -195,6 +195,34 @@ button.toast-item:active {
   color: var(--text-secondary);
 }
 
+/* Sound on/off (NotificationPanel SoundToggle) */
+.notif-sound {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-left: 4px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--purple);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, var(--tr-press);
+}
+
+.notif-sound.off {
+  color: var(--text-secondary);
+}
+
+.notif-sound:hover {
+  background: var(--bg-hover);
+}
+
+.notif-sound:active {
+  transform: scale(0.92);
+}
+
 .notif-clear-all.confirm {
   color: var(--danger-red);
 }
