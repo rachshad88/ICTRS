@@ -44,6 +44,8 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
       <input
         className="hp-input"
         type="number"
+        inputMode="numeric"
+        enterKeyHint="go"
         min={1}
         max={totalPages}
         value={jump}
