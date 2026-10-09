@@ -145,7 +145,7 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
     }
 
     // Priority and due date are optional here; leave them untouched when not sent.
-    const update: Record<string, unknown> = { status: 'IN_PROGRESS', assigned_to: new ObjectId(technician_id) };
+    const update: Record<string, unknown> = { status: 'IN_PROGRESS', assigned_to: new ObjectId(technician_id), accepted_at: new Date() };
     if (priority !== undefined) update.priority = normalizePriority(priority);
     if (due_date !== undefined) update.due_date = parseDueDate(due_date);
 
@@ -399,7 +399,7 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
 
     const result = await requestsCollection.findOneAndUpdate(
       filter,
-      { $set: { status: 'CANCELLED', assigned_to: null } },
+      { $set: { status: 'CANCELLED', assigned_to: null, cancelled_at: new Date() } },
       // 'before' so the technician who had it can be told.
       { returnDocument: 'before' }
     );

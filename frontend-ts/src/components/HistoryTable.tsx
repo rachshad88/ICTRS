@@ -8,6 +8,7 @@ import { queryClient, refreshService, type Service } from '../services/queryClie
 import FileViewer from './FileViewer';
 import Skeleton from './Skeleton';
 import EmptyState from './EmptyState';
+import RequestProgress from './RequestProgress';
 import { useConfirm } from './ConfirmDialog';
 import Pagination from './Pagination';
 import { truncateCell } from '../lib/truncate';
@@ -258,6 +259,10 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                 </div>
               )}
             </div>
+            <RequestProgress
+              request={selectedRequest}
+              assigneeName={selectedRequest.assignedTechnician?.[0] ? `${selectedRequest.assignedTechnician[0].first_name} ${selectedRequest.assignedTechnician[0].last_name}` : null}
+            />
             {selectedRequest.status === 'DONE' && (
               <StaffReport
                 title="Staff report"

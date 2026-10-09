@@ -168,7 +168,7 @@ router.get('/requests', isAuthenticated, isOverviewAdmin, async (req: Authentica
         $project: {
           type: { $literal: t.key },
           request_code: 1, status: 1, created_by: 1, assigned_to: { $ifNull: ['$assigned_to', null] },
-          created_at: 1, completed_at: 1, decline_reason: 1, notes: 1,
+          created_at: 1, completed_at: 1, accepted_at: 1, declined_at: 1, cancelled_at: 1, decline_reason: 1, notes: 1,
           title: t.title, detail: t.detail, office: t.office === null ? { $literal: null } : t.office,
           priority: priorityExpr(),
           due: { $ifNull: [t.due, null] }

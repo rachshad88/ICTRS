@@ -418,7 +418,7 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(404).json({ error: 'Technician not found' });
       }
 
-      const update: Record<string, unknown> = { assigned_to: new ObjectId(technician_id), status: 'IN_PROGRESS' };
+      const update: Record<string, unknown> = { assigned_to: new ObjectId(technician_id), status: 'IN_PROGRESS', accepted_at: new Date() };
       if (priority !== undefined) update.priority = normalizePriority(priority);
 
       // Only requests still waiting for assignment; moving an in-progress one goes through /reassign,
@@ -812,7 +812,7 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const result = await collection.findOneAndUpdate(
         filter,
-        { $set: { status: 'CANCELLED' } },
+        { $set: { status: 'CANCELLED', cancelled_at: new Date() } },
         { returnDocument: 'after' }
       );
 

@@ -7,6 +7,7 @@ import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, RequestNote } from '../components/RequestNotes';
 import { RequestFlags, PRIORITY_OPTIONS, priorityLabel, formatDay } from '../components/Priority';
+import RequestProgress from '../components/RequestProgress';
 import SearchBox from '../components/SearchBox';
 
 interface OverviewRequest {
@@ -24,6 +25,9 @@ interface OverviewRequest {
   overdue: boolean;
   created_at: string;
   completed_at?: string | null;
+  accepted_at?: string | null;
+  declined_at?: string | null;
+  cancelled_at?: string | null;
   decline_reason?: string | null;
   notes?: RequestNote[];
 }
@@ -384,9 +388,8 @@ function AllRequests() {
               <p><strong>Office:</strong> {selected.office || '-'}</p>
               <p><strong>Requested By:</strong> {selected.requester_name || 'Unknown'}</p>
               <p><strong>Assigned To:</strong> {selected.assignee_name || 'Not assigned yet'}</p>
-              <p><strong>Created:</strong> {formatDateTime(selected.created_at)}</p>
-              {selected.completed_at && <p><strong>Completed:</strong> {formatDateTime(selected.completed_at)}</p>}
             </div>
+            <RequestProgress request={selected} assigneeName={selected.assignee_name} />
             <DeclineReason reason={selected.decline_reason} />
             <NotesList notes={selected.notes} />
             <div className="modal-actions">

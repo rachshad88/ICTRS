@@ -14,6 +14,7 @@ import { ObjectId } from 'mongodb';
 import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection, isSessionCurrent } from './config/database';
 import { startRatingSync } from './utils/ratingSync';
 import { startOverdueAlerts } from './utils/overdueAlerts';
+import { backfillRequestTimestamps } from './utils/backfillTimestamps';
 import { initSocket } from './config/socket';
 
 import authRoutes from './routes/auth';
@@ -213,6 +214,8 @@ async function startServer() {
     startRatingSync();
     // Notify staff and admins about requests past their due/event/target date, every 30 minutes.
     startOverdueAlerts();
+    // One-time: older requests get their accepted/cancelled times from the audit log.
+    backfillRequestTimestamps().catch((err) => console.error('Timestamp backfill failed:', err));
   } catch (error) {
     console.error('Failed to connect to MongoDB:', error);
     console.log('Server will start but database operations will fail');

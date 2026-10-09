@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { queryClient, refreshService } from '../services/queryClient';
 import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
+import RequestProgress from '../components/RequestProgress';
 import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import { truncateCell } from '../lib/truncate';
@@ -27,6 +28,9 @@ interface MyRequest {
   recommendation?: string | null;
   created_at: string;
   completed_at: string | null;
+  accepted_at?: string | null;
+  declined_at?: string | null;
+  cancelled_at?: string | null;
   decline_reason?: string | null;
   notes?: RequestNote[];
 }
@@ -249,9 +253,8 @@ function Requested() {
                 <p><strong>Status:</strong> {STATUS_LABELS[selectedRequest.status] || selectedRequest.status}</p>
                 <p><strong>Unit:</strong> {selectedRequest.unit || '-'}</p>
                 <p><strong>Issue:</strong> {selectedRequest.issue}</p>
-                <p><strong>Created:</strong> {formatDate(selectedRequest.created_at)}</p>
-                {selectedRequest.completed_at && <p><strong>Completed:</strong> {formatDate(selectedRequest.completed_at)}</p>}
               </div>
+              <RequestProgress request={selectedRequest} />
               {selectedRequest.status === 'DONE' && (
                 <StaffReport
                   title="Technician's report"

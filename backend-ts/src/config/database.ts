@@ -31,11 +31,16 @@ export interface RequestNote {
   created_at: Date;
 }
 
-// Fields shared by every request type for declining and client follow-up notes.
+// Fields shared by every request type for declining and client follow-up notes, plus the times
+// of the steps a request goes through (shown as its progress in the details). accepted_at is the
+// first acceptance or assignment; a reassignment keeps it. Older requests got these from the audit
+// log (utils/backfillTimestamps.ts); null there means the log had no entry.
 export interface DeclineAndNotes {
   decline_reason?: string | null;
   declined_by?: ObjectId | null;
   declined_at?: Date | null;
+  accepted_at?: Date | null;
+  cancelled_at?: Date | null;
   notes?: RequestNote[];
 }
 
