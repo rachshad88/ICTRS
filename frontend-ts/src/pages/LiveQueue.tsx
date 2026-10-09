@@ -323,14 +323,6 @@ export default function LiveQueue() {
     };
   }, [soundOn]);
 
-  useEffect(() => {
-    const previous = document.title;
-    document.title = 'Request Queue · ITRS';
-    return () => {
-      document.title = previous;
-    };
-  }, []);
-
   if (forbidden) {
     return (
       <div className="live-board live-board--message">

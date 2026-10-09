@@ -15,7 +15,7 @@ import { PageCurtainProvider } from './components/PageCurtain';
 import NotificationPanel, { BellIcon } from './components/NotificationPanel';
 import { useNotification } from './contexts/NotificationContext';
 import Landing from './pages/Landing';
-import { PUBLIC_PAGES, PRIVATE_PAGES, canOpen, homeFor, preloadInOrder } from './routes';
+import { PUBLIC_PAGES, PRIVATE_PAGES, PAGE_TITLES, canOpen, homeFor, preloadInOrder } from './routes';
 
 function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSidebar, isMobile }: { children: React.ReactNode; allowedRoles?: string[]; sidebarCollapsed: boolean; onToggleSidebar: () => void; isMobile: boolean }) {
   const { user, loading } = useAuth();
@@ -88,10 +88,25 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
   );
 }
 
+const SITE_TITLE = 'ITRS - Information Technology Request Systems';
+
+/** Names the browser tab after the page, with the unread count first so a background tab shows it. */
+function useDocumentTitle() {
+  const { pathname } = useLocation();
+  const { user } = useAuth();
+  const { unread } = useNotification();
+  const page = PAGE_TITLES[pathname];
+  const count = user && unread > 0 ? `(${unread > 99 ? '99+' : unread}) ` : '';
+  useEffect(() => {
+    document.title = count + (page ? `${page} · ITRS` : SITE_TITLE);
+  }, [count, page]);
+}
+
 const MOBILE_QUERY = '(max-width: 768px)';
 
 function AppRoutes() {
   const location = useLocation();
+  useDocumentTitle();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(isMobile);
 

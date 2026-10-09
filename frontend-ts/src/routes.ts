@@ -63,6 +63,37 @@ export const PRIVATE_PAGES: Array<{ path: string; roles?: string[] } & PageEntry
   { path: '/print-materials-dashboard', roles: ['MULTIMEDIA'], ...page(() => import('./pages/PrintMaterialsDashboard')) },
 ];
 
+// The browser tab's name per page ("Dashboard · ITRS"); the tab also shows the unread count (App.tsx).
+export const PAGE_TITLES: Record<string, string> = {
+  '/login': 'Sign in',
+  '/signup': 'Sign up',
+  '/guide': 'Guide',
+  '/live': 'Request Queue',
+  '/dashboard': 'Dashboard',
+  '/it-dashboard': 'IT Dashboard',
+  '/request': 'IT Request',
+  '/requested': 'IT History',
+  '/reports': 'Reports',
+  '/users': 'Users',
+  '/admin-dashboard': 'Dashboard',
+  '/profile': 'Profile',
+  '/multimedia-request': 'Multimedia Request',
+  '/multimedia-history': 'Multimedia History',
+  '/multimedia-dashboard': 'Multimedia Requests',
+  '/digitalmedia-dashboard': 'Digital Media Requests',
+  '/multimedia-management': 'Multimedia Management',
+  '/digital-media-request': 'Digital Media Request',
+  '/digitalmedia-history': 'Digital Media History',
+  '/digitalmedia-management': 'Digital Media Management',
+  '/print-materials-request': 'Print Materials Request',
+  '/print-materials-history': 'Print Materials History',
+  '/print-materials-management': 'Print Materials Management',
+  '/all-requests': 'All Requests',
+  '/audit-logs': 'Audit Log',
+  '/signatories': 'Signatories',
+  '/print-materials-dashboard': 'Print Materials Requests',
+};
+
 /** Where an account lands by default, and where it is sent when it opens a page it may not. */
 export function homeFor(primaryRole: string): string {
   if (primaryRole === 'CLIENT') return '/request';
