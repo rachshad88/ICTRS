@@ -938,6 +938,13 @@
     animation: none;
     transform: skewX(-8deg) scaleX(1);
   }
+
+  /* The global rule shortens durations but not delays; answers just appear. */
+  .gd-faq-a,
+  .gd-faq-a p,
+  .gd-faq-q::after {
+    transition: none;
+  }
 }
 
 /* ----- Tablet ----- */
