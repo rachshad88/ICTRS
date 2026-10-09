@@ -100,6 +100,12 @@ function fullName(arrayField: string) {
   };
 }
 
+/** Ids of the users matching a filter, both as ObjectIds and as strings (some older records kept ids as strings). */
+async function userIdsWhere(filter: Record<string, unknown>): Promise<Array<ObjectId | string>> {
+  const users = await getUsersCollection().find(filter, { projection: { _id: 1 } }).toArray();
+  return users.flatMap((u) => [u._id, u._id.toString()]);
+}
+
 function parseIsoDate(value: unknown): Date | null {
   if (typeof value !== 'string' || !value) return null;
   const d = new Date(value);
@@ -178,29 +184,36 @@ router.get('/requests', isAuthenticated, isOverviewAdmin, async (req: Authentica
       { $match: branchMatch }
     ];
 
-    // Office and search depend on the requester and assignee, so they run after the lookups.
-    const postMatch: Record<string, unknown> = {};
-    if (q.office) postMatch.office = q.office;
+    // Office and search also look at people (the requester's office for media requests, which have
+    // none of their own, and requester/assignee names). Resolve those against the users first and
+    // filter by their ids, so names are only looked up for the page being returned; looking them up
+    // for every request before paging made this list slow once there were thousands of requests.
+    const postMatch: Record<string, unknown>[] = [];
+    if (q.office) {
+      postMatch.push({ $or: [{ office: q.office }, { office: null, created_by: { $in: await userIdsWhere({ office: q.office }) } }] });
+    }
     if (q.search) {
       const escaped = q.search.slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = { $regex: escaped, $options: 'i' };
-      postMatch.$or = ['request_code', 'title', 'detail', 'office', 'requester_name', 'assignee_name'].map((f) => ({ [f]: regex }));
+      const [inOffice, named] = await Promise.all([
+        userIdsWhere({ office: regex }),
+        userIdsWhere({ $expr: { $regexMatch: { input: { $concat: [{ $ifNull: ['$first_name', ''] }, ' ', { $ifNull: ['$last_name', ''] }] }, regex: escaped, options: 'i' } } })
+      ]);
+      postMatch.push({
+        $or: [
+          ...['request_code', 'title', 'detail', 'office'].map((f) => ({ [f]: regex })),
+          { office: null, created_by: { $in: inOffice } },
+          { created_by: { $in: named } },
+          { assigned_to: { $in: named } }
+        ]
+      });
     }
 
     const [first, ...rest] = types;
     const pipeline = [
       ...branch(first),
       ...rest.map((t) => ({ $unionWith: { coll: t.collection, pipeline: branch(t) } })),
-      userLookup('$created_by', 'requester'),
-      userLookup('$assigned_to', 'assignee'),
-      {
-        $addFields: {
-          office: { $ifNull: ['$office', { $arrayElemAt: ['$requester.office', 0] }] },
-          requester_name: fullName('$requester'),
-          assignee_name: fullName('$assignee')
-        }
-      },
-      { $match: postMatch },
+      ...(postMatch.length ? [{ $match: { $and: postMatch } }] : []),
       {
         $facet: {
           counts: [
@@ -221,6 +234,15 @@ router.get('/requests', isAuthenticated, isOverviewAdmin, async (req: Authentica
             { $sort: { ...sort, _id: -1 } },
             { $skip: (page - 1) * limit },
             { $limit: limit },
+            userLookup('$created_by', 'requester'),
+            userLookup('$assigned_to', 'assignee'),
+            {
+              $addFields: {
+                office: { $ifNull: ['$office', { $arrayElemAt: ['$requester.office', 0] }] },
+                requester_name: fullName('$requester'),
+                assignee_name: fullName('$assignee')
+              }
+            },
             { $project: { requester: 0, assignee: 0, due_sort: 0, priority_rank: 0, created_by: 0 } }
           ]
         }
