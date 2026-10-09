@@ -1,11 +1,21 @@
 /* Self-hosted faces for the public pages (landing, guide, login) and their transitions.
    Headings: Plus Jakarta Sans. Body: Inter. Accents: JetBrains Mono and Caveat.
    Geist is the signed-in app's heading face (--font-display in tokens.css).
+   Nunito is the older app body face (reset.css).
    Files live in public/fonts; every family is SIL Open Font License. */
 
 :root {
   --public-display: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --public-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+  src: url('/fonts/nunito-latin-var.woff2') format('woff2-variations'),
+    url('/fonts/nunito-latin-var.woff2') format('woff2');
 }
 
 @font-face {
