@@ -178,7 +178,7 @@ function UserManagement() {
 
   const handleResetPassword = async () => {
     if (!editingUser) return;
-    if (!(await confirm({ title: `Reset ${editingUser.username}'s password?`, message: <>It will be set to <strong>{DEFAULT_PASSWORD}</strong>, They will be signed out and must choose a new password when they next sign in.</>, confirmLabel: 'Reset password' }))) return;
+    if (!(await confirm({ title: `Reset ${editingUser.username}'s password?`, message: <>It will be set to <strong>{DEFAULT_PASSWORD}</strong>. They will be signed out and must choose a new password when they next sign in.</>, confirmLabel: 'Reset password' }))) return;
     try {
       await api.post('/users/reset_user_password', { user_id: editingUser._id });
       setNotice(`${editingUser.username}'s password was reset to ${DEFAULT_PASSWORD}.`);
@@ -226,6 +226,7 @@ function UserManagement() {
 
   return (
     <div className="page-wrap">
+      {confirmDialog}
       <div className="page-header">
         <h2>User Management</h2>
         <button onClick={() => openModal()} className="hbtn hbtn-assign" style={{ fontWeight: 600 }}>
