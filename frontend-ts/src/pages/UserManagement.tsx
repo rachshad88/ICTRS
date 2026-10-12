@@ -176,6 +176,18 @@ function UserManagement() {
     }
   };
 
+  // One session per user: someone who left ITRS open on another PC cannot sign in until it ends.
+  const handleSignOut = async (user: User) => {
+    if (!(await confirm({ title: `Sign out ${user.username}?`, message: 'Their session ends on whatever device they are signed in on, so they can sign in again anywhere.', confirmLabel: 'Sign out' }))) return;
+    try {
+      const res = await api.post('/users/sign_out_user', { user_id: user._id });
+      setNotice(res.data?.message || `${user.username} has been signed out.`);
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { error?: string } } };
+      setError(err.response?.data?.error || 'Failed to sign out user');
+    }
+  };
+
   const handleResetPassword = async () => {
     if (!editingUser) return;
     if (!(await confirm({ title: `Reset ${editingUser.username}'s password?`, message: <>It will be set to <strong>{DEFAULT_PASSWORD}</strong>. They will be signed out and must choose a new password when they next sign in.</>, confirmLabel: 'Reset password' }))) return;
@@ -305,6 +317,7 @@ function UserManagement() {
                   <td className="col-actions">
                     <div className="history-actions">
                       <button className="hbtn hbtn-view" onClick={() => openModal(user)}>Edit</button>
+                      <button className="hbtn hbtn-view" onClick={() => handleSignOut(user)}>Sign out</button>
                       <button className="hbtn hbtn-cancel" onClick={() => handleDelete(user._id)}>Delete</button>
                     </div>
                   </td>

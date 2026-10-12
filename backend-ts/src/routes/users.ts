@@ -245,6 +245,32 @@ router.post('/reset_user_password', isAuthenticated, isAdmin, validateBody(z.obj
   }
 });
 
+// Ends the user's session wherever it is (one session per user: someone who forgot to sign out on
+// another PC cannot sign in again until it ends). Their next request there lands on the login page.
+router.post('/sign_out_user', isAuthenticated, isAdmin, validateBody(z.object({ user_id: objectIdSchema })), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { user_id } = req.body;
+    const usersCollection = getUsersCollection();
+    const targetUser = await usersCollection.findOne({ _id: new ObjectId(user_id) });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await usersCollection.updateOne(
+      { _id: targetUser._id },
+      { $inc: { session_version: 1 }, $unset: { current_session: '' } }
+    );
+    disconnectUserSockets(req, user_id);
+
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'SIGN_OUT_USER', 'USER', user_id, `Admin ${req.user!.username} signed out ${targetUser.username}`);
+    res.json({ status: 'success', message: `${targetUser.username} has been signed out` });
+  } catch (error) {
+    console.error('Sign out user error:', error);
+    res.status(500).json({ error: 'Failed to sign out user' });
+  }
+});
+
 // Lets a self sign-up sign in (spam protection, see the signup route).
 router.post('/approve_user', isAuthenticated, isAdmin, validateBody(z.object({ user_id: objectIdSchema })), async (req: AuthenticatedRequest, res: Response) => {
   try {

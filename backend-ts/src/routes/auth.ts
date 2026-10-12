@@ -104,6 +104,12 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
       return res.status(403).json({ error: AWAITING_APPROVAL, code: 'AWAITING_APPROVAL' });
     }
 
+    // One session per user: refused while the account is signed in on another device. Also only
+    // said after the password checked out, and not counted as a failed attempt.
+    if (await hasLiveSessionElsewhere(req, user)) {
+      return res.status(409).json({ error: ALREADY_SIGNED_IN, code: 'ALREADY_SIGNED_IN' });
+    }
+
     const isDefaultPassword = await passwordMatchesDefault(user.password);
     const userData = await startSession(req, user, isDefaultPassword);
     await logAudit(user._id!, user.username, userData.primary_role, 'LOGIN', 'USER', user._id!.toString(), `User ${user.username} logged in`);
@@ -156,10 +162,33 @@ function startSession(req: Request, user: User, isDefaultPassword: boolean) {
   });
 }
 
-// One session per user: the newest sign-in wins. Records this session as the user's only one (every
-// other session is refused on its next request, which also deletes it; see sessionStatus), and closes
-// the other live connections at once so those screens go to the login page. The old session is not
-// deleted here, so its next request can still tell the user why they were signed out.
+const ALREADY_SIGNED_IN =
+  'This account is already signed in on another device. Sign out there first, or ask the IT office to sign it out. It also signs out by itself 1 hour after it was last used.';
+
+// Whether the user's recorded session is still alive somewhere other than this browser. A session ends
+// on sign-out (which clears current_session), when an admin signs the user out, or 1 hour after its
+// last request: a closed browser or a sleeping PC. The store only returns sessions that have not
+// expired, so a lapsed one no longer blocks.
+function hasLiveSessionElsewhere(req: Request, user: User): Promise<boolean> {
+  const previous = user.current_session;
+  if (!previous || previous === req.sessionID) return Promise.resolve(false);
+  return new Promise((resolve, reject) => {
+    req.sessionStore.get(previous, (err, session) => {
+      if (err) return reject(err);
+      // A session revoked by an admin (password or role change bumps session_version) is dead too.
+      resolve(
+        !!session?.user_id &&
+          session.user_id === user._id!.toString() &&
+          (session.session_version || 0) === (user.session_version || 0)
+      );
+    });
+  });
+}
+
+// Records this session as the user's only one: every other session is refused on its next request
+// (sessionStatus). Sign-in only gets here once no other session is alive (hasLiveSessionElsewhere),
+// but a screen left open on a lapsed session may still hold a live connection; close it so that
+// screen goes to the login page.
 async function replaceOtherSessions(req: Request, user: User) {
   const userId = user._id!.toString();
   const sessionId = req.sessionID;
