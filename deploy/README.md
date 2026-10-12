@@ -49,6 +49,52 @@ modules installed once; the install script stops with this command if they are m
 sudo apt install libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static
 ```
 
+## HTTPS certificate for getregisterforms.online
+`getregisterforms.online` (and `www`) serve the same ITRS app as this box, but under their own
+nginx vhost with a real Let's Encrypt certificate — not the self-signed `itrs.dave` fallback:
+
+- Vhost: `/etc/nginx/sites-available/getregisterforms.online`
+  (symlinked in `sites-enabled/`). Port 80 serves `/.well-known/acme-challenge/` from
+  `/var/www/letsencrypt` and redirects everything else to HTTPS. Port 443 serves
+  `/var/www/itrs` and proxies `/api`, `/socket.io`, `/health` to the backend, same as the
+  default server.
+- Cert: `/etc/letsencrypt/live/getregisterforms.online/` (`fullchain.pem` + `privkey.pem`),
+  covering both `getregisterforms.online` and `www.getregisterforms.online`.
+  Issued 2026-10-10, expires 2027-01-08 (~90 days, standard Let's Encrypt lifetime).
+- Renewal: `certbot.timer` runs twice daily. The renewal uses webroot
+  (`/var/www/letsencrypt`) and reloads nginx afterwards
+  (`renew_hook = systemctl reload nginx` in
+  `/etc/letsencrypt/renewal/getregisterforms.online.conf`). Tested with
+  `certbot renew --cert-name getregisterforms.online --dry-run` (success).
+
+Do not delete `/var/www/letsencrypt` or the port-80 `/.well-known/` location: renewal
+breaks without them. If renewal ever fails, check that public DNS still points at this
+box's public IP and that port 80 is still forwarded here, then run
+`sudo certbot renew --cert-name getregisterforms.online` by hand.
+
+Notes:
+- The old `default_server` vhost is untouched and still serves the self-signed
+  `itrs.dave` cert for any other hostname/IP. Only the two domain names above get the
+  real certificate (SNI routing).
+- The internal LAN DNS still resolves `getregisterforms.online` to `192.168.110.9`
+  (a separate Caddy box whose own Let's Encrypt cert expired 2026-09-26 and cannot
+  renew, since public validation reaches this box, not it). Until the router's internal
+  record is repointed to `192.168.110.28` (or removed so clients use public DNS),
+  machines on the LAN that use the router's DNS keep hitting the expired cert on `.9`.
+  External visitors and anyone resolving public DNS get the valid cert from this box.
+- The PM2 `frontend` (`vite dev` on port 5173) was deleted and the `5173/tcp` UFW
+  rules (v4+v6) removed on 2026-10-10: production serves the built files from
+  `/var/www/itrs`, so the dev server was redundant and publicly exposed. To run a dev
+  server again, bind it to localhost only (`vite --host 127.0.0.1`) instead of
+  re-opening the firewall.
+
+Rollback (cert only): `sudo rm /etc/nginx/sites-enabled/getregisterforms.online &&
+sudo nginx -t && sudo systemctl reload nginx`. The domain then falls back to the
+self-signed `itrs.dave` cert via the default server. Pre-change backups:
+`~/backups/itrs/nginx-certfix-20261010-0146/` (original nginx config, UFW state,
+`itrs.crt`/`itrs.key`) and `~/backups/itrs/nginx-certfix-20261010-0151-final/`
+(final working config).
+
 ## Backups
 What runs, all as the normal user (`crontab -l`), logging to `~/backups/itrs/backup.log`:
 
