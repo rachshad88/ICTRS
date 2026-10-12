@@ -2055,3 +2055,129 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ----- MOV (means of verification): IT requests finished and waiting for an IT admin's check ----- */
+.app-main .hstatus.for-verification,
+.app-main .badge-for-verification {
+  background: transparent;
+  color: #0e7c86;
+}
+
+.app-main .mov-returned-sub {
+  display: block;
+  margin-top: 6px;
+  color: #b42318;
+  font-weight: 600;
+}
+
+.app-main .mov-returned {
+  padding: 8px 12px;
+  border-left: 3px solid #b42318;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.app-main .mov-photos {
+  margin: 16px 0;
+}
+
+.app-main .mov-title {
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.app-main .mov-grid,
+.app-main .mov-picker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.app-main .mov-thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+}
+
+.app-main .mov-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app-main a.mov-thumb:hover {
+  border-color: var(--cobalt);
+}
+
+.app-main .mov-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgba(12, 31, 74, 0.75);
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.app-main .form-group .mov-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  aspect-ratio: 4 / 3;
+  margin: 0;
+  border: 1.5px dashed rgba(12, 31, 74, 0.3);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.app-main .form-group .mov-add span {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.app-main .form-group .mov-add:hover {
+  border-color: var(--cobalt);
+  color: var(--cobalt);
+}
+
+/* The real file input stays for keyboards and screen readers; the "Add photo" tile opens it. */
+.app-main .mov-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.app-main .mov-input:focus-visible + .mov-picker .mov-add {
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 4px rgba(255, 217, 26, 0.6);
+}
+
+.app-main .mov-help {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}

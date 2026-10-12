@@ -29,6 +29,7 @@ const STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pending',
   ASSIGNED: 'Assigned',
   IN_PROGRESS: 'In Progress',
+  FOR_VERIFICATION: 'For Verification',
   DONE: 'Completed',
   NOT_APPROVED: 'Not Approved',
   CANCELLED: 'Cancelled',

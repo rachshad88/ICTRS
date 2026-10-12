@@ -3,7 +3,8 @@ import path from 'path';
 import fs from 'fs';
 import { ObjectId } from 'mongodb';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
-import { getMultimediaRequestsCollection, getDigitalMediaRequestsCollection, getPrintMaterialsRequestsCollection, isValidObjectId } from '../config/database';
+import { getMultimediaRequestsCollection, getDigitalMediaRequestsCollection, getPrintMaterialsRequestsCollection, getRequestsCollection, isValidObjectId } from '../config/database';
+import { MOV_DIR } from '../utils/movUpload';
 
 const router = Router();
 
@@ -74,6 +75,40 @@ async function verifyAccess(requestId: string, userId: string, userRoles: string
     return false;
   }
 }
+
+// MOV photos of an IT request (utils/movUpload.ts): for IT admins, the super admin, whoever handled
+// it, and the client who filed it or anyone they shared it with.
+router.get('/requests/:requestId/:filename', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { requestId, filename } = req.params;
+    const ext = path.extname(filename).toLowerCase();
+    if (!isValidObjectId(requestId) || !['.jpg', '.jpeg', '.png'].includes(ext)) {
+      return res.status(400).json({ error: 'Invalid file' });
+    }
+
+    const roles = req.user!.roles;
+    if (!roles.includes('IT_ADMIN') && !roles.includes('ADMIN')) {
+      const uid = new ObjectId(req.user!.user_id);
+      const request = await getRequestsCollection().findOne(
+        { _id: new ObjectId(requestId), $or: [{ created_by: uid }, { assigned_to: uid }, { shared_access: uid }, { 'mov.submitted_by': uid }] },
+        { projection: { _id: 1 } }
+      );
+      if (!request) return res.status(403).json({ error: 'You do not have access to this file' });
+    }
+
+    const filePath = path.join(MOV_DIR, requestId, path.basename(filename));
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    res.setHeader('Content-Type', getMimeType(ext));
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(filename)}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (error) {
+    console.error('Error serving MOV photo:', error);
+    res.status(500).json({ error: 'Failed to retrieve file' });
+  }
+});
 
 router.get('/multimedia/:requestId/:filename', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {

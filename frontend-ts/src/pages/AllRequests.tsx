@@ -70,6 +70,7 @@ const STATUS_OPTIONS = [
   { value: 'OPEN', label: 'Open (not finished)' },
   { value: 'PENDING', label: 'Pending / Unassigned' },
   { value: 'IN_PROGRESS', label: 'In progress' },
+  { value: 'FOR_VERIFICATION', label: 'For verification (IT)' },
   { value: 'DONE', label: 'Done' },
   { value: 'DECLINED', label: 'Declined' },
   { value: 'CANCELLED', label: 'Cancelled' },
@@ -101,7 +102,7 @@ const MANAGE_PAGES: Record<string, { to: string; role: string; label: string }> 
 
 const NO_META: Meta = { types: [], staff: [], offices: [] };
 // Still being worked on; a reopened request stops being flagged once it is done again.
-const OPEN = ['PENDING', 'UNASSIGNED', 'IN_PROGRESS'];
+const OPEN = ['PENDING', 'UNASSIGNED', 'IN_PROGRESS', 'FOR_VERIFICATION'];
 const NO_COUNTS: Counts = { total: 0, open: 0, unassigned: 0, urgent_open: 0, overdue: 0, done: 0 };
 
 const STORAGE_KEY = 'all-requests-filters';

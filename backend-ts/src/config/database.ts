@@ -70,7 +70,9 @@ export interface Request extends DeclineAndNotes, PriorityAndDue {
   unit: string;
   semester: string;
   issue: string;
-  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'DECLINED';
+  // FOR_VERIFICATION: the technician finished and sent their MOV photos; an IT admin approves it (DONE)
+  // or returns it (back to IN_PROGRESS). See routes/requests.ts request_finish, verify_mov, return_mov.
+  status: 'PENDING' | 'IN_PROGRESS' | 'FOR_VERIFICATION' | 'DONE' | 'CANCELLED' | 'DECLINED';
   assigned_to: ObjectId | null;
   finished: 'repaired' | 'beyond repair' | null;
   remarks: string | null;
@@ -78,6 +80,19 @@ export interface Request extends DeclineAndNotes, PriorityAndDue {
   shared_access?: ObjectId[];
   created_at: Date;
   completed_at: Date | null;
+  // The MOV (means of verification) waiting for, or given, approval: photo file names in
+  // uploads/requests/<id>/ and who sent them when.
+  mov?: MovSubmission | null;
+  mov_verified_by?: ObjectId | null;
+  mov_verified_at?: Date | null;
+  // Earlier submissions an IT admin sent back, with the reason (their photos stay on disk).
+  mov_returns?: Array<MovSubmission & { returned_by: ObjectId; returned_at: Date; reason: string }>;
+}
+
+export interface MovSubmission {
+  files: string[];
+  submitted_by: ObjectId;
+  submitted_at: Date;
 }
 
 export interface MultimediaRequest extends DeclineAndNotes, PriorityAndDue {

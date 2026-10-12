@@ -7,6 +7,7 @@ import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
 import FinishRequestModal from '../components/FinishRequestModal';
+import VerifyMovModal from '../components/VerifyMovModal';
 import { RequestFlags, PriorityForm, ReassignForm, PRIORITY_OPTIONS, suggestedDueDate, priorityLabel, formatDay } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
 
@@ -30,6 +31,13 @@ interface Request {
   reopened?: boolean;
   decline_reason?: string | null;
   notes?: RequestNote[];
+  // Finish report and MOV photos (FOR_VERIFICATION), and why a returned MOV was sent back.
+  finished?: string | null;
+  remarks?: string | null;
+  recommendation?: string | null;
+  mov_files?: string[];
+  mov_submitted_at?: string | null;
+  mov_return_reason?: string | null;
 }
 
 interface Technician {
@@ -41,6 +49,7 @@ interface Technician {
 interface Counts {
   pending_count: number;
   progress_count: number;
+  verification_count: number;
   done_count: number;
   declined_count: number;
   repaired_count: number;
@@ -52,6 +61,7 @@ interface Counts {
 const NO_COUNTS: Counts = {
   pending_count: 0,
   progress_count: 0,
+  verification_count: 0,
   done_count: 0,
   declined_count: 0,
   repaired_count: 0,
@@ -91,6 +101,7 @@ function ItAdminDashboard() {
   const [declineTarget, setDeclineTarget] = useState<Request | null>(null);
   const [viewTarget, setViewTarget] = useState<Request | null>(null);
   const [finishTarget, setFinishTarget] = useState<Request | null>(null);
+  const [verifyTarget, setVerifyTarget] = useState<Request | null>(null);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -200,6 +211,9 @@ function ItAdminDashboard() {
         </div>
       );
     }
+    if (req.status === 'FOR_VERIFICATION') {
+      return <button className="hbtn hbtn-assign" onClick={() => setVerifyTarget(req)}>Verify MOV</button>;
+    }
     if (req.status === 'IN_PROGRESS') {
       return (
         <div className="history-actions">
@@ -236,8 +250,9 @@ function ItAdminDashboard() {
       <td data-label="Status">
         <span className={`hstatus ${req.statusClass}`}>
           <span className={`hstatus-dot ${req.statusClass}`} />
-          {req.status}
+          {req.status.replace(/_/g, ' ')}
         </span>
+        {req.mov_return_reason && <span className="td-sub mov-returned-sub">MOV returned</span>}
       </td>
       <td className="td-cell" data-label="Created">
         <span className="td-stack">
@@ -283,6 +298,10 @@ function ItAdminDashboard() {
         <div className="stat-card-sm">
           <h4>In Progress</h4>
           <p className="stat-num">{counts.progress_count}</p>
+        </div>
+        <div className="stat-card-sm">
+          <h4>For Verification</h4>
+          <p className="stat-num">{counts.verification_count}</p>
         </div>
         <div className="stat-card-sm">
           <h4>Done</h4>
@@ -447,6 +466,15 @@ function ItAdminDashboard() {
           onClose={() => setFinishTarget(null)}
           onFinished={() => { setFinishTarget(null); refreshService('it'); }}
           onError={setError}
+        />
+      )}
+
+      {verifyTarget && (
+        <VerifyMovModal
+          request={verifyTarget}
+          onClose={() => setVerifyTarget(null)}
+          onDone={() => { setVerifyTarget(null); refreshService('it'); }}
+          onError={(message) => { setVerifyTarget(null); setError(message); }}
         />
       )}
 

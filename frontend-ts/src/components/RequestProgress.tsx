@@ -48,7 +48,7 @@ function formatGap(from: string, to: string): string | null {
 function buildSteps(r: ProgressTimes, assigneeName?: string | null): Step[] {
   const steps: Step[] = [{ label: 'Submitted', at: r.created_at, state: 'done' }];
   const waiting = WAITING.includes(r.status);
-  const accepted = !!r.accepted_at || r.status === 'IN_PROGRESS' || r.status === 'DONE';
+  const accepted = !!r.accepted_at || r.status === 'IN_PROGRESS' || r.status === 'FOR_VERIFICATION' || r.status === 'DONE';
 
   if (accepted) {
     steps.push({ label: 'Accepted', at: r.accepted_at, state: 'done', note: assigneeName ? `Handled by ${assigneeName}` : undefined });
@@ -67,6 +67,9 @@ function buildSteps(r: ProgressTimes, assigneeName?: string | null): Step[] {
     steps.push({ label: 'Declined', at: r.declined_at, state: 'declined' });
   } else if (r.status === 'CANCELLED') {
     steps.push({ label: 'Cancelled', at: r.cancelled_at, state: 'cancelled' });
+  } else if (r.status === 'FOR_VERIFICATION') {
+    // IT: the technician finished and sent photos; an IT admin checks them before it is done.
+    steps.push({ label: 'Done', state: 'current', note: 'Work finished, being checked by the IT office' });
   } else {
     const working = r.status === 'IN_PROGRESS';
     const note = working ? (r.reopened_at ? 'Being worked on again' : 'Being worked on') : r.reopened_at ? 'Waiting for the IT office to assign it' : undefined;

@@ -2,7 +2,8 @@ export const PRIORITIES = ['LOW', 'NORMAL', 'URGENT'] as const;
 export type Priority = typeof PRIORITIES[number];
 
 // Statuses in which a request still needs work and can therefore be overdue.
-export const OPEN_STATUSES = ['PENDING', 'UNASSIGNED', 'IN_PROGRESS'];
+// FOR_VERIFICATION (IT only): finished by the technician, waiting for an IT admin to check the MOV.
+export const OPEN_STATUSES = ['PENDING', 'UNASSIGNED', 'IN_PROGRESS', 'FOR_VERIFICATION'];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 

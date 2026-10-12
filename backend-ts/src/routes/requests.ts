@@ -4,7 +4,8 @@ import { Server } from 'socket.io';
 import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema, reopenRequestSchema } from '../middleware/validation';
+import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema, reopenRequestSchema, verifyMovSchema, returnMovSchema } from '../middleware/validation';
+import { receiveMovPhotos, uploadedMovPhotos, discardMovPhotos, invalidMovPhoto, keepMovPhotos, removeKeptMovPhotos, MOV_MIN_FILES } from '../utils/movUpload';
 import { formatDateTime, todayString, semesterFor } from '../utils/dates';
 import { normalizePriority, parseDueDate, isOverdue, overdueExpr, toDay, OPEN_STATUSES } from '../utils/priority';
 import { watchOverdue } from '../utils/overdueAlerts';
@@ -304,75 +305,212 @@ router.post('/set_priority', isAuthenticated, isItAdmin, validateBody(setPriorit
   }
 });
 
-router.post('/request_finish', isAuthenticated, isItAdminOrTechnician, validateBody(finishRequestSchema), async (req: AuthenticatedRequest, res: Response) => {
+// The technician (or the IT admin who took it) finishes a request by sending their MOV: 1-3 photos of
+// the work, sent as multipart form data (field "photos") with the outcome. The request then waits FOR
+// VERIFICATION until an IT admin approves it (verify_mov) or sends it back (return_mov).
+router.post('/request_finish', isAuthenticated, isItAdminOrTechnician, receiveMovPhotos, async (req: AuthenticatedRequest, res: Response) => {
+  const photos = uploadedMovPhotos(req);
   try {
-    const { request_id, finished, remarks, recommendation } = req.body;
-
-    if (!request_id || !finished) {
-      return res.status(400).json({ status: 'error', message: 'Required fields missing' });
+    const parsed = finishRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      discardMovPhotos(photos);
+      return res.status(400).json({ status: 'error', message: parsed.error.issues[0].message });
+    }
+    if (photos.length < MOV_MIN_FILES) {
+      return res.status(400).json({ status: 'error', message: 'Attach at least one photo of the finished work (MOV).' });
+    }
+    const badPhoto = invalidMovPhoto(photos);
+    if (badPhoto) {
+      discardMovPhotos(photos);
+      return res.status(400).json({ status: 'error', message: `${badPhoto} is not a valid JPG or PNG image.` });
     }
 
+    const { request_id, finished, remarks, recommendation } = parsed.data;
     const requestsCollection = getRequestsCollection();
     const userId = req.user!.user_id;
 
     let filter: Record<string, unknown>;
     if (req.user!.roles.includes('ADMIN')) {
-      filter = { _id: new ObjectId(request_id), status: { $nin: ['DONE', 'CANCELLED', 'DECLINED'] } };
-    } else if (req.user!.roles.includes('TECHNICIAN') || req.user!.roles.includes('IT_ADMIN')) {
-      // Technicians and IT admins can only finish requests assigned to them
-      filter = { 
-        _id: new ObjectId(request_id),
-        assigned_to: new ObjectId(userId),
-        status: 'IN_PROGRESS'
-      };
+      filter = { _id: new ObjectId(request_id), status: { $in: ['PENDING', 'IN_PROGRESS'] } };
     } else {
-      return res.status(403).json({ status: 'error', message: 'Insufficient permissions' });
+      // Technicians and IT admins can only finish requests assigned to them
+      filter = { _id: new ObjectId(request_id), assigned_to: new ObjectId(userId), status: 'IN_PROGRESS' };
     }
 
+    if (!(await requestsCollection.findOne(filter, { projection: { _id: 1 } }))) {
+      discardMovPhotos(photos);
+      return res.status(404).json({ status: 'error', message: 'Request not found or not assigned to you' });
+    }
+
+    const files = keepMovPhotos(photos, request_id);
     const result = await requestsCollection.findOneAndUpdate(
       filter,
-      { 
-        $set: { 
-          status: 'DONE', 
-          finished, 
-          remarks: remarks || null, 
+      {
+        $set: {
+          status: 'FOR_VERIFICATION',
+          finished,
+          remarks: remarks || null,
           recommendation: recommendation || null,
-          completed_at: new Date()
-        } 
+          mov: { files, submitted_by: new ObjectId(userId), submitted_at: new Date() }
+        }
       },
       { returnDocument: 'after' }
     );
 
     if (!result || !result.value) {
+      removeKeptMovPhotos(files, request_id);
       return res.status(404).json({ status: 'error', message: 'Request not found or not assigned to you' });
     }
 
     void syncRatingStatus('requests', result.value._id);
 
     const requestCode = result.value.request_code || 'unknown';
-    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'FINISH_REQUEST', 'IT_REQUEST', request_id, `${req.user!.roles.includes('ADMIN') ? 'Admin' : req.user!.roles.includes('TECHNICIAN') ? 'Technician' : 'IT Admin'} ${req.user!.username} marked request ${requestCode} as ${finished}`, { finished, remarks: remarks || null, recommendation: recommendation || null });
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'SUBMIT_MOV', 'IT_REQUEST', request_id, `${req.user!.roles.includes('ADMIN') ? 'Admin' : req.user!.roles.includes('TECHNICIAN') ? 'Technician' : 'IT Admin'} ${req.user!.username} finished request ${requestCode} as ${finished} and sent ${files.length} MOV photo(s) for verification`, { finished, remarks: remarks || null, recommendation: recommendation || null, photos: files.length });
 
     const io = req.app.get('io');
     if (io) {
       itAudience(io, result.value.created_by?.toString()).emit('request_update', {
-        event: 'finished',
+        event: 'mov_submitted',
         request_id,
         request_code: requestCode,
-        status: 'DONE',
+        status: 'FOR_VERIFICATION',
         timestamp: new Date()
       });
-      io.to(`user_${result.value?.created_by?.toString()}`).emit('my_request_finished', { request_id, request_code: requestCode });
     }
-    notify(result.value.created_by, {
-      level: 'success', title: 'Request completed', request_code: requestCode, link: OWNER_PAGE,
-      message: `${requestCode} is done (${finished}).`,
-      rate: { request_id: result.value._id!.toString(), type: ratingTypeFor('requests')! },
+    notify({ roles: ['IT_ADMIN'] }, {
+      level: 'info', title: 'MOV to verify', request_code: requestCode, link: IT_ADMIN_PAGE,
+      message: `${`${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username} finished ${requestCode} and sent photos to verify.`,
     }, userId);
 
     res.json({ status: 'success' });
   } catch (error) {
+    discardMovPhotos(photos);
     console.error('Finish request error:', error);
     res.status(500).json({ status: 'error', message: 'Failed to finish request' });
+  }
+});
+
+// Only IT admins (and the super admin) check MOVs. They may approve their own.
+function canVerifyMov(req: AuthenticatedRequest): boolean {
+  return req.user!.roles.includes('IT_ADMIN') || req.user!.roles.includes('ADMIN');
+}
+
+// Approving the MOV is what marks the request DONE: the client is told and asked to rate it.
+router.post('/verify_mov', isAuthenticated, validateBody(verifyMovSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!canVerifyMov(req)) return res.status(403).json({ status: 'error', message: 'Only IT admins can verify a MOV' });
+
+    const { request_id } = req.body;
+    const userId = req.user!.user_id;
+    const now = new Date();
+    const result = await getRequestsCollection().findOneAndUpdate(
+      { _id: new ObjectId(request_id), status: 'FOR_VERIFICATION' },
+      { $set: { status: 'DONE', completed_at: now, mov_verified_by: new ObjectId(userId), mov_verified_at: now } },
+      { returnDocument: 'after' }
+    );
+
+    if (!result || !result.value) {
+      return res.status(404).json({ status: 'error', message: 'This request is not waiting for verification' });
+    }
+
+    void syncRatingStatus('requests', result.value._id);
+
+    const doc = result.value;
+    const requestCode = doc.request_code || 'unknown';
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'VERIFY_MOV', 'IT_REQUEST', request_id, `${req.user!.username} verified the MOV for ${requestCode}; request marked ${doc.finished}`);
+
+    const io = req.app.get('io');
+    if (io) {
+      itAudience(io, doc.created_by?.toString()).emit('request_update', {
+        event: 'finished',
+        request_id,
+        request_code: requestCode,
+        status: 'DONE',
+        timestamp: now
+      });
+      io.to(`user_${doc.created_by?.toString()}`).emit('my_request_finished', { request_id, request_code: requestCode });
+    }
+    notify(doc.created_by, {
+      level: 'success', title: 'Request completed', request_code: requestCode, link: OWNER_PAGE,
+      message: `${requestCode} is done (${doc.finished}).`,
+      rate: { request_id: doc._id!.toString(), type: ratingTypeFor('requests')! },
+    }, userId);
+    const submitter = doc.mov?.submitted_by;
+    if (submitter) {
+      notify(submitter, {
+        level: 'success', title: 'MOV approved', request_code: requestCode, link: TECH_PAGE,
+        message: `Your MOV for ${requestCode} was approved. The request is done.`,
+      }, userId);
+    }
+
+    res.json({ status: 'success' });
+  } catch (error) {
+    console.error('Verify MOV error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to verify MOV' });
+  }
+});
+
+// Sending the MOV back: the request returns to IN_PROGRESS with whoever did it, the reason is added as
+// a note, and the submission is kept in mov_returns for the record.
+router.post('/return_mov', isAuthenticated, validateBody(returnMovSchema), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!canVerifyMov(req)) return res.status(403).json({ status: 'error', message: 'Only IT admins can return a MOV' });
+
+    const { request_id } = req.body;
+    const reason = String(req.body.reason).trim();
+    const userId = req.user!.user_id;
+    const requestsCollection = getRequestsCollection();
+    const current = await requestsCollection.findOne({ _id: new ObjectId(request_id), status: 'FOR_VERIFICATION' });
+    if (!current || !current.mov) {
+      return res.status(404).json({ status: 'error', message: 'This request is not waiting for verification' });
+    }
+
+    const now = new Date();
+    const authorName = `${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username;
+    const note = { _id: new ObjectId(), text: `MOV returned: ${reason}`, author_id: new ObjectId(userId), author_name: authorName, created_at: now };
+    const result = await requestsCollection.findOneAndUpdate(
+      { _id: current._id, status: 'FOR_VERIFICATION' },
+      {
+        $set: { status: 'IN_PROGRESS', mov: null },
+        $push: {
+          mov_returns: { ...current.mov, returned_by: new ObjectId(userId), returned_at: now, reason },
+          notes: note
+        }
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!result || !result.value) {
+      return res.status(404).json({ status: 'error', message: 'This request is not waiting for verification' });
+    }
+
+    void syncRatingStatus('requests', result.value._id);
+
+    const requestCode = result.value.request_code || 'unknown';
+    await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'RETURN_MOV', 'IT_REQUEST', request_id, `${req.user!.username} returned the MOV for ${requestCode}: ${reason}`);
+
+    const io = req.app.get('io');
+    if (io) {
+      itAudience(io, result.value.created_by?.toString()).emit('request_update', {
+        event: 'mov_returned',
+        request_id,
+        request_code: requestCode,
+        status: 'IN_PROGRESS',
+        timestamp: now
+      });
+    }
+    const handler = result.value.assigned_to ?? current.mov.submitted_by;
+    const handlerUser = await getUsersCollection().findOne({ _id: handler }, { projection: { roles: 1 } });
+    notify(handler, {
+      level: 'warning', title: 'MOV returned', request_code: requestCode,
+      link: handlerUser?.roles?.includes('TECHNICIAN') ? TECH_PAGE : IT_ADMIN_PAGE,
+      message: `${authorName} returned your MOV for ${requestCode}: ${clip(reason)}`,
+    }, userId);
+
+    res.json({ status: 'success' });
+  } catch (error) {
+    console.error('Return MOV error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to return MOV' });
   }
 });
 
@@ -597,7 +735,7 @@ router.post('/add_note', isAuthenticated, validateBody(addNoteSchema), async (re
       {
         _id: new ObjectId(request_id),
         created_by: new ObjectId(userId),
-        status: { $in: ['PENDING', 'IN_PROGRESS'] },
+        status: { $in: ['PENDING', 'IN_PROGRESS', 'FOR_VERIFICATION'] },
         [`notes.${MAX_NOTES_PER_REQUEST - 1}`]: { $exists: false }
       },
       { $push: { notes: note } },
@@ -742,6 +880,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
                   total: { $sum: 1 },
                   pending_count: { $sum: { $cond: [{ $eq: ['$status', 'PENDING'] }, 1, 0] } },
                   progress_count: { $sum: { $cond: [{ $eq: ['$status', 'IN_PROGRESS'] }, 1, 0] } },
+                  verification_count: { $sum: { $cond: [{ $eq: ['$status', 'FOR_VERIFICATION'] }, 1, 0] } },
                   done_count: { $sum: { $cond: [{ $eq: ['$status', 'DONE'] }, 1, 0] } },
                   declined_count: { $sum: { $cond: [{ $eq: ['$status', 'DECLINED'] }, 1, 0] } },
                   repaired_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'repaired'] }] }, 1, 0] } },
@@ -764,6 +903,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
     const counts = {
       pending_count: meta.pending_count || 0,
       progress_count: meta.progress_count || 0,
+      verification_count: meta.verification_count || 0,
       done_count: meta.done_count || 0,
       declined_count: meta.declined_count || 0,
       repaired_count: meta.repaired_count || 0,
@@ -800,7 +940,14 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
         overdue: isOverdue(status, r.due_date),
         reopened: !!r.reopened_at && OPEN_STATUSES.includes(status),
         decline_reason: r.decline_reason || null,
-        notes: r.notes || []
+        notes: r.notes || [],
+        // The finish details and MOV, for the IT admin's verification and the technician's own record.
+        finished: r.finished || null,
+        remarks: r.remarks || null,
+        recommendation: r.recommendation || null,
+        mov_files: r.mov?.files || [],
+        mov_submitted_at: r.mov?.submitted_at ? formatDateTime(r.mov.submitted_at) : null,
+        mov_return_reason: r.status === 'IN_PROGRESS' ? r.mov_returns?.[r.mov_returns.length - 1]?.reason || null : null
       };
     });
 
@@ -858,7 +1005,8 @@ router.get('/check_status/:requestCode', isAuthenticated, async (req: Authentica
         created_at: request.created_at,
         completed_at: request.completed_at,
         decline_reason: request.decline_reason || null,
-        notes: request.notes || []
+        notes: request.notes || [],
+        mov_files: request.mov?.files || []
       }
     });
   } catch (error) {
@@ -955,6 +1103,7 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
     const counts = {
       pending_count: countsResult.find(c => c._id === 'PENDING')?.count || 0,
       progress_count: countsResult.find(c => c._id === 'IN_PROGRESS')?.count || 0,
+      verification_count: countsResult.find(c => c._id === 'FOR_VERIFICATION')?.count || 0,
       done_count: countsResult.find(c => c._id === 'DONE')?.count || 0,
       declined_count: countsResult.find(c => c._id === 'DECLINED')?.count || 0
     };

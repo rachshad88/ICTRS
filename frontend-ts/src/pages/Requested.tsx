@@ -6,6 +6,7 @@ import { queryClient, refreshService } from '../services/queryClient';
 import Skeleton from '../components/Skeleton';
 import EmptyState from '../components/EmptyState';
 import RequestProgress from '../components/RequestProgress';
+import MovPhotos from '../components/MovPhotos';
 import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import { truncateCell } from '../lib/truncate';
@@ -35,11 +36,14 @@ interface MyRequest {
   previously_completed_at?: string | null;
   decline_reason?: string | null;
   notes?: RequestNote[];
+  /** Photos of the finished work (MOV), checked by an IT admin before the request is done. */
+  mov?: { files: string[] } | null;
 }
 
 interface Counts {
   pending_count: number;
   progress_count: number;
+  verification_count?: number;
   done_count: number;
   declined_count: number;
 }
@@ -52,11 +56,12 @@ interface MyRequestsData {
 
 const NO_COUNTS: Counts = { pending_count: 0, progress_count: 0, done_count: 0, declined_count: 0 };
 
-const OPEN_STATUSES = ['PENDING', 'IN_PROGRESS'];
+const OPEN_STATUSES = ['PENDING', 'IN_PROGRESS', 'FOR_VERIFICATION'];
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'Pending',
   IN_PROGRESS: 'In Progress',
+  FOR_VERIFICATION: 'For Verification',
   DONE: 'Completed',
   CANCELLED: 'Cancelled',
   DECLINED: 'Declined',
@@ -150,7 +155,7 @@ function Requested() {
           </div>
           <div className="stat-card">
             <div className="stat-label">In Progress</div>
-            <div className="stat-number">{counts.progress_count}</div>
+            <div className="stat-number">{counts.progress_count + (counts.verification_count || 0)}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Completed</div>
@@ -257,7 +262,7 @@ function Requested() {
                 <p><strong>Issue:</strong> {selectedRequest.issue}</p>
               </div>
               <RequestProgress request={selectedRequest} />
-              {selectedRequest.status === 'DONE' && (
+              {(selectedRequest.status === 'DONE' || selectedRequest.status === 'FOR_VERIFICATION') && (
                 <StaffReport
                   title="Technician's report"
                   result={selectedRequest.finished === 'repaired' ? 'Repaired' : 'Beyond Repair'}
@@ -266,6 +271,7 @@ function Requested() {
                   showRecommendation
                 />
               )}
+              <MovPhotos requestId={selectedRequest._id} files={selectedRequest.mov?.files} heading="Photos of the finished work" />
               {canReopen(selectedRequest.status, selectedRequest.completed_at) && (
                 <ReopenForm requestId={selectedRequest._id} onReopened={() => refreshService('it')} />
               )}

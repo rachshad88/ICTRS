@@ -178,6 +178,16 @@ export const declineRequestSchema = z.object({
   reason: z.string().trim().min(3, 'Please give a reason (at least 3 characters)').max(500, 'Reason must be 500 characters or fewer')
 });
 
+// MOV review (IT): an IT admin approves the technician's photos, or sends them back with a reason.
+export const verifyMovSchema = z.object({
+  request_id: objectIdSchema
+});
+
+export const returnMovSchema = z.object({
+  request_id: objectIdSchema,
+  reason: z.string().trim().min(3, 'Say what needs to be redone (at least 3 characters)').max(500, 'Keep it to 500 characters or fewer')
+});
+
 // "Still not fixed": the client says what is still wrong when reopening a finished IT request.
 export const reopenRequestSchema = z.object({
   request_id: objectIdSchema,

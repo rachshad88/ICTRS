@@ -31,11 +31,14 @@ interface Request {
   /** Reopened by the client ("still not fixed") and open again. */
   reopened?: boolean;
   notes?: RequestNote[];
+  /** Why an IT admin sent this request's MOV back (it is in progress again). */
+  mov_return_reason?: string | null;
 }
 
 interface Counts {
   pending_count: number;
   progress_count: number;
+  verification_count: number;
   done_count: number;
   repaired_count: number;
   beyond_repair_count: number;
@@ -47,7 +50,7 @@ interface DashboardData {
   total?: number;
 }
 
-const NO_COUNTS: Counts = { pending_count: 0, progress_count: 0, done_count: 0, repaired_count: 0, beyond_repair_count: 0 };
+const NO_COUNTS: Counts = { pending_count: 0, progress_count: 0, verification_count: 0, done_count: 0, repaired_count: 0, beyond_repair_count: 0 };
 
 // Heading for the requests still open from before the selected day/week/month (shown above it).
 const EARLIER_LABEL: Record<string, string> = {
@@ -108,8 +111,11 @@ function Dashboard() {
     if (req.status === 'DECLINED') {
       return <span className="hstatus declined"><span className="hstatus-dot declined" />Declined</span>;
     }
+    if (req.status === 'FOR_VERIFICATION') {
+      return <span className="td-sub">Waiting for the IT admin</span>;
+    }
     if (req.status === 'IN_PROGRESS') {
-      return <button className="hbtn hbtn-view" onClick={() => setFinishTarget(req)}>Mark Done</button>;
+      return <button className="hbtn hbtn-view" onClick={() => setFinishTarget(req)}>{req.mov_return_reason ? 'Resend MOV' : 'Mark Done'}</button>;
     }
     if (req.status === 'PENDING' && !req.assigned_to) {
       return <span className="td-code">Pending</span>;
@@ -142,6 +148,7 @@ function Dashboard() {
           <span className={`hstatus-dot ${req.statusClass}`} />
           {req.status.replace(/_/g, ' ')}
         </span>
+        {req.mov_return_reason && <span className="td-sub mov-returned-sub">MOV returned: {req.mov_return_reason}</span>}
       </td>
       <td className="td-cell" data-label="Created">{req.created_at}</td>
       <td className="td-cell" data-label="Completed">{req.completed_at}</td>
@@ -185,6 +192,11 @@ function Dashboard() {
           <div className="stat-label">In Progress</div>
           <div className="stat-number"><AnimatedNumber value={counts.progress_count} /></div>
           <p className="stat-note">Requests currently being serviced.</p>
+        </motion.div>
+        <motion.div className="stat-card" variants={staggerItem}>
+          <div className="stat-label">For Verification</div>
+          <div className="stat-number"><AnimatedNumber value={counts.verification_count} /></div>
+          <p className="stat-note">Finished, waiting for the IT admin to check the MOV.</p>
         </motion.div>
         <motion.div className="stat-card" variants={staggerItem}>
           <div className="stat-label">Completed</div>
