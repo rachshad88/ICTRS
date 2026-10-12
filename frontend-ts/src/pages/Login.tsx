@@ -80,7 +80,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState<'expired' | 'idle' | null>(null);
+  const [notice, setNotice] = useState<'expired' | 'idle' | 'replaced' | null>(null);
   const [loading, setLoading] = useState(false);
   const [showResetHelp, setShowResetHelp] = useState(false);
   const [granted, setGranted] = useState(false);
@@ -103,6 +103,7 @@ function Login() {
     }
     // Stays up: whoever comes back to the PC may be hours later (components/IdleLogout.tsx).
     if (searchParams.get('idle') === '1') setNotice('idle');
+    if (searchParams.get('replaced') === '1') setNotice('replaced');
     usernameRef.current?.focus();
   }, []);
 
@@ -291,10 +292,12 @@ function Login() {
 
                 {notice && (
                   <div className="login-info-message" role="status">
-                    <span className="login-stamp">{notice === 'idle' ? 'Signed out' : 'Expired'}</span>
+                    <span className="login-stamp">{notice === 'expired' ? 'Expired' : 'Signed out'}</span>
                     {notice === 'idle'
                       ? 'You were signed out after 1 hour of inactivity. Please sign in again.'
-                      : 'Your session has expired. Please sign in again.'}
+                      : notice === 'replaced'
+                        ? 'You were signed out because your account was signed in on another device.'
+                        : 'Your session has expired. Please sign in again.'}
                   </div>
                 )}
 

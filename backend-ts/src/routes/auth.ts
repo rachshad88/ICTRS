@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { getUsersCollection, logAudit, redisClient, Role, User } from '../config/database';
 import { notify } from '../utils/notify';
+import { getIO } from '../config/socket';
 import { AuthenticatedRequest, isAuthenticated, AWAITING_APPROVAL } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { loginSchema, changePasswordSchema, updateProfileSchema, signupSchema } from '../middleware/validation';
@@ -138,7 +139,8 @@ function startSession(req: Request, user: User, isDefaultPassword: boolean) {
       req.session.is_default_password = isDefaultPassword;
       req.session.session_version = user.session_version || 0;
 
-      resolve({
+      // Awaited: the first request on the new session must already find it recorded.
+      replaceOtherSessions(req, user).then(() => resolve({
         user_id: user._id!.toString(),
         username: user.username,
         first_name: user.first_name,
@@ -149,9 +151,32 @@ function startSession(req: Request, user: User, isDefaultPassword: boolean) {
         office: user.office || '',
         position: user.position || '',
         is_default_password: isDefaultPassword
-      });
+      }), reject);
     });
   });
+}
+
+// One session per user: the newest sign-in wins. Records this session as the user's only one (every
+// other session is refused on its next request, which also deletes it; see sessionStatus), and closes
+// the other live connections at once so those screens go to the login page. The old session is not
+// deleted here, so its next request can still tell the user why they were signed out.
+async function replaceOtherSessions(req: Request, user: User) {
+  const userId = user._id!.toString();
+  const sessionId = req.sessionID;
+  await getUsersCollection().updateOne({ _id: user._id }, { $set: { current_session: sessionId } });
+
+  // Best effort: a replaced screen that misses this is still refused on its next request.
+  try {
+    const sockets = await getIO().in(`user_${userId}`).fetchSockets();
+    for (const socket of sockets) {
+      if (socket.data.sessionId !== sessionId) {
+        socket.emit('session_replaced');
+        socket.disconnect(true);
+      }
+    }
+  } catch (error) {
+    console.error('Closing replaced connections failed:', error);
+  }
 }
 
 // Public sign-up for clients. The account always gets the CLIENT role and the default password.
@@ -238,6 +263,11 @@ router.post('/logout', async (req: Request, res: Response) => {
   const urole = req.session?.primary_role || req.session?.roles?.[0];
   if (uid && uname) {
     await logAudit(new ObjectId(uid), uname, urole || 'UNKNOWN', 'LOGOUT', 'USER', uid, `User ${uname} logged out`);
+    // Only if it is still this session: a sign-out on a replaced device must not touch the newer one.
+    await getUsersCollection().updateOne(
+      { _id: new ObjectId(uid), current_session: req.sessionID },
+      { $unset: { current_session: '' } }
+    );
   }
   req.session.destroy((err) => {
     if (err) {

@@ -15,9 +15,11 @@ const PUBLIC_PATHS = ['/', '/login', '/guide'];
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const expired = error.response?.status === 401 && error.response.data?.code === 'SESSION_EXPIRED';
+    const code = error.response?.status === 401 ? error.response.data?.code : undefined;
+    const expired = code === 'SESSION_EXPIRED' || code === 'SESSION_REPLACED';
     if (expired && !error.config?.url?.endsWith('/auth/me') && !PUBLIC_PATHS.includes(window.location.pathname)) {
-      window.location.assign('/login?expired=1');
+      // Replaced: the account signed in on another device (one session per user).
+      window.location.assign(code === 'SESSION_REPLACED' ? '/login?replaced=1' : '/login?expired=1');
     }
     // Still on the default password: the Profile page explains and holds the change-password form.
     const mustChange = error.response?.status === 403 && error.response.data?.code === 'PASSWORD_CHANGE_REQUIRED';

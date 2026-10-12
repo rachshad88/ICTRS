@@ -11,7 +11,7 @@ import { createServer, IncomingMessage } from 'http';
 import { Socket } from 'socket.io';
 import helmet from 'helmet';
 import { ObjectId } from 'mongodb';
-import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection, isSessionCurrent } from './config/database';
+import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection, sessionStatus } from './config/database';
 import { startRatingSync } from './utils/ratingSync';
 import { startOverdueAlerts } from './utils/overdueAlerts';
 import { backfillRequestTimestamps } from './utils/backfillTimestamps';
@@ -120,10 +120,13 @@ function socketUserId(socket: Socket): string | undefined {
 io.use(async (socket, next) => {
   try {
     const session = socketSession(socket);
-    if (!(await isSessionCurrent(session?.user_id, session?.session_version))) {
+    const sessionId = (socket.request as IncomingMessage & { sessionID?: string }).sessionID;
+    if ((await sessionStatus(session?.user_id, session?.session_version, sessionId)) !== 'ok') {
       next(new Error('Unauthorized'));
       return;
     }
+    // Kept so a sign-in elsewhere can find and close this connection (auth.ts startSession).
+    socket.data.sessionId = sessionId;
     next();
   } catch (error) {
     console.error('Socket session check error:', error);

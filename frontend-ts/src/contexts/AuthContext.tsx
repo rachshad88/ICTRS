@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '../services/api';
-import { initSocket, disconnectSocket } from '../services/socket';
+import { initSocket, disconnectSocket, onAnySocketEvent } from '../services/socket';
 import { queryClient } from '../services/queryClient';
 import { clearActivity } from '../services/idle';
 
@@ -64,6 +64,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       disconnectSocket();
     };
   }, [socketUserId]);
+
+  // One session per user: the server closes this connection when the account signs in elsewhere.
+  useEffect(
+    () =>
+      onAnySocketEvent((event) => {
+        if (event !== 'session_replaced') return;
+        queryClient.clear();
+        clearActivity();
+        window.location.assign('/login?replaced=1');
+      }),
+    [],
+  );
 
   const checkAuth = async () => {
     try {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Role, isSessionCurrent } from '../config/database';
+import { Role, sessionStatus } from '../config/database';
 
 declare module 'express-session' {
   interface SessionData {
@@ -30,8 +30,9 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-// The frontend sends the user back to the login page when it sees this code.
+// The frontend sends the user back to the login page when it sees these codes.
 const SESSION_EXPIRED = { error: 'Unauthorized', code: 'SESSION_EXPIRED' };
+const SESSION_REPLACED = { error: 'Signed in on another device', code: 'SESSION_REPLACED' };
 
 export async function isAuthenticated(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
   if (!req.session || !req.session.user_id) {
@@ -41,9 +42,12 @@ export async function isAuthenticated(req: AuthenticatedRequest, res: Response, 
 
   // The session is checked against the database on every request, so a deleted user, or one whose
   // roles or password an admin changed, is logged out on their next request instead of up to an hour later.
+  // So is a session the user has since replaced by signing in elsewhere (one session per user).
   try {
-    if (!(await isSessionCurrent(req.session.user_id, req.session.session_version))) {
-      req.session.destroy(() => res.status(401).json(SESSION_EXPIRED));
+    const status = await sessionStatus(req.session.user_id, req.session.session_version, req.sessionID);
+    if (status !== 'ok') {
+      const body = status === 'replaced' ? SESSION_REPLACED : SESSION_EXPIRED;
+      req.session.destroy(() => res.status(401).json(body));
       return;
     }
   } catch (error) {
