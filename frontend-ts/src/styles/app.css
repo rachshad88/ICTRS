@@ -1878,7 +1878,13 @@
 
 /* ----- Add / Edit User modal (UserManagement.tsx) ----- */
 .app-main .modal-content.um-modal {
-  max-width: 640px;
+  max-width: 860px;
+}
+
+.app-main .um-name-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .app-main .um-note {
@@ -2040,6 +2046,11 @@
 }
 
 @media (max-width: 560px) {
+  .app-main .um-name-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
   .app-main .um-role-grid {
     grid-template-columns: minmax(0, 1fr);
   }

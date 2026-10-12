@@ -345,17 +345,19 @@ function UserManagement() {
                   New accounts start on the default password <strong>{DEFAULT_PASSWORD}</strong> and must change it at their first sign-in.
                 </p>
               )}
-              <div className="form-group">
-                <label>First Name</label>
-                <input autoComplete="off" type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
-              </div>
-              <div className="form-group">
-                <label>Middle Name</label>
-                <input autoComplete="off" type="text" value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
-              </div>
-              <div className="form-group">
-                <label>Last Name</label>
-                <input autoComplete="off" type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
+              <div className="um-name-row">
+                <div className="form-group">
+                  <label>First Name</label>
+                  <input autoComplete="off" type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
+                </div>
+                <div className="form-group">
+                  <label>Middle Name</label>
+                  <input autoComplete="off" type="text" value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label>Last Name</label>
+                  <input autoComplete="off" type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
+                </div>
               </div>
               <fieldset className="um-roles">
                 <legend>Roles</legend>
