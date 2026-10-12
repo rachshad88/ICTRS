@@ -80,7 +80,7 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
   const [error, setError] = useState('');
-  const [sessionExpired, setSessionExpired] = useState(false);
+  const [notice, setNotice] = useState<'expired' | 'idle' | null>(null);
   const [loading, setLoading] = useState(false);
   const [showResetHelp, setShowResetHelp] = useState(false);
   const [granted, setGranted] = useState(false);
@@ -98,9 +98,11 @@ function Login() {
 
   useEffect(() => {
     if (searchParams.get('expired') === '1') {
-      setSessionExpired(true);
-      setTimeout(() => setSessionExpired(false), 4000);
+      setNotice('expired');
+      setTimeout(() => setNotice(null), 4000);
     }
+    // Stays up: whoever comes back to the PC may be hours later (components/IdleLogout.tsx).
+    if (searchParams.get('idle') === '1') setNotice('idle');
     usernameRef.current?.focus();
   }, []);
 
@@ -132,7 +134,7 @@ function Login() {
     e.preventDefault();
     if (lockedFor > 0) return;
     setError('');
-    setSessionExpired(false);
+    setNotice(null);
     setLoading(true);
     signingIn.current = true;
 
@@ -287,10 +289,12 @@ function Login() {
                   <p>Use the username and password from the IT Section.</p>
                 </div>
 
-                {sessionExpired && (
+                {notice && (
                   <div className="login-info-message" role="status">
-                    <span className="login-stamp">Expired</span>
-                    Your session has expired. Please sign in again.
+                    <span className="login-stamp">{notice === 'idle' ? 'Signed out' : 'Expired'}</span>
+                    {notice === 'idle'
+                      ? 'You were signed out after 1 hour of inactivity. Please sign in again.'
+                      : 'Your session has expired. Please sign in again.'}
                   </div>
                 )}
 

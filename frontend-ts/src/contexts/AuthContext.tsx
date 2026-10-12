@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { api } from '../services/api';
 import { initSocket, disconnectSocket } from '../services/socket';
 import { queryClient } from '../services/queryClient';
+import { clearActivity } from '../services/idle';
 
 interface User {
   user_id: string;
@@ -90,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await api.post('/auth/login', { username, password });
     if (!response.data.user) return null;
     queryClient.clear();
+    clearActivity();
     setUser(response.data.user);
     const me = await api.get('/auth/me', {
       headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
@@ -106,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await api.post('/auth/logout');
     queryClient.clear();
+    clearActivity();
     setUser(null);
   };
 

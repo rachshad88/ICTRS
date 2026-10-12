@@ -76,15 +76,21 @@ if (!sessionSecret) {
   throw new Error('SESSION_SECRET environment variable is required');
 }
 
+// Sessions end one hour after the last request: rolling renews the cookie on every response.
+// The frontend signs people out after an hour without real activity (components/IdleLogout.tsx);
+// this is the backstop for a closed browser or a PC left asleep.
+const SESSION_IDLE_MS = 60 * 60 * 1000;
+
 const sessionMiddleware = session({
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
+  rolling: true,
   store: MongoStore.create({
     mongoUrl: process.env.MONGO_URI,
     dbName: process.env.MONGO_DB,
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60,
+    ttl: SESSION_IDLE_MS / 1000,
     autoRemove: 'native'
   }),
   cookie: {
@@ -92,7 +98,7 @@ const sessionMiddleware = session({
     // still working over plain HTTP on the LAN dev port.
     secure: 'auto',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000,
+    maxAge: SESSION_IDLE_MS,
     sameSite: 'lax'
   }
 });

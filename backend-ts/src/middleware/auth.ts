@@ -40,7 +40,7 @@ export async function isAuthenticated(req: AuthenticatedRequest, res: Response, 
   }
 
   // The session is checked against the database on every request, so a deleted user, or one whose
-  // roles or password an admin changed, is logged out on their next request instead of up to 24h later.
+  // roles or password an admin changed, is logged out on their next request instead of up to an hour later.
   try {
     if (!(await isSessionCurrent(req.session.user_id, req.session.session_version))) {
       req.session.destroy(() => res.status(401).json(SESSION_EXPIRED));

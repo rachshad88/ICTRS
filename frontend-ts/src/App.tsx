@@ -8,6 +8,7 @@ import { NotificationProvider } from './contexts/NotificationContext';
 import Sidebar from './components/Sidebar';
 import ToastNotifications from './components/ToastNotifications';
 import ConnectionBanner from './components/ConnectionBanner';
+import IdleLogout from './components/IdleLogout';
 import PageTransition from './components/PageTransition';
 import ErrorBoundary from './components/ErrorBoundary';
 import { LoginTransitionProvider } from './components/LoginTransition';
@@ -55,6 +56,7 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
       <Sidebar collapsed={sidebarCollapsed} onToggle={onToggleSidebar} onOpenNotifications={toggleNotifications} notificationsOpen={notifOpen} />
       <NotificationPanel open={notifOpen} onClose={closeNotifications} variant={isMobile ? 'sheet' : 'popover'} sidebarCollapsed={sidebarCollapsed} />
       <div className={`app-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+        <IdleLogout />
         {isMobile && (
           <header className="mobile-topbar">
             <button className="mobile-menu-toggle" onClick={onToggleSidebar} aria-label="Open menu" aria-expanded={!sidebarCollapsed}>
