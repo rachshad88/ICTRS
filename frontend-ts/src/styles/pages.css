@@ -308,7 +308,7 @@
 
 .yt-card {
   background: var(--bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   transition: transform 200ms var(--ease-out), var(--tr-shadow);
   border: 1px solid transparent;
@@ -462,7 +462,7 @@ yt-channel-avatar.pm { background: #047857; }
 .yt-tag {
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-weight: 500;
 }
 
@@ -491,7 +491,7 @@ yt-channel-avatar.pm { background: #047857; }
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);
   color: var(--text-primary);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 500;
@@ -528,7 +528,7 @@ yt-channel-avatar.pm { background: #047857; }
   background: transparent;
   border: 1px solid #ef4444;
   color: #ef4444;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 500;
@@ -549,7 +549,7 @@ yt-channel-avatar.pm { background: #047857; }
   background: #059669;
   border: none;
   color: #fff;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 500;
@@ -611,7 +611,7 @@ yt-channel-avatar.pm { background: #047857; }
   font-weight: 700;
   background: rgba(108, 92, 231, 0.1);
   padding: 4px 12px;
-  border-radius: 50px;
+  border-radius: var(--radius-full);
   white-space: nowrap;
 }
 
@@ -667,7 +667,7 @@ yt-channel-avatar.pm { background: #047857; }
   background: var(--purple);
   color: white;
   padding: 2px 8px;
-  border-radius: 50px;
+  border-radius: var(--radius-full);
   font-size: 11px;
   font-weight: 700;
   margin-left: 2px;
@@ -678,7 +678,7 @@ yt-channel-avatar.pm { background: #047857; }
   display: none;
   background: var(--bg-card);
   border: 1px solid var(--border-light);
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: var(--shadow-soft);
 }
@@ -704,7 +704,7 @@ yt-channel-avatar.pm { background: #047857; }
   display: inline-flex;
   align-items: center;
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: rgba(255,255,255,0.16);
   color: #fff;
   font-size: 10px;
@@ -718,7 +718,7 @@ yt-channel-avatar.pm { background: #047857; }
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -753,7 +753,7 @@ yt-channel-avatar.pm { background: #047857; }
   display: inline-block;
   align-self: flex-start;
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: rgba(0,0,0,0.2);
   color: #fff;
   font-size: 11px;
@@ -791,7 +791,7 @@ yt-channel-avatar.pm { background: #047857; }
   background: rgba(124, 58, 237, 0.1);
   color: var(--purple);
   padding: 8px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;

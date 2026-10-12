@@ -56,7 +56,7 @@ button.toast-item:active {
   width: 40px;
   height: 40px;
   margin-left: auto;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
   background: var(--glass-bg);
   color: var(--text-primary);
@@ -126,7 +126,7 @@ button.toast-item:active {
   width: 380px;
   max-height: 560px;
   max-height: min(560px, calc(100vh - 32px));
-  border-radius: 16px;
+  border-radius: var(--radius-md);
   transform-origin: bottom left;
 }
 
@@ -141,7 +141,7 @@ button.toast-item:active {
   bottom: 0;
   max-height: 80vh;
   max-height: 80dvh;
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   border-bottom: none;
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -241,7 +241,7 @@ button.toast-item:active {
   display: flex;
   align-items: center;
   gap: 4px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   transition: background-color 150ms ease;
 }
 
@@ -302,7 +302,7 @@ button.toast-item:active {
   min-width: 0;
   padding: 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: transparent;
   text-align: left;
   font: inherit;

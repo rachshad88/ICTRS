@@ -97,7 +97,7 @@
   align-items: center;
   padding: 0.35em 0.9em;
   border: 1px solid var(--live-border);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   color: var(--live-amber);
   font-weight: 600;
 }
@@ -137,7 +137,7 @@
   min-height: 0;
   border: 1px solid var(--live-border);
   border-top: 0.3em solid var(--lane-color);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--live-lane-bg);
   box-shadow: 0 4px 14px rgba(24, 34, 53, 0.08);
   overflow: hidden;
@@ -167,7 +167,7 @@
 .live-lane-count {
   min-width: 1.8em;
   padding: 0.1em 0.55em;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: rgba(24, 34, 53, 0.07);
   font-size: 1.35em;
   font-weight: 700;
@@ -211,7 +211,7 @@
   padding: 0.75em 0.9em;
   border: 2px solid transparent;
   border-left: 0.35em solid var(--lane-color);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--live-card-bg);
   box-shadow: 0 1px 3px rgba(24, 34, 53, 0.08);
   transition: border-color 0.4s ease, background-color 0.4s ease;
@@ -259,7 +259,7 @@
 .live-card-priority {
   margin-left: 0.6em;
   padding: 0.1em 0.5em;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 0.8em;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -322,7 +322,7 @@
   transform: translateX(-50%);
   padding: 0.6em 1.3em;
   border: 1px solid var(--live-border);
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: rgba(255, 255, 255, 0.95);
   box-shadow: 0 8px 24px rgba(24, 34, 53, 0.12);
   color: var(--live-muted);

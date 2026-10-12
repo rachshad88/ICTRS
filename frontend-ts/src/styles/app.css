@@ -224,7 +224,7 @@
 }
 
 .sidebar-item {
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-weight: 700;
 }
 
@@ -233,7 +233,7 @@
 }
 
 .sidebar-active-pill {
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--seal-yellow);
   box-shadow: 0 10px 22px -12px rgba(255, 217, 26, 0.8);
 }
@@ -451,7 +451,7 @@
   overflow: hidden;
   padding: 0 var(--form-pad) var(--form-pad);
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--card);
   box-shadow: var(--shadow-strong);
 }
@@ -461,7 +461,7 @@
   display: block;
   margin: 0 calc(var(--form-pad) * -1) 28px;
   padding: 13px var(--form-pad);
-  border-radius: 14px 14px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: var(--navy);
   background: var(--accent-grad);
   color: #f4f7fc;
@@ -545,7 +545,7 @@
 .app-main .overview-filters select,
 .app-main .overview-filters input {
   border: 1.5px solid rgba(12, 31, 74, 0.14);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--card);
   color: var(--ink);
@@ -582,7 +582,7 @@
   overflow: hidden;
   padding: 0 0 20px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--card);
   text-align: left;
   box-shadow: var(--shadow-medium);
@@ -651,7 +651,7 @@
 }
 
 .app-main .stat-card-sm {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--card);
   box-shadow: var(--shadow-soft);
 }
@@ -670,7 +670,7 @@
 }
 
 .app-main .overview-stat {
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--card);
   box-shadow: var(--shadow-soft);
 }
@@ -709,7 +709,7 @@
 .app-main .users-table-container,
 .app-main .skeleton-table {
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--card);
   box-shadow: var(--shadow-medium);
 }
@@ -796,7 +796,7 @@
   gap: 0;
   padding: 2px 9px 1px;
   border: 3px double currentColor;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   font-family: var(--font-display);
   font-weight: 800;
@@ -851,7 +851,7 @@
 .app-main .overdue-badge,
 .app-main .due-chip,
 .app-main .note-count {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.06em;
@@ -877,7 +877,7 @@
 .app-main .reopened-badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--ink);
   color: var(--seal-yellow);
   font-family: var(--font-mono);
@@ -895,13 +895,13 @@
 /* ----- Tabs ----- */
 .app-main .mgmt-tabs {
   padding: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--paper-2);
 }
 
 .app-main .mgmt-tab,
 .app-main .yt-tab {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-weight: 700;
 }
 
@@ -941,7 +941,7 @@
 
 .app-main .modal-content {
   border-top: 8px solid var(--cobalt);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--card);
   color: var(--ink);
 }
@@ -1101,7 +1101,7 @@
   display: inline-block;
   margin-top: 18px;
   padding: 11px 20px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   text-decoration: none;
   line-height: 1.2;
 }
@@ -1115,7 +1115,7 @@
 .app-main .yt-card,
 .app-main .youtube-card {
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--card);
   box-shadow: var(--shadow-medium);
 }
@@ -1146,7 +1146,7 @@
 }
 
 .app-main .profile-menu .menu-item {
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-weight: 700;
 }
 
@@ -1179,14 +1179,14 @@
 }
 
 .app-main .file-item {
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--paper);
 }
 
 /* Phone request cards: the head is the ticket's navy strip */
 .app-main .mobile-request-card {
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--card);
   box-shadow: var(--shadow-medium);
 }
@@ -1239,7 +1239,7 @@
 .toast-item {
   border: 1px solid rgba(12, 31, 74, 0.1);
   border-top: 5px solid var(--cobalt);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: #fbfcfe;
   color: var(--ink);
   box-shadow: 0 24px 44px -22px rgba(11, 58, 140, 0.55);
@@ -1311,7 +1311,7 @@
     margin: 10px 0 22px;
     padding: 0 8px;
     border: 1px solid rgba(12, 31, 74, 0.08);
-    border-radius: 999px;
+    border-radius: var(--radius-full);
     background: rgba(251, 252, 254, 0.96);
     box-shadow: 0 12px 32px -16px rgba(12, 31, 74, 0.35);
   }
@@ -1385,7 +1385,7 @@
   .app-main .stack-mobile tbody tr,
   .app-main .stack-mobile tbody tr:last-child {
     border: none;
-    border-radius: 14px;
+    border-radius: var(--radius-md);
     background: var(--card);
     box-shadow: var(--shadow-medium);
   }
@@ -1412,7 +1412,7 @@
   }
 
   .app-main .modal-content {
-    border-radius: 22px 22px 0 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
   .app-main .history-empty,
@@ -1502,7 +1502,7 @@
 .app-crash-site .btn-secondary {
   width: auto;
   padding: 12px 24px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 700;
@@ -1620,7 +1620,7 @@
   gap: 10px;
   max-width: 100%;
   padding: 10px 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: var(--ink, #0c1f4a);
   color: #f4f7fc;
   font-family: 'Nunito', system-ui, sans-serif;
@@ -1801,7 +1801,7 @@
   margin-bottom: 22px;
   padding: 18px 18px 8px;
   border-top: 6px solid var(--seal-yellow);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: var(--card);
   box-shadow: 0 0 0 1px rgba(12, 31, 74, 0.08);
 }
@@ -1864,7 +1864,7 @@
   gap: 8px 14px;
   margin: 14px 0 4px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--paper);
   font-size: 14px;
   color: var(--ink);

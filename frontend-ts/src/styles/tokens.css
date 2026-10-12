@@ -1,56 +1,58 @@
+/* The app runs light only (index.html pins data-theme="light"): seal navy/cobalt as ink,
+   seal yellow as the one accent, status colours kept for meaning. The --purple* names are
+   historical; they hold the brand cobalt and navy. */
 :root {
-  --purple: #66c0f4;
-  --purple-light: #8dd8ff;
-  --purple-dark: #2a475e;
-  --mint: #5ce1e6;
-  --orange: #f4b183;
-  --yellow: #f4d35e;
-  --green: #6ee7b7;
-  --primary-color: #66c0f4;
-  --primary-gradient: #66c0f4;
-  --success-green: #6ee7b7;
-  --warning-yellow: #f4d35e;
-  --danger-red: #ff6b6b;
-  --text-primary: #f5f7fa;
-  --text-secondary: #8ba3b6;
-  --bg-primary: #171a21;
-  --bg-card: #203447;
-  --bg-secondary: #233445;
-  --bg-hover: #2a475e;
-  --border-light: rgba(255, 255, 255, 0.13);
-  --shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.24);
-  --shadow-medium: 0 18px 42px rgba(0, 0, 0, 0.32);
-  --shadow-strong: 0 24px 64px rgba(0, 0, 0, 0.38);
+  --purple: #1452c9;
+  --purple-light: #3b6fd8;
+  --purple-dark: #0b3a8c;
+  --mint: #0e7c86;
+  --orange: #c2571a;
+  --yellow: #8a6a00;
+  --green: #12825d;
+  --primary-color: #1452c9;
+  --primary-gradient: #1452c9;
+  --success-green: #12825d;
+  --warning-yellow: #8a6a00;
+  --danger-red: #c9372c;
+  --text-primary: #0c1f4a;
+  --text-secondary: #4a5875;
+  --bg-primary: #eef1f6;
+  --bg-card: #fbfcfe;
+  --bg-secondary: #e9eef5;
+  --bg-hover: #e0e7f1;
+  --border-light: rgba(12, 31, 74, 0.13);
+  --shadow-soft: 0 18px 36px -24px rgba(11, 58, 140, 0.38), 0 1px 0 rgba(11, 58, 140, 0.05);
+  --shadow-medium: 0 26px 48px -26px rgba(11, 58, 140, 0.45), 0 2px 0 rgba(11, 58, 140, 0.06);
+  --shadow-strong: 0 34px 64px -26px rgba(11, 58, 140, 0.5);
   --sidebar-w: 240px;
-  --sidebar-bg: #111722;
-  --sidebar-text: #dfe6ea;
-  --sidebar-active: rgba(102, 192, 244, 0.18);
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
-  --notif-unread-bg: rgba(102, 192, 244, 0.08);
+  --sidebar-bg: #0c1f4a;
+  --sidebar-text: #dfe6f3;
+  --sidebar-active: #ffd91a;
+  --sidebar-hover: rgba(255, 255, 255, 0.07);
+  --notif-unread-bg: rgba(255, 217, 26, 0.14);
 
-  --badge-mm: #66c0f4;
-  --badge-dm: #5ce1e6;
-  --badge-pm: #6ee7b7;
+  --badge-mm: #1452c9;
+  --badge-dm: #0e7c86;
+  --badge-pm: #12825d;
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
-  --radius-xl: 24px;
   --radius-full: 9999px;
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
 
   /* Accent gradient */
-  --accent-grad: linear-gradient(135deg, #4aa8e8, #8dd8ff);
-  --accent-glow: rgba(102, 192, 244, 0.35);
+  --accent-grad: linear-gradient(100deg, #0b3a8c, #1452c9);
+  --accent-glow: rgba(20, 82, 201, 0.25);
 
   /* Elevation scale */
-  --elevation-1: 0 4px 14px rgba(0, 0, 0, 0.18);
-  --elevation-2: 0 12px 32px rgba(0, 0, 0, 0.30);
-  --elevation-3: 0 26px 64px rgba(0, 0, 0, 0.44);
+  --elevation-1: 0 14px 30px -22px rgba(11, 58, 140, 0.4);
+  --elevation-2: 0 22px 44px -24px rgba(11, 58, 140, 0.45);
+  --elevation-3: 0 34px 64px -26px rgba(11, 58, 140, 0.5);
 
   /* Glass surfaces */
-  --glass-bg: rgba(255, 255, 255, 0.04);
-  --glass-border: rgba(255, 255, 255, 0.10);
+  --glass-bg: rgba(12, 31, 74, 0.03);
+  --glass-border: rgba(12, 31, 74, 0.08);
   --glass-blur: 18px;
 
   /* Motion */
@@ -80,54 +82,6 @@
   --font-display: 'Geist', 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
   --font-hand: 'Caveat', 'Comic Sans MS', cursive;
-}
-
-/* The app runs light only (index.html pins data-theme="light"). These values put the signed-in
-   pages in the same paper-and-ink language as the landing page and guide: seal navy/cobalt as
-   ink, seal yellow as the one accent, status colours kept for meaning. */
-[data-theme='light'] {
-  --purple: #1452c9;
-  --purple-light: #3b6fd8;
-  --purple-dark: #0b3a8c;
-  --mint: #0e7c86;
-  --orange: #c2571a;
-  --yellow: #8a6a00;
-  --green: #12825d;
-  --primary-color: #1452c9;
-  --primary-gradient: #1452c9;
-  --success-green: #12825d;
-  --warning-yellow: #8a6a00;
-  --danger-red: #c9372c;
-  --text-primary: #0c1f4a;
-  --text-secondary: #4a5875;
-  --bg-primary: #eef1f6;
-  --bg-card: #fbfcfe;
-  --bg-secondary: #e9eef5;
-  --bg-hover: #e0e7f1;
-  --border-light: rgba(12, 31, 74, 0.13);
-  --shadow-soft: 0 18px 36px -24px rgba(11, 58, 140, 0.38), 0 1px 0 rgba(11, 58, 140, 0.05);
-  --shadow-medium: 0 26px 48px -26px rgba(11, 58, 140, 0.45), 0 2px 0 rgba(11, 58, 140, 0.06);
-  --shadow-strong: 0 34px 64px -26px rgba(11, 58, 140, 0.5);
-  --sidebar-bg: #0c1f4a;
-  --sidebar-text: #dfe6f3;
-  --sidebar-active: #ffd91a;
-  --sidebar-hover: rgba(255, 255, 255, 0.07);
-  --notif-unread-bg: rgba(255, 217, 26, 0.14);
-
-  --badge-mm: #1452c9;
-  --badge-dm: #0e7c86;
-  --badge-pm: #12825d;
-
-  --accent-grad: linear-gradient(100deg, #0b3a8c, #1452c9);
-  --accent-glow: rgba(20, 82, 201, 0.25);
-
-  --elevation-1: 0 14px 30px -22px rgba(11, 58, 140, 0.4);
-  --elevation-2: 0 22px 44px -24px rgba(11, 58, 140, 0.45);
-  --elevation-3: 0 34px 64px -26px rgba(11, 58, 140, 0.5);
-
-  --glass-bg: rgba(12, 31, 74, 0.03);
-  --glass-border: rgba(12, 31, 74, 0.08);
-  --glass-blur: 18px;
 }
 
 @media (prefers-reduced-motion: reduce) {
