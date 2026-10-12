@@ -1897,12 +1897,6 @@
   font-family: var(--font-mono);
 }
 
-.app-main .um-name-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
 .app-main .um-roles {
   margin: 0 0 20px;
   padding: 0;
@@ -2046,11 +2040,6 @@
 }
 
 @media (max-width: 560px) {
-  .app-main .um-name-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0;
-  }
-
   .app-main .um-role-grid {
     grid-template-columns: minmax(0, 1fr);
   }

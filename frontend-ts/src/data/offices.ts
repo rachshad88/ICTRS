@@ -13,7 +13,7 @@ export const OFFICES = [
   "Municipal Disaster Risk Reduction and Management Office",
   "Sangguniang Bayan Office",
   "MMO - Business Permits and Licensing Section",
-  "MMO - Human Resource Management Section",
+  "Human Resource Management Section",
   "MMO - Tourism Section",
   "MMO - Information and Technology Section",
   "MMO - Public Employment Services Section",
