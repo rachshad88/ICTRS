@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
 import FinishRequestModal from '../components/FinishRequestModal';
 import VerifyMovModal from '../components/VerifyMovModal';
+import MovPhotos from '../components/MovPhotos';
 import { RequestFlags, PriorityForm, ReassignForm, PRIORITY_OPTIONS, suggestedDueDate, priorityLabel, formatDay } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
 
@@ -102,6 +103,7 @@ function ItAdminDashboard() {
   const [viewTarget, setViewTarget] = useState<Request | null>(null);
   const [finishTarget, setFinishTarget] = useState<Request | null>(null);
   const [verifyTarget, setVerifyTarget] = useState<Request | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Request | null>(null);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -228,10 +230,13 @@ function ItAdminDashboard() {
   };
 
   // One table row, shared by the earlier-open group and the period's own requests.
+  // Clicking a row (or its code) opens the request's details, with the MOV photos if it has them.
   const renderRow = (req: Request) => (
-    <tr key={req.request_code}>
+    <tr key={req.request_code} className="overview-row" onClick={() => setDetailTarget(req)}>
       <td className="td-code" data-label="Code">
-        {req.request_code}
+        <button type="button" className="code-link" onClick={(e) => { e.stopPropagation(); setDetailTarget(req); }}>
+          {req.request_code}
+        </button>
         <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} reopened={req.reopened} />
       </td>
       <td className="td-cell td-wrap" data-label="Requested By">
@@ -260,7 +265,7 @@ function ItAdminDashboard() {
           {req.completed_at !== '-' && <span className="td-sub">Completed {req.completed_at}</span>}
         </span>
       </td>
-      <td className="col-actions">{getActionButtons(req)}</td>
+      <td className="col-actions" onClick={(e) => e.stopPropagation()}>{getActionButtons(req)}</td>
     </tr>
   );
 
@@ -467,6 +472,48 @@ function ItAdminDashboard() {
           onFinished={() => { setFinishTarget(null); refreshService('it'); }}
           onError={setError}
         />
+      )}
+
+      {detailTarget && (
+        <div className="modal" onClick={() => setDetailTarget(null)}>
+          <div className="modal-content" role="dialog" aria-modal="true" aria-labelledby="it-detail-title" onClick={(e) => e.stopPropagation()}>
+            <h3 id="it-detail-title">{detailTarget.request_code}</h3>
+            <div className="detail-section">
+              <p><strong>Requested By:</strong> {detailTarget.client_name}{detailTarget.office ? `, ${detailTarget.office}` : ''}</p>
+              <p><strong>Issue:</strong> {detailTarget.issue}</p>
+              <p>
+                <strong>Status:</strong>{' '}
+                <span className={`hstatus ${detailTarget.statusClass}`}>
+                  <span className={`hstatus-dot ${detailTarget.statusClass}`} />
+                  {detailTarget.status.replace(/_/g, ' ')}
+                </span>
+              </p>
+              <p><strong>Assigned To:</strong> {detailTarget.assigned_name || 'Not assigned yet'}</p>
+              <p>
+                <strong>Priority:</strong> {priorityLabel(detailTarget.priority)}
+                {detailTarget.due_date && <>, due {formatDay(detailTarget.due_date)}</>}
+                <RequestFlags overdue={detailTarget.overdue} />
+              </p>
+              <p><strong>Created:</strong> {detailTarget.created_at}</p>
+              {detailTarget.completed_at !== '-' && <p><strong>Completed:</strong> {detailTarget.completed_at}</p>}
+              {detailTarget.finished && (
+                <p><strong>Result:</strong> {detailTarget.finished === 'beyond repair' ? 'Beyond Repair' : 'Repaired'}</p>
+              )}
+              {detailTarget.remarks && <p><strong>Remarks:</strong> {detailTarget.remarks}</p>}
+              {detailTarget.recommendation && <p><strong>Recommendation:</strong> {detailTarget.recommendation}</p>}
+              {detailTarget.mov_return_reason && <p className="mov-returned"><strong>MOV returned:</strong> {detailTarget.mov_return_reason}</p>}
+            </div>
+            <MovPhotos requestId={detailTarget._id} files={detailTarget.mov_files} />
+            <DeclineReason reason={detailTarget.decline_reason} />
+            <NotesList notes={detailTarget.notes} />
+            <div className="modal-actions">
+              {detailTarget.status === 'FOR_VERIFICATION' && (
+                <button type="button" className="btn-primary" onClick={() => { setVerifyTarget(detailTarget); setDetailTarget(null); }}>Verify MOV</button>
+              )}
+              <button data-modal-dismiss type="button" className="btn-secondary" onClick={() => setDetailTarget(null)}>Close</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {verifyTarget && (

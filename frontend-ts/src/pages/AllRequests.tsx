@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, RequestNote } from '../components/RequestNotes';
 import { RequestFlags, PRIORITY_OPTIONS, priorityLabel, formatDay } from '../components/Priority';
 import RequestProgress from '../components/RequestProgress';
+import MovPhotos from '../components/MovPhotos';
 import SearchBox from '../components/SearchBox';
 
 interface OverviewRequest {
@@ -32,6 +33,8 @@ interface OverviewRequest {
   previously_completed_at?: string | null;
   decline_reason?: string | null;
   notes?: RequestNote[];
+  /** IT only: photos of the finished work (MOV). */
+  mov_files?: string[];
 }
 
 interface Counts {
@@ -395,6 +398,7 @@ function AllRequests() {
               <p><strong>Assigned To:</strong> {selected.assignee_name || 'Not assigned yet'}</p>
             </div>
             <RequestProgress request={selected} assigneeName={selected.assignee_name} />
+            {selected.type === 'it' && <MovPhotos requestId={selected._id} files={selected.mov_files} />}
             <DeclineReason reason={selected.decline_reason} />
             <NotesList notes={selected.notes} />
             <div className="modal-actions">
