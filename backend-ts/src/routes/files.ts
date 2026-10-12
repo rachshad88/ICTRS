@@ -19,6 +19,7 @@ function getMimeType(ext: string): string {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
     '.png': 'image/png',
+    '.webp': 'image/webp',
     '.doc': 'application/msword',
     '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -82,7 +83,8 @@ router.get('/requests/:requestId/:filename', isAuthenticated, async (req: Authen
   try {
     const { requestId, filename } = req.params;
     const ext = path.extname(filename).toLowerCase();
-    if (!isValidObjectId(requestId) || !['.jpg', '.jpeg', '.png'].includes(ext)) {
+    // WebP since photos are converted on upload; .jpg/.png for MOVs sent before that.
+    if (!isValidObjectId(requestId) || !['.webp', '.jpg', '.jpeg', '.png'].includes(ext)) {
       return res.status(400).json({ error: 'Invalid file' });
     }
 

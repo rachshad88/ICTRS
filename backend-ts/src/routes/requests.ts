@@ -5,7 +5,7 @@ import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudi
 import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema, reopenRequestSchema, verifyMovSchema, returnMovSchema } from '../middleware/validation';
-import { receiveMovPhotos, uploadedMovPhotos, discardMovPhotos, invalidMovPhoto, keepMovPhotos, removeKeptMovPhotos, MOV_MIN_FILES } from '../utils/movUpload';
+import { receiveMovPhotos, uploadedMovPhotos, discardMovPhotos, invalidMovPhoto, keepMovPhotos, removeKeptMovPhotos, UnreadableMovPhoto, MOV_MIN_FILES } from '../utils/movUpload';
 import { formatDateTime, todayString, semesterFor } from '../utils/dates';
 import { normalizePriority, parseDueDate, isOverdue, overdueExpr, toDay, OPEN_STATUSES } from '../utils/priority';
 import { watchOverdue } from '../utils/overdueAlerts';
@@ -342,7 +342,14 @@ router.post('/request_finish', isAuthenticated, isItAdminOrTechnician, receiveMo
       return res.status(404).json({ status: 'error', message: 'Request not found or not assigned to you' });
     }
 
-    const files = keepMovPhotos(photos, request_id);
+    let files: string[];
+    try {
+      files = await keepMovPhotos(photos, request_id);
+    } catch (error) {
+      discardMovPhotos(photos);
+      if (error instanceof UnreadableMovPhoto) return res.status(400).json({ status: 'error', message: error.message });
+      throw error;
+    }
     const result = await requestsCollection.findOneAndUpdate(
       filter,
       {

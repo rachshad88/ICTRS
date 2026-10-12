@@ -1,4 +1,5 @@
 import multer, { FileFilterCallback } from 'multer';
+import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
@@ -6,13 +7,16 @@ import { validateFileMagicBytes, mimeTypeForFilename } from './fileValidation';
 
 // MOV (means of verification): the photos a technician attaches when finishing an IT request, which
 // an IT admin checks before the request counts as done (routes/requests.ts). Stored per request in
-// uploads/requests/<request id>/, served by routes/files.ts.
+// uploads/requests/<request id>/, served by routes/files.ts. Phones send JPG/PNG; each is kept as a
+// WebP no larger than MOV_MAX_EDGE, turned upright, without its metadata (phones embed GPS).
 
 export const MOV_DIR = path.join(__dirname, '../../uploads/requests');
 export const MOV_MIN_FILES = 1;
 export const MOV_MAX_FILES = 3;
 const MOV_MIME_TYPES = ['image/jpeg', 'image/png'];
 const TEMP_DIR = path.join(MOV_DIR, 'tmp');
+const MOV_MAX_EDGE = 1600;
+const MOV_WEBP_QUALITY = 80;
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -66,14 +70,35 @@ export function invalidMovPhoto(files: Express.Multer.File[]): string | null {
   return bad ? bad.originalname : null;
 }
 
-/** Moves the photos into the request's folder and returns their stored file names. */
-export function keepMovPhotos(files: Express.Multer.File[], requestId: string): string[] {
+/** A photo that could not be decoded, so the submission is refused. */
+export class UnreadableMovPhoto extends Error {}
+
+/**
+ * Converts the received photos to WebP in the request's folder, deletes the originals, and returns
+ * the stored file names. If one cannot be read, the ones already converted are removed and
+ * UnreadableMovPhoto is thrown (the caller still discards the received files).
+ */
+export async function keepMovPhotos(files: Express.Multer.File[], requestId: string): Promise<string[]> {
   const dir = path.join(MOV_DIR, requestId);
   fs.mkdirSync(dir, { recursive: true });
-  return files.map((f) => {
-    fs.renameSync(f.path, path.join(dir, f.filename));
-    return f.filename;
-  });
+  const kept: string[] = [];
+  for (const f of files) {
+    const name = `${path.parse(f.filename).name}.webp`;
+    try {
+      // rotate() applies the phone's orientation flag; metadata is not copied unless asked for.
+      await sharp(f.path)
+        .rotate()
+        .resize({ width: MOV_MAX_EDGE, height: MOV_MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: MOV_WEBP_QUALITY })
+        .toFile(path.join(dir, name));
+    } catch {
+      removeKeptMovPhotos(kept, requestId);
+      throw new UnreadableMovPhoto(`${f.originalname} could not be read as an image.`);
+    }
+    kept.push(name);
+    try { fs.unlinkSync(f.path); } catch {}
+  }
+  return kept;
 }
 
 /** Removes kept photos again, when saving the submission failed after they were moved. */
