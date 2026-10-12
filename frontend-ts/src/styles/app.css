@@ -2171,9 +2171,27 @@
   opacity: 0;
 }
 
-.app-main .mov-input:focus-visible + .mov-picker .mov-add {
+.app-main .mov-input-camera:focus-visible ~ .mov-picker .mov-add-camera,
+.app-main .mov-input-gallery:focus-visible ~ .mov-picker .mov-add-gallery {
   border-color: var(--cobalt);
   box-shadow: 0 0 0 4px rgba(255, 217, 26, 0.6);
+}
+
+.app-main .mov-add-icon {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Take photo is for phones and tablets; a computer with a mouse only gets Choose photo. */
+@media (hover: hover) and (pointer: fine) {
+  .app-main .form-group .mov-add-camera {
+    display: none;
+  }
 }
 
 .app-main .mov-help {

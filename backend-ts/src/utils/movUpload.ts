@@ -35,7 +35,8 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCall
   else cb(new Error(`"${file.originalname}" is not a photo. Attach JPG or PNG images.`));
 };
 
-const upload = multer({ storage, fileFilter, limits: { fileSize: 10 * 1024 * 1024, files: MOV_MAX_FILES } })
+// 20 MB leaves room for full-size phone camera shots; every photo is shrunk to a small WebP anyway.
+const upload = multer({ storage, fileFilter, limits: { fileSize: 20 * 1024 * 1024, files: MOV_MAX_FILES } })
   .array('photos', MOV_MAX_FILES);
 
 /** Receives the MOV photos (form field "photos"); a bad file or too many answer 400. */
@@ -47,7 +48,7 @@ export function receiveMovPhotos(req: Request, res: Response, next: NextFunction
     const message = tooMany
       ? `Attach at most ${MOV_MAX_FILES} photos.`
       : tooBig
-        ? 'Each photo must be 10 MB or smaller.'
+        ? 'Each photo must be 20 MB or smaller.'
         : err instanceof Error ? err.message : 'Photo upload failed';
     res.status(400).json({ status: 'error', message });
   });

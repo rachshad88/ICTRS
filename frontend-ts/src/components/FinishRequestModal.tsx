@@ -15,7 +15,8 @@ interface FinishTarget {
 // (backend-ts/src/utils/movUpload.ts).
 const MIN_PHOTOS = 1;
 const MAX_PHOTOS = 3;
-const MAX_BYTES = 10 * 1024 * 1024;
+// Room for full-size phone camera shots; the server shrinks every photo to a small WebP anyway.
+const MAX_BYTES = 20 * 1024 * 1024;
 const PHOTO_TYPES = ['image/jpeg', 'image/png'];
 
 interface Photo {
@@ -40,6 +41,7 @@ function FinishRequestModal({ request, onClose, onFinished, onError }: {
   const [photoError, setPhotoError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
 
   // Previews are object URLs; release them when the modal closes.
   const photosRef = useRef(photos);
@@ -60,7 +62,7 @@ function FinishRequestModal({ request, onClose, onFinished, onError }: {
         continue;
       }
       if (file.size > MAX_BYTES) {
-        setPhotoError(`${file.name} is larger than 10 MB.`);
+        setPhotoError(`${file.name} is larger than 20 MB.`);
         continue;
       }
       next.push({ file, url: URL.createObjectURL(file) });
@@ -68,6 +70,7 @@ function FinishRequestModal({ request, onClose, onFinished, onError }: {
     setPhotos(next);
     // Lets the same file be picked again after removing it.
     if (inputRef.current) inputRef.current.value = '';
+    if (cameraRef.current) cameraRef.current.value = '';
   };
 
   const removePhoto = (index: number) => {
@@ -120,10 +123,20 @@ function FinishRequestModal({ request, onClose, onFinished, onError }: {
 
         <div className="form-group">
           <label htmlFor="mov-photos">Photos of the finished work (MOV) *</label>
+          {/* capture opens the back camera straight away on phones; computers ignore it (the tile is hidden there). */}
+          <input
+            ref={cameraRef}
+            id="mov-camera"
+            className="mov-input mov-input-camera"
+            type="file"
+            accept="image/jpeg,image/png"
+            capture="environment"
+            onChange={(e) => addPhotos(e.target.files)}
+          />
           <input
             ref={inputRef}
             id="mov-photos"
-            className="mov-input"
+            className="mov-input mov-input-gallery"
             type="file"
             accept="image/jpeg,image/png"
             multiple
@@ -137,13 +150,22 @@ function FinishRequestModal({ request, onClose, onFinished, onError }: {
               </div>
             ))}
             {photos.length < MAX_PHOTOS && (
-              <label className="mov-add" htmlFor="mov-photos">
-                <span aria-hidden="true">+</span>
-                Add photo
-              </label>
+              <>
+                <label className="mov-add mov-add-camera" htmlFor="mov-camera">
+                  <svg className="mov-add-icon" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  Take photo
+                </label>
+                <label className="mov-add mov-add-gallery" htmlFor="mov-photos">
+                  <span aria-hidden="true">+</span>
+                  Choose photo
+                </label>
+              </>
             )}
           </div>
-          {photoError ? <p className="field-error">{photoError}</p> : <p className="mov-help">1 to 3 JPG or PNG photos, up to 10 MB each. An IT admin checks them before the request is marked done.</p>}
+          {photoError ? <p className="field-error">{photoError}</p> : <p className="mov-help">1 to 3 JPG or PNG photos, up to 20 MB each. An IT admin checks them before the request is marked done.</p>}
         </div>
 
         <div className="form-group">
