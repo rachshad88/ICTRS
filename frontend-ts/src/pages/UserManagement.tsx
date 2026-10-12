@@ -205,13 +205,14 @@ function UserManagement() {
   const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
   const paginatedUsers = users.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
+  // In pairs, staff role then its admin, so the grid reads across: IT, multimedia, then the rest.
   const ROLES = [
-    { value: 'CLIENT', label: 'Client' },
-    { value: 'TECHNICIAN', label: 'Technician' },
-    { value: 'MULTIMEDIA', label: 'Multimedia' },
-    { value: 'IT_ADMIN', label: 'IT Admin' },
-    { value: 'MULTIMEDIA_ADMIN', label: 'Multimedia Admin' },
-    { value: 'ADMIN', label: 'Super Admin' },
+    { value: 'TECHNICIAN', label: 'Technician', desc: 'Works on IT requests' },
+    { value: 'IT_ADMIN', label: 'IT Admin', desc: 'Assigns and oversees IT requests' },
+    { value: 'MULTIMEDIA', label: 'Multimedia', desc: 'Works on multimedia, digital media and print' },
+    { value: 'MULTIMEDIA_ADMIN', label: 'Multimedia Admin', desc: 'Assigns and oversees multimedia work' },
+    { value: 'CLIENT', label: 'Client', desc: 'Submits and tracks requests' },
+    { value: 'ADMIN', label: 'Super Admin', desc: 'Everything, including users and audit logs' },
   ];
 
   const getRoleClass = (role: string) => {
@@ -332,7 +333,7 @@ function UserManagement() {
 
       {showModal && (
         <div className="modal">
-          <div className="modal-content">
+          <div className="modal-content um-modal">
             <h3>{editingUser ? 'Edit User' : 'Add User'}</h3>
             <form onSubmit={handleSubmit}>
               <div className="form-group">
@@ -340,58 +341,66 @@ function UserManagement() {
                 <input autoComplete="off" autoCapitalize="none" spellCheck={false} type="text" value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} required />
               </div>
               {!editingUser && (
-                <div className="form-group">
-                  <label>Password</label>
-                  <div style={{ padding: '8px 10px', borderRadius: '6px', background: '#f3f6ff', color: '#234a8c', fontSize: '13px' }}>
-                    New accounts will use the default password <strong>{DEFAULT_PASSWORD}</strong> and must change it when they first log in.
-                  </div>
-                </div>
+                <p className="um-note">
+                  New accounts start on the default password <strong>{DEFAULT_PASSWORD}</strong> and must change it at their first sign-in.
+                </p>
               )}
-              <div className="form-group">
-                <label>First Name</label>
-                <input autoComplete="off" type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
-              </div>
-              <div className="form-group">
-                <label>Middle Name</label>
-                <input autoComplete="off" type="text" value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
-              </div>
-              <div className="form-group">
-                <label>Last Name</label>
-                <input autoComplete="off" type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
-              </div>
-              <div className="form-group">
-                <label>Roles (check all that apply)</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
-                  {ROLES.map((r) => (
-                    <label key={r.value} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.roles.includes(r.value)}
-                        onChange={(e) => {
-                          const newRoles = e.target.checked
-                            ? [...formData.roles, r.value]
-                            : formData.roles.filter(v => v !== r.value);
-                          const newPrimary = newRoles.includes(formData.primary_role)
-                            ? formData.primary_role
-                            : newRoles[0] || 'CLIENT';
-                          setFormData({...formData, roles: newRoles, primary_role: newPrimary, role: newPrimary});
-                        }}
-                      />
-                      {r.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              {formData.roles.length > 1 && (
+              <div className="um-name-row">
                 <div className="form-group">
-                  <label>Primary Role</label>
-                  <select value={formData.primary_role} onChange={(e) => setFormData({...formData, primary_role: e.target.value, role: e.target.value})}>
-                    {formData.roles.map(r => (
-                      <option key={r} value={r}>{ROLES.find(ro => ro.value === r)?.label || r}</option>
-                    ))}
-                  </select>
+                  <label>First Name</label>
+                  <input autoComplete="off" type="text" value={formData.first_name} onChange={(e) => setFormData({...formData, first_name: e.target.value})} required />
                 </div>
-              )}
+                <div className="form-group">
+                  <label>Middle Name</label>
+                  <input autoComplete="off" type="text" value={formData.middle_name} onChange={(e) => setFormData({...formData, middle_name: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label>Last Name</label>
+                  <input autoComplete="off" type="text" value={formData.last_name} onChange={(e) => setFormData({...formData, last_name: e.target.value})} required />
+                </div>
+              </div>
+              <fieldset className="um-roles">
+                <legend>Roles</legend>
+                <p className="um-roles-hint">
+                  Tick every role this person needs.{formData.roles.length > 1 && ' The primary role picks the page they open on after signing in.'}
+                </p>
+                <div className="um-role-grid">
+                  {ROLES.map((r) => {
+                    const on = formData.roles.includes(r.value);
+                    const primary = on && formData.primary_role === r.value;
+                    const setPrimary = () => setFormData({ ...formData, primary_role: r.value, role: r.value });
+                    return (
+                      <div key={r.value} className={`um-role${on ? ' is-on' : ''}`}>
+                        <label className="um-role-pick">
+                          <input
+                            type="checkbox"
+                            checked={on}
+                            onChange={(e) => {
+                              const newRoles = e.target.checked
+                                ? [...formData.roles, r.value]
+                                : formData.roles.filter(v => v !== r.value);
+                              const newPrimary = newRoles.includes(formData.primary_role)
+                                ? formData.primary_role
+                                : newRoles[0] || 'CLIENT';
+                              setFormData({...formData, roles: newRoles, primary_role: newPrimary, role: newPrimary});
+                            }}
+                          />
+                          <span className="um-role-box" aria-hidden="true" />
+                          <span className="um-role-text">
+                            <span className="um-role-name">{r.label}</span>
+                            <span className="um-role-desc">{r.desc}</span>
+                          </span>
+                        </label>
+                        {on && formData.roles.length > 1 && (
+                          primary
+                            ? <span className="um-role-primary">Primary</span>
+                            : <button type="button" className="um-role-make" onClick={setPrimary} aria-label={`Make ${r.label} the primary role`}>Make primary</button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </fieldset>
               <div className="form-group">
                 <label>Office</label>
                 <select value={formData.office} onChange={(e) => setFormData({...formData, office: e.target.value})}>

@@ -1875,3 +1875,183 @@
   font-size: 12.5px;
   color: var(--ink-soft);
 }
+
+/* ----- Add / Edit User modal (UserManagement.tsx) ----- */
+.app-main .modal-content.um-modal {
+  max-width: 640px;
+}
+
+.app-main .um-note {
+  margin: -6px 0 20px;
+  padding: 10px 14px;
+  border-left: 3px solid var(--cobalt);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: rgba(20, 82, 201, 0.06);
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.app-main .um-note strong {
+  color: var(--ink);
+  font-family: var(--font-mono);
+}
+
+.app-main .um-name-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.app-main .um-roles {
+  margin: 0 0 20px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.app-main .um-roles legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.app-main .um-roles-hint {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.app-main .um-role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.app-main .um-role {
+  position: relative;
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  transition: var(--tr-colors);
+}
+
+.app-main .um-role:hover {
+  border-color: rgba(12, 31, 74, 0.32);
+}
+
+.app-main .um-role.is-on {
+  border-color: var(--cobalt);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px var(--cobalt);
+}
+
+.app-main .um-role-pick {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+/* The real checkbox stays for keyboards and screen readers; the box beside it is what shows. */
+.app-main .um-role-pick input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app-main .um-role-box {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1.5px solid rgba(12, 31, 74, 0.35);
+  border-radius: 5px;
+  background: #ffffff;
+  transition: var(--tr-colors);
+}
+
+.app-main .um-role-pick input:checked + .um-role-box {
+  border-color: var(--cobalt);
+  background-color: var(--cobalt);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-size: 14px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.app-main .um-role-pick input:focus-visible + .um-role-box {
+  box-shadow: 0 0 0 4px rgba(255, 217, 26, 0.6);
+}
+
+.app-main .um-role-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-main .um-role-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.app-main .um-role-desc {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+/* Primary marker / switch, under the role text (lined up with it: 14px padding + 18px box + 10px gap) */
+.app-main .um-role-primary,
+.app-main .um-role-make {
+  display: inline-block;
+  margin: -4px 0 12px 42px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-main .um-role-primary {
+  background: var(--seal-yellow);
+  color: var(--ink);
+}
+
+.app-main .um-role-make {
+  border: 1px solid rgba(12, 31, 74, 0.2);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: var(--tr-colors);
+}
+
+.app-main .um-role-make:hover,
+.app-main .um-role-make:focus-visible {
+  border-color: var(--cobalt);
+  color: var(--cobalt);
+}
+
+@media (max-width: 560px) {
+  .app-main .um-name-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .app-main .um-role-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
