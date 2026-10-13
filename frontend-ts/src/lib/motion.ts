@@ -30,3 +30,14 @@ export const staggerItem: Variants = {
     transition: { duration: 0.3, ease: EASE_OUT },
   },
 };
+
+/**
+ * True on phones with little memory or few cores, which stutter on blurs, blend modes and filters
+ * redrawn every frame. They get lighter versions of those effects: the `lite` class on <html>
+ * (set in main.tsx, used by lite.css) and checks of this flag in animated components.
+ * deviceMemory is reported by Chrome only; other browsers are judged by core count.
+ */
+export const LITE_DEVICE =
+  typeof navigator !== 'undefined' &&
+  ((navigator.hardwareConcurrency ?? 8) <= 4 ||
+    ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4);

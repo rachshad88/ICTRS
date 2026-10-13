@@ -1,0 +1,55 @@
+/* ========== LITE MODE FOR WEAKER PHONES ========== */
+/* html.lite is set in main.tsx on devices with little memory or few cores (LITE_DEVICE in
+   lib/motion.ts). Each rule here switches off something that is redrawn every frame (a full-screen
+   blend, a backdrop blur, a drop-shadow filter, a never-ending rotation) and keeps the look as
+   close as a flat equivalent allows. Loaded last so it wins over the page styles.
+   The transitions' own lighter variants (no per-letter blur, no mask reveal, no stamp noise) are in
+   PageCurtain.tsx and LogoutTransition.tsx. The bottom nav's are in bottom-nav.css. */
+
+/* Paper grain: full-screen multiply layers over the landing, guide, login and signed-in pages,
+   and inside the guide / signup transition sheets */
+.lite .lp::after,
+.lite .gd::after,
+.lite .login-container::after,
+.lite .app-main::after,
+.lite .pc-page-grain,
+.lite .pc-reg-grain {
+  display: none;
+}
+
+.lite .pc-reg-frame {
+  mix-blend-mode: normal;
+}
+
+/* Decorative gears stop turning; they still draw where they are */
+.lite .lp-gear,
+.lite .gd-gear,
+.lite .login-gear,
+.lite .app-main::before,
+.lite .sidebar::after {
+  animation: none;
+}
+
+/* Frosted top bars on the public pages: re-blurred on every scroll frame. Near-solid instead. */
+.lite .lp-nav,
+.lite .gd-nav {
+  border-color: rgba(12, 31, 74, 0.08);
+  background: rgba(251, 252, 254, 0.96);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Dialog backdrop, toasts and stat cards: plain tints over the page */
+.lite .modal,
+.lite .toast-item,
+.lite .stat-card {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Glow and shadow filters, recomputed every frame while their element moves */
+.lite .lp-stub-slot,
+.lite .lo-power,
+.lite .pc-reg-scissors svg {
+  filter: none;
+}

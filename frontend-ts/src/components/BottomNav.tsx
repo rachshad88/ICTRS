@@ -16,14 +16,6 @@ const STILL = { duration: 0 } as const;
 
 const POPOVER_W = 212;
 
-/**
- * Phones with little memory or few cores struggle to re-blur the page every frame, so they get a
- * lighter glass (.glass-lite in bottom-nav.css). deviceMemory is reported by Chrome only.
- */
-const LITE_GLASS =
-  (navigator.hardwareConcurrency ?? 8) <= 4 ||
-  ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
-
 /** A light tick on phones that support it, so a tap feels pressed. */
 const tick = () => navigator.vibrate?.(8);
 
@@ -100,12 +92,6 @@ function BottomNav() {
     setMoreOpen(false);
     setOpenGroup(null);
   }, [pathname]);
-
-  useEffect(() => {
-    if (!LITE_GLASS) return;
-    document.documentElement.classList.add('glass-lite');
-    return () => document.documentElement.classList.remove('glass-lite');
-  }, []);
 
   // Escape or a tap anywhere else closes the choice bubble.
   useEffect(() => {

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { createPortal } from 'react-dom';
 import { animate, motion } from 'framer-motion';
 import { Link, useLocation, useNavigate, type LinkProps } from 'react-router-dom';
-import { EASE_OUT, prefersReducedMotion } from '../lib/motion';
+import { EASE_OUT, LITE_DEVICE, prefersReducedMotion } from '../lib/motion';
 import { playBannerSweep, playPageTurn, playRegistrationSlip, playSafeDial } from '../services/sfx';
 import { preloadPage } from '../routes';
 
@@ -253,7 +253,15 @@ function SafeDial({ phase }: { phase: Phase }) {
         </radialGradient>
       </defs>
 
-      {out ? (
+      {out && LITE_DEVICE ? (
+        // Weaker phones: redrawing a full-screen mask every frame stutters, so the navy fades instead
+        <motion.rect
+          x="-100" y="-100" width="300" height="300" fill="url(#pc-safe-bg)"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 0 }}
+          transition={{ duration: 0.6, ease: [...HOLE_EASE] }}
+        />
+      ) : out ? (
         // Reveal: the navy now has a keyhole-shaped hole that grows until it swallows the screen
         <rect x="-100" y="-100" width="300" height="300" fill="url(#pc-safe-bg)" mask="url(#pc-keyhole-mask)" />
       ) : (
@@ -413,8 +421,10 @@ function PageTurn({ phase }: { phase: Phase }) {
           <div className="pc-page-kicker">
             <motion.i initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ duration: 0.7, delay: 0.45, ease: SILK }} style={{ originX: 1 }} />
             <motion.span
-              initial={{ opacity: 0, letterSpacing: '0.6em' }}
-              animate={{ opacity: 1, letterSpacing: '0.32em' }}
+              // Animating letter-spacing lays the line out again every frame; weaker phones just fade it in.
+              initial={LITE_DEVICE ? { opacity: 0 } : { opacity: 0, letterSpacing: '0.6em' }}
+              animate={LITE_DEVICE ? { opacity: 1 } : { opacity: 1, letterSpacing: '0.32em' }}
+              style={LITE_DEVICE ? { letterSpacing: '0.32em' } : undefined}
               transition={{ duration: 0.9, delay: 0.45, ease: SILK }}
             >
               Chapter 01
@@ -430,8 +440,9 @@ function PageTurn({ phase }: { phase: Phase }) {
                   return (
                     <span key={i} className="pc-letter-mask">
                       <motion.span
-                        initial={{ y: '105%', opacity: 0, filter: 'blur(8px)' }}
-                        animate={{ y: '0%', opacity: 1, filter: 'blur(0px)' }}
+                        // A blur per letter is costly; weaker phones get the rise and fade only.
+                        initial={LITE_DEVICE ? { y: '105%', opacity: 0 } : { y: '105%', opacity: 0, filter: 'blur(8px)' }}
+                        animate={LITE_DEVICE ? { y: '0%', opacity: 1 } : { y: '0%', opacity: 1, filter: 'blur(0px)' }}
                         transition={{ duration: 0.8, delay: 0.55 + i * 0.035, ease: SILK }}
                       >
                         {ch}
@@ -696,7 +707,8 @@ function SlipSheet({ out, id }: { out: boolean; id: string }) {
               <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" />
             </filter>
           </defs>
-          <g filter={`url(#pc-reg-rough-${id})`}>
+          {/* Weaker phones skip the noise filter: it is redrawn every frame while the stamp scales */}
+          <g filter={LITE_DEVICE ? undefined : `url(#pc-reg-rough-${id})`}>
             <circle cx="100" cy="100" r="94" fill="none" stroke="currentColor" strokeWidth="5" />
             <circle cx="100" cy="100" r="86" fill="none" stroke="currentColor" strokeWidth="1.5" />
             <circle cx="100" cy="100" r="56" fill="none" stroke="currentColor" strokeWidth="2" />

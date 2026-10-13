@@ -631,22 +631,22 @@
 }
 
 /* ----- Lighter glass for slower phones and for people who ask for less transparency ----- */
-/* .glass-lite is set by BottomNav on devices with little memory or few cores. */
-.glass-lite .bottom-nav-glass,
-.glass-lite .nav-bubble-glass,
-.glass-lite .nav-bubble-tail {
+/* .lite is set by BottomNav on devices with little memory or few cores. */
+.lite .bottom-nav-glass,
+.lite .nav-bubble-glass,
+.lite .nav-bubble-tail {
   background: rgba(251, 252, 254, 0.72);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
 
-.glass-lite .bottom-sheet {
+.lite .bottom-sheet {
   background: rgba(251, 252, 254, 0.94);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
-.glass-lite .bottom-nav-glass {
+.lite .bottom-nav-glass {
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.95),
     inset 0 0 0 0.5px rgba(12, 31, 74, 0.1),

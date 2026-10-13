@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { EASE_OUT, prefersReducedMotion } from '../lib/motion';
+import { EASE_OUT, LITE_DEVICE, prefersReducedMotion } from '../lib/motion';
 import { playGoodbyeIn, playSwitchOff, type CueHandle } from '../services/sfx';
 
 // The sign-out ceremony, deliberately unlike the sign-in curtain: a dark iris grows out of
@@ -170,8 +170,10 @@ function Goodbye({ phase, origin, name, time }: { phase: Phase; origin: { x: num
 
           <motion.p
             className="lo-meta"
-            initial={{ opacity: 0, letterSpacing: '0.6em' }}
-            animate={{ opacity: 1, letterSpacing: '0.28em' }}
+            // Weaker phones skip the letter-spacing squeeze (a relayout every frame) and the blurs below.
+            initial={LITE_DEVICE ? { opacity: 0 } : { opacity: 0, letterSpacing: '0.6em' }}
+            animate={LITE_DEVICE ? { opacity: 1 } : { opacity: 1, letterSpacing: '0.28em' }}
+            style={LITE_DEVICE ? { letterSpacing: '0.28em' } : undefined}
             transition={{ duration: 0.9, delay: 0.55, ease: EASE_OUT }}
           >
             Signed out{time ? ` · ${time}` : ''}
@@ -180,16 +182,16 @@ function Goodbye({ phase, origin, name, time }: { phase: Phase; origin: { x: num
           <h2 className="lo-bye">
             <motion.span
               className="lo-bye-see"
-              initial={{ opacity: 0, filter: 'blur(10px)' }}
-              animate={{ opacity: 1, filter: 'blur(0px)' }}
+              initial={LITE_DEVICE ? { opacity: 0 } : { opacity: 0, filter: 'blur(10px)' }}
+              animate={LITE_DEVICE ? { opacity: 1 } : { opacity: 1, filter: 'blur(0px)' }}
               transition={{ duration: 0.6, delay: 0.7, ease: EASE_OUT }}
             >
               See you,
             </motion.span>
             <motion.span
               className="lo-bye-name"
-              initial={{ opacity: 0, x: -24, filter: 'blur(12px)' }}
-              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              initial={LITE_DEVICE ? { opacity: 0, x: -24 } : { opacity: 0, x: -24, filter: 'blur(12px)' }}
+              animate={LITE_DEVICE ? { opacity: 1, x: 0 } : { opacity: 1, x: 0, filter: 'blur(0px)' }}
               transition={{ duration: 0.8, delay: 0.9, ease: EASE_OUT }}
             >
               {name || 'friend'}

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { bootScore } from './services/sfx';
 import { startLiveUpdates } from './services/queryClient';
+import { LITE_DEVICE } from './lib/motion';
 import './styles/reset.css';
 import './styles/tokens.css';
 import './styles/layout.css';
@@ -18,6 +19,9 @@ import './styles/bottom-nav.css';
 import './styles/responsive/login-desktop.css';
 import './styles/responsive/login-mobile.css';
 import './styles/login-transition.css';
+import './styles/lite.css';
+
+if (LITE_DEVICE) document.documentElement.classList.add('lite');
 
 // Pages are separate files named after their contents (routes.ts). A tab left open across a
 // redeploy still asks for the old names, which are gone; reload it once to pick up the new build.
