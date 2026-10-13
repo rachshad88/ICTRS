@@ -1305,6 +1305,12 @@
     animation: none;
   }
 
+  /* The grain is a full-screen blended layer, redrawn on every scroll frame and blurred again under
+     the glass nav; at 6% it is barely visible on a phone, so phones skip it. */
+  .app-main::after {
+    display: none;
+  }
+
   .mobile-topbar {
     top: 10px;
     height: 56px;

@@ -16,6 +16,14 @@ const STILL = { duration: 0 } as const;
 
 const POPOVER_W = 212;
 
+/**
+ * Phones with little memory or few cores struggle to re-blur the page every frame, so they get a
+ * lighter glass (.glass-lite in bottom-nav.css). deviceMemory is reported by Chrome only.
+ */
+const LITE_GLASS =
+  (navigator.hardwareConcurrency ?? 8) <= 4 ||
+  ((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
+
 /** A light tick on phones that support it, so a tap feels pressed. */
 const tick = () => navigator.vibrate?.(8);
 
@@ -93,6 +101,12 @@ function BottomNav() {
     setOpenGroup(null);
   }, [pathname]);
 
+  useEffect(() => {
+    if (!LITE_GLASS) return;
+    document.documentElement.classList.add('glass-lite');
+    return () => document.documentElement.classList.remove('glass-lite');
+  }, []);
+
   // Escape or a tap anywhere else closes the choice bubble.
   useEffect(() => {
     if (!openGroup) return;
@@ -111,13 +125,8 @@ function BottomNav() {
   useEffect(() => {
     if (!moreOpen) return;
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMoreOpen(false);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', onKey);
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [moreOpen]);
 
   // The glass lens sits on the open bubble's tab first, then the More sheet, then the current page.
@@ -275,12 +284,7 @@ function BottomNav() {
                 </div>
               )}
 
-              <motion.div
-                className="bottom-sheet-body"
-                initial="hidden"
-                animate="shown"
-                variants={{ shown: { transition: { staggerChildren: reduce ? 0 : 0.03, delayChildren: 0.06 } } }}
-              >
+              <div className="bottom-sheet-body">
                 {items.map((item, i) => {
                   if (item.section !== undefined) {
                     return item.section
@@ -297,7 +301,7 @@ function BottomNav() {
                     <span>Logout</span>
                   </button>
                 </SheetRow>
-              </motion.div>
+              </div>
             </motion.div>
           </>
         )}
@@ -359,9 +363,11 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
       role="menu"
       aria-label={tab.label}
       style={{ left: pos.left, width: POPOVER_W, transformOrigin: `${pos.tail}px 100%` }}
-      initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.4, y: 24 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, y: 16, transition: { duration: 0.16 } }}
+      // Grows and shrinks but never fades: while an element is partly transparent, browsers stop
+      // the glass inside it from blurring the page, so a fade would show plain see-through until it ends.
+      initial={reduce ? false : { scale: 0, y: 24 }}
+      animate={{ scale: 1, y: 0 }}
+      exit={reduce ? { scale: 0, transition: STILL } : { scale: 0, y: 16, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
       transition={reduce ? STILL : { type: 'spring', stiffness: 520, damping: 20 }}
     >
       <span className="nav-bubble-glass" aria-hidden="true" />
@@ -372,14 +378,10 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
         const active = l.to === pathname;
         const badge = badgeFor(l.to);
         return (
-          <motion.div
-            key={l.to}
-            initial={reduce ? false : { opacity: 0, y: 10, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={reduce ? STILL : { type: 'spring', stiffness: 600, damping: 22, delay: 0.05 + i * 0.05 }}
-          >
             <Link
+              key={l.to}
               to={l.to}
+              style={{ animationDelay: `${60 + i * 50}ms` }}
               role="menuitem"
               className={`nav-bubble-link ${active ? 'active' : ''}`}
               aria-current={active ? 'page' : undefined}
@@ -389,20 +391,14 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
               <span className="nav-bubble-text">{l.short ?? l.label}</span>
               {badge !== null && badge > 0 && <span className="nav-bubble-badge">{badge > 99 ? '99+' : badge}</span>}
             </Link>
-          </motion.div>
         );
       })}
     </motion.div>
   );
 }
 
-const ROW_VARIANTS = {
-  hidden: { opacity: 0, y: 14, scale: 0.94 },
-  shown: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 520, damping: 24 } },
-} as const;
-
 function SheetRow({ className, children }: { className?: string; children?: React.ReactNode }) {
-  return <motion.div className={className} variants={ROW_VARIANTS}>{children}</motion.div>;
+  return <div className={className}>{children}</div>;
 }
 
 function SheetLink({ link, active, badge }: { link: NavLink; active: boolean; badge: number | null }) {

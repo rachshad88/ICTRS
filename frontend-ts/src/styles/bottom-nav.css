@@ -42,9 +42,10 @@
   .bottom-nav-glass,
   .nav-bubble-glass {
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.3) 55%, rgba(255, 255, 255, 0.42) 100%);
-    backdrop-filter: blur(22px) saturate(190%) brightness(1.05);
-    -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.05);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(255, 255, 255, 0.12) 55%, rgba(255, 255, 255, 0.22) 100%);
+    /* A small radius keeps the per-frame re-blur cheap; saturate does the "liquid" colour lift. */
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
   }
 }
 
@@ -93,14 +94,15 @@
   height: 70px;
   padding: 6px;
   border-radius: 999px;
-  transition: transform 520ms var(--ease-spring), opacity 260ms ease;
+  transition: transform 520ms var(--ease-spring);
+  will-change: transform;
 }
 
+/* Slides fully off screen rather than fading: a fading bar would lose its blur until opaque again. */
 .bottom-nav.is-hidden {
-  transform: translateY(calc(100% + 30px + env(safe-area-inset-bottom, 0px))) scale(0.92);
-  opacity: 0;
+  transform: translateY(calc(100% + 40px + env(safe-area-inset-bottom, 0px))) scale(0.92);
   pointer-events: none;
-  transition: transform 380ms var(--ease-drawer), opacity 260ms ease 80ms;
+  transition: transform 380ms var(--ease-drawer);
 }
 
 .bottom-nav-slot {
@@ -154,7 +156,7 @@
   inset: 0;
   border-radius: 999px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.28));
   box-shadow:
     inset 0 1px 1px #fff,
     inset 0 -3px 6px -2px rgba(20, 82, 201, 0.18),
@@ -186,7 +188,6 @@
 
 .bottom-nav-item.lensed .bottom-nav-glyph {
   color: var(--cobalt);
-  filter: drop-shadow(0 2px 4px rgba(20, 82, 201, 0.3));
 }
 
 .bottom-nav-label {
@@ -199,6 +200,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .bottom-nav-item.current .bottom-nav-label,
@@ -275,15 +277,14 @@
   position: fixed;
   inset: 0;
   z-index: 1280;
-  background: rgba(12, 31, 74, 0.14);
-  backdrop-filter: blur(3px);
-  -webkit-backdrop-filter: blur(3px);
+  background: rgba(12, 31, 74, 0.16);
 }
 
 .nav-bubble {
   position: absolute;
   bottom: calc(100% + 16px);
   z-index: 1;
+  will-change: transform;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -300,10 +301,10 @@
   margin-left: -8px;
   border-radius: 3px;
   transform: rotate(45deg);
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.24);
   box-shadow: inset -1px -1px 0 rgba(255, 255, 255, 0.85), 6px 6px 14px -6px rgba(12, 31, 74, 0.35);
-  backdrop-filter: blur(22px) saturate(190%);
-  -webkit-backdrop-filter: blur(22px) saturate(190%);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
 }
 
 .nav-bubble-title {
@@ -316,6 +317,7 @@
 }
 
 .nav-bubble-link {
+  animation: bubbleRowIn 380ms var(--ease-spring) backwards;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -338,6 +340,11 @@
 .nav-bubble-link:focus-visible {
   outline: 2px solid var(--cobalt);
   outline-offset: 1px;
+}
+
+@keyframes bubbleRowIn {
+  from { transform: translateY(10px) scale(0.9); }
+  to { transform: none; }
 }
 
 .nav-bubble-icon {
@@ -387,9 +394,8 @@
   position: fixed;
   inset: 0;
   z-index: 1290;
-  background: rgba(12, 31, 74, 0.32);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(12, 31, 74, 0.38);
+  touch-action: none;
 }
 
 .bottom-sheet {
@@ -411,12 +417,23 @@
     0 -24px 60px -20px rgba(12, 31, 74, 0.5);
 }
 
-@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .bottom-sheet {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(244, 247, 252, 0.74));
-    backdrop-filter: blur(30px) saturate(180%);
-    -webkit-backdrop-filter: blur(30px) saturate(180%);
-  }
+/* No backdrop blur here: re-blurring most of the screen on every frame of the slide is what made
+   weaker phones stutter. Over the dimmed page, a milky sheet with a glass rim reads the same. */
+.bottom-sheet {
+  background:
+    radial-gradient(120% 60% at 15% 0%, rgba(255, 255, 255, 0.9), transparent 55%),
+    linear-gradient(180deg, rgba(250, 251, 254, 0.94), rgba(238, 242, 249, 0.92));
+  will-change: transform;
+}
+
+/* The menu rises a moment after the sheet: one element, transform only, run by the compositor */
+.bottom-sheet-body {
+  animation: sheetBodyIn 420ms var(--ease-spring) 60ms backwards;
+}
+
+@keyframes sheetBodyIn {
+  from { transform: translateY(18px) scale(0.97); }
+  to { transform: none; }
 }
 
 /* Keeps the sheet's base covered while it overshoots on the way up */
@@ -611,4 +628,45 @@
   background: rgba(201, 55, 44, 0.1);
   color: var(--danger-red);
   box-shadow: none;
+}
+
+/* ----- Lighter glass for slower phones and for people who ask for less transparency ----- */
+/* .glass-lite is set by BottomNav on devices with little memory or few cores. */
+.glass-lite .bottom-nav-glass,
+.glass-lite .nav-bubble-glass,
+.glass-lite .nav-bubble-tail {
+  background: rgba(251, 252, 254, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.glass-lite .bottom-sheet {
+  background: rgba(251, 252, 254, 0.94);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.glass-lite .bottom-nav-glass {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 0 0 0.5px rgba(12, 31, 74, 0.1),
+    0 10px 24px -12px rgba(12, 31, 74, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet-body,
+  .nav-bubble-link {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .bottom-nav-glass,
+  .nav-bubble-glass,
+  .nav-bubble-tail,
+  .bottom-sheet {
+    background: rgba(251, 252, 254, 0.97);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
