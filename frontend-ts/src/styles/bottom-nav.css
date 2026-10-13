@@ -1,0 +1,614 @@
+/* ========== PHONE BOTTOM NAV ========== */
+/* Replaces the sidebar on phones (BottomNav.tsx): a floating liquid-glass bar, a glass lens that
+   jelly-springs to the selected tab, choice bubbles that rise out of a service tab, and a glass
+   More sheet with the full menu.
+   Glass recipe: a tinted backdrop blur, a bright rim drawn with a mask, a soft specular sheen, and
+   inner shadows for thickness. The blur lives on child layers, never on .bottom-nav itself, so the
+   bubbles inside it can still blur the page behind them.
+   Layers: bar 1300 over the bubble veil (1280), the More sheet (1295) and its backdrop (1290);
+   under the notification sheet (1500), toasts and modals (2000). Loaded after app.css. */
+
+@media (max-width: 768px) {
+  /* Room for the bar under the last row of every page */
+  .app-main {
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+  }
+
+  /* No hamburger any more: give the logo the space it had */
+  .mobile-topbar-logo {
+    margin-left: 10px;
+  }
+}
+
+/* ----- Shared glass surface ----- */
+.bottom-nav-glass,
+.nav-bubble-glass {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: rgba(251, 252, 254, 0.94);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.4),
+    inset 0 -10px 18px -10px rgba(20, 82, 201, 0.12),
+    inset 0 0 0 0.5px rgba(12, 31, 74, 0.08),
+    0 24px 48px -20px rgba(12, 31, 74, 0.45),
+    0 6px 14px -8px rgba(12, 31, 74, 0.25);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .bottom-nav-glass,
+  .nav-bubble-glass {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.62) 0%, rgba(255, 255, 255, 0.3) 55%, rgba(255, 255, 255, 0.42) 100%);
+    backdrop-filter: blur(22px) saturate(190%) brightness(1.05);
+    -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.05);
+  }
+}
+
+/* Specular sheen across the upper-left, like light on curved glass */
+.bottom-nav-glass::before,
+.nav-bubble-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    radial-gradient(130% 90% at 18% -10%, rgba(255, 255, 255, 0.75), transparent 48%),
+    radial-gradient(80% 60% at 92% 120%, rgba(255, 217, 26, 0.16), transparent 60%);
+  opacity: 0.8;
+}
+
+/* The rim: bright where light hits (top-left, bottom-right), almost clear elsewhere */
+.bottom-nav-glass::after,
+.nav-bubble-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1.2px;
+  border-radius: inherit;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 1) 0%,
+    rgba(255, 255, 255, 0.25) 30%,
+    rgba(12, 31, 74, 0.08) 55%,
+    rgba(255, 255, 255, 0.85) 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* ----- The bar ----- */
+.bottom-nav {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 1300;
+  display: flex;
+  align-items: stretch;
+  height: 70px;
+  padding: 6px;
+  border-radius: 999px;
+  transition: transform 520ms var(--ease-spring), opacity 260ms ease;
+}
+
+.bottom-nav.is-hidden {
+  transform: translateY(calc(100% + 30px + env(safe-area-inset-bottom, 0px))) scale(0.92);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 380ms var(--ease-drawer), opacity 260ms ease 80ms;
+}
+
+.bottom-nav-slot {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+}
+
+.bottom-nav-item {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: rgba(12, 31, 74, 0.62);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: color 220ms ease;
+}
+
+.bottom-nav-item:focus-visible {
+  outline: none;
+}
+
+.bottom-nav-item:focus-visible .bottom-nav-icon {
+  box-shadow: 0 0 0 2px var(--cobalt);
+}
+
+.bottom-nav-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 36px;
+  border-radius: 999px;
+}
+
+/* The lens: a smaller, thicker drop of glass under the selected tab */
+.bottom-nav-lens {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.45));
+  box-shadow:
+    inset 0 1px 1px #fff,
+    inset 0 -3px 6px -2px rgba(20, 82, 201, 0.18),
+    inset 0 0 0 0.5px rgba(12, 31, 74, 0.1),
+    0 8px 18px -8px rgba(12, 31, 74, 0.45),
+    0 0 22px -6px rgba(255, 217, 26, 0.7);
+}
+
+.bottom-nav-lens-shine {
+  position: absolute;
+  top: 3px;
+  left: 18%;
+  right: 18%;
+  height: 40%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0));
+}
+
+.bottom-nav-glyph {
+  position: relative;
+  display: grid;
+  place-items: center;
+  transition: color 220ms ease;
+}
+
+.bottom-nav-item.lensed {
+  color: var(--ink);
+}
+
+.bottom-nav-item.lensed .bottom-nav-glyph {
+  color: var(--cobalt);
+  filter: drop-shadow(0 2px 4px rgba(20, 82, 201, 0.3));
+}
+
+.bottom-nav-label {
+  max-width: 100%;
+  padding: 0 2px;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bottom-nav-item.current .bottom-nav-label,
+.bottom-nav-item.lensed .bottom-nav-label {
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* Marks the tab holding the page you are on, even while the lens is elsewhere */
+.bottom-nav-dot {
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: var(--seal-yellow);
+  box-shadow: 0 0 0 1.5px rgba(12, 31, 74, 0.55), 0 0 8px rgba(255, 217, 26, 0.9);
+}
+
+.bottom-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: 4px;
+  z-index: 1;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #e5544a, var(--danger-red));
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9), 0 4px 8px -2px rgba(201, 55, 44, 0.6);
+}
+
+/* More: four dots that turn into a close cross while the sheet is open */
+.more-glyph {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  place-items: center;
+  transition: transform 520ms var(--ease-spring);
+}
+
+.more-glyph i {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: currentColor;
+  transition: transform 520ms var(--ease-spring), border-radius 300ms ease;
+}
+
+.bottom-nav-more.open .more-glyph {
+  transform: rotate(45deg);
+}
+
+.bottom-nav-more.open .more-glyph i {
+  border-radius: 50%;
+}
+
+.bottom-nav-more.open .more-glyph i:nth-child(1) { transform: translate(3px, 3px) scale(0.8); }
+.bottom-nav-more.open .more-glyph i:nth-child(2) { transform: translate(-3px, 3px) scale(0.8); }
+.bottom-nav-more.open .more-glyph i:nth-child(3) { transform: translate(3px, -3px) scale(0.8); }
+.bottom-nav-more.open .more-glyph i:nth-child(4) { transform: translate(-3px, -3px) scale(0.8); }
+
+/* ----- Choice bubble above a service tab ----- */
+.bottom-nav-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 1280;
+  background: rgba(12, 31, 74, 0.14);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.nav-bubble {
+  position: absolute;
+  bottom: calc(100% + 16px);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 8px 8px;
+  border-radius: 26px;
+}
+
+.nav-bubble-tail {
+  position: absolute;
+  bottom: -7px;
+  z-index: -2;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  border-radius: 3px;
+  transform: rotate(45deg);
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset -1px -1px 0 rgba(255, 255, 255, 0.85), 6px 6px 14px -6px rgba(12, 31, 74, 0.35);
+  backdrop-filter: blur(22px) saturate(190%);
+  -webkit-backdrop-filter: blur(22px) saturate(190%);
+}
+
+.nav-bubble-title {
+  padding: 2px 10px 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.nav-bubble-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 7px 12px 7px 7px;
+  border-radius: 18px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 180ms ease, transform 300ms var(--ease-spring);
+}
+
+.nav-bubble-link:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.nav-bubble-link:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+
+.nav-bubble-icon {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.6));
+  color: var(--cobalt);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 10px -5px rgba(12, 31, 74, 0.4);
+}
+
+.nav-bubble-link.active {
+  background: rgba(12, 31, 74, 0.9);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 20px -12px rgba(12, 31, 74, 0.8);
+}
+
+.nav-bubble-link.active .nav-bubble-icon {
+  background: var(--seal-yellow);
+  color: var(--ink);
+  box-shadow: 0 0 14px -2px rgba(255, 217, 26, 0.8);
+}
+
+.nav-bubble-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.nav-bubble-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--danger-red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* ----- More sheet ----- */
+.bottom-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1290;
+  background: rgba(12, 31, 74, 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.bottom-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1295;
+  display: flex;
+  flex-direction: column;
+  max-height: 84vh;
+  max-height: 84dvh;
+  padding: 0 16px calc(102px + env(safe-area-inset-bottom, 0px));
+  border-radius: 32px 32px 0 0;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    0 -24px 60px -20px rgba(12, 31, 74, 0.5);
+}
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .bottom-sheet {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(244, 247, 252, 0.74));
+    backdrop-filter: blur(30px) saturate(180%);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+  }
+}
+
+/* Keeps the sheet's base covered while it overshoots on the way up */
+.bottom-sheet::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: 200px;
+  background: #f4f7fc;
+}
+
+.bottom-sheet-grip {
+  display: grid;
+  place-items: center;
+  padding: 10px 0 8px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.bottom-sheet-handle {
+  width: 42px;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(12, 31, 74, 0.2);
+}
+
+.bottom-sheet-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 16px;
+  border-bottom: 1px solid rgba(12, 31, 74, 0.08);
+  touch-action: none;
+}
+
+.bottom-sheet-avatar {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-grad);
+  color: var(--seal-yellow);
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 800;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), 0 0 0 5px rgba(255, 217, 26, 0.6), 0 10px 20px -8px rgba(12, 31, 74, 0.6);
+}
+
+.bottom-sheet-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.bottom-sheet-user-text strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bottom-sheet-user-text span {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bottom-sheet-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-top: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bottom-sheet-section {
+  grid-column: 1 / -1;
+  margin: 8px 4px 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.bottom-sheet-body > .bottom-sheet-section:first-child {
+  margin-top: 0;
+}
+
+.bottom-sheet-divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  margin: 6px 0;
+  background: rgba(12, 31, 74, 0.08);
+}
+
+.bottom-sheet-link {
+  position: relative;
+  width: 100%;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.45));
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -12px rgba(12, 31, 74, 0.45), inset 0 1px 0 #fff;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 340ms var(--ease-spring), var(--tr-colors), var(--tr-shadow);
+}
+
+.bottom-sheet-link:active {
+  transform: scale(0.94);
+}
+
+.bottom-sheet-link:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+
+.bottom-sheet-link-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.7));
+  color: var(--cobalt);
+  box-shadow: inset 0 1px 0 #fff, 0 4px 10px -6px rgba(12, 31, 74, 0.4);
+  transition: var(--tr-colors), transform 360ms var(--ease-spring);
+}
+
+.bottom-sheet-link:active .bottom-sheet-link-icon {
+  transform: rotate(-8deg) scale(1.1);
+}
+
+.bottom-sheet-link.active {
+  background: rgba(12, 31, 74, 0.92);
+  border-color: rgba(12, 31, 74, 0.92);
+  color: #fff;
+  box-shadow: 0 12px 24px -14px rgba(12, 31, 74, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.bottom-sheet-link.active .bottom-sheet-link-icon {
+  background: var(--seal-yellow);
+  color: var(--ink);
+}
+
+.bottom-sheet-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--danger-red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.bottom-sheet-link.logout {
+  color: var(--danger-red);
+}
+
+.bottom-sheet-link.logout .bottom-sheet-link-icon {
+  background: rgba(201, 55, 44, 0.1);
+  color: var(--danger-red);
+  box-shadow: none;
+}

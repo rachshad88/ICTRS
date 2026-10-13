@@ -14,6 +14,7 @@ import './styles/landing.css';
 import './styles/live.css';
 import './styles/notifications.css';
 import './styles/app.css';
+import './styles/bottom-nav.css';
 import './styles/responsive/login-desktop.css';
 import './styles/responsive/login-mobile.css';
 import './styles/login-transition.css';

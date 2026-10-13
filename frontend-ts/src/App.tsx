@@ -6,6 +6,7 @@ import { queryClient } from './services/queryClient';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import Sidebar from './components/Sidebar';
+import BottomNav from './components/BottomNav';
 import ToastNotifications from './components/ToastNotifications';
 import ConnectionBanner from './components/ConnectionBanner';
 import IdleLogout from './components/IdleLogout';
@@ -53,19 +54,13 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
 
   return (
     <>
-      <Sidebar collapsed={sidebarCollapsed} onToggle={onToggleSidebar} onOpenNotifications={toggleNotifications} notificationsOpen={notifOpen} />
+      {/* Phones get a bottom bar instead of the sidebar. */}
+      {isMobile ? <BottomNav /> : <Sidebar collapsed={sidebarCollapsed} onToggle={onToggleSidebar} onOpenNotifications={toggleNotifications} notificationsOpen={notifOpen} />}
       <NotificationPanel open={notifOpen} onClose={closeNotifications} variant={isMobile ? 'sheet' : 'popover'} sidebarCollapsed={sidebarCollapsed} />
       <div className={`app-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <IdleLogout />
         {isMobile && (
           <header className="mobile-topbar">
-            <button className="mobile-menu-toggle" onClick={onToggleSidebar} aria-label="Open menu" aria-expanded={!sidebarCollapsed}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
             <img src="/solano-logo.png" alt="" className="mobile-topbar-logo" />
             <span className="mobile-topbar-title">IT Request System</span>
             <button
