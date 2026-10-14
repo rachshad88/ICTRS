@@ -1224,3 +1224,355 @@ yt-channel-avatar.pm { background: #047857; }
     min-width: 0;
   }
 }
+
+/* ========== ADMIN DASHBOARD (pages/AdminDashboard.tsx) ==========
+   Four panels in two rows: request counts by service beside users by role, then recent requests
+   beside recent activity. Each panel links to the page that holds the full list. */
+.app-main .adm-dash .page-header {
+  margin-bottom: 18px;
+}
+
+.app-main .adm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+.app-main .adm-grid + .adm-grid {
+  margin-top: 18px;
+}
+
+.app-main .adm-grid--top {
+  grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr);
+  /* Requests by service and Users are always the same height, whichever has more rows. */
+  align-items: stretch;
+}
+
+.app-main .adm-panel {
+  min-width: 0;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+}
+
+.app-main .adm-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 10px;
+}
+
+.app-main .adm-panel-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.app-main .adm-panel-head a {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--cobalt);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-main .adm-panel-head a:hover {
+    text-decoration: underline;
+  }
+}
+
+/* Requests by service */
+.app-main .adm-ledger-wrap {
+  overflow-x: auto;
+  padding: 0 6px 8px;
+}
+
+.app-main .adm-ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-main .adm-ledger th,
+.app-main .adm-ledger td {
+  padding: 9px 12px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.app-main .adm-ledger thead th {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border-bottom: 1px solid rgba(12, 31, 74, 0.1);
+}
+
+.app-main .adm-ledger th:first-child {
+  text-align: left;
+}
+
+.app-main .adm-ledger tbody th a {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-main .adm-ledger tbody th a:hover {
+    color: var(--cobalt);
+  }
+}
+
+.app-main .adm-ledger td {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.app-main .adm-ledger td.adm-zero {
+  color: rgba(12, 31, 74, 0.3);
+}
+
+.app-main .adm-ledger td.adm-total {
+  font-weight: 800;
+}
+
+.app-main .adm-ledger tfoot th,
+.app-main .adm-ledger tfoot td {
+  border-top: 1px solid rgba(12, 31, 74, 0.1);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.app-main .adm-ledger tfoot td.adm-total {
+  color: var(--ink);
+}
+
+/* Nobody assigned yet: the number an admin acts on, marked like the active filter elsewhere. */
+.app-main .adm-waiting {
+  display: inline-block;
+  min-width: 28px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--seal-yellow);
+  color: var(--ink);
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+  transition: var(--tr-press);
+}
+
+.app-main .adm-waiting:active {
+  transform: scale(0.95);
+}
+
+.app-main .adm-waiting:focus-visible,
+.app-main .adm-panel a:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+
+/* Users by role; the total sits beside the heading */
+.app-main .adm-head-count {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  background: var(--paper-2);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.app-main .adm-roles {
+  margin: 0;
+  padding: 0 18px 12px;
+}
+
+.app-main .adm-roles div {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 13.5px;
+}
+
+.app-main .adm-roles div + div {
+  border-top: 1px solid rgba(12, 31, 74, 0.07);
+}
+
+.app-main .adm-roles dt {
+  color: var(--ink-soft);
+}
+
+.app-main .adm-roles dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* Recent requests and activity */
+.app-main .adm-list {
+  margin: 0;
+  padding: 0 0 6px;
+  list-style: none;
+}
+
+.app-main .adm-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 18px;
+}
+
+.app-main .adm-list li + li {
+  border-top: 1px solid rgba(12, 31, 74, 0.07);
+}
+
+.app-main .adm-list-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-main .adm-activity {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.app-main .adm-list-sub {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.app-main .adm-time {
+  flex-shrink: 0;
+  min-width: 52px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.app-main .adm-empty {
+  margin: 0;
+  padding: 8px 18px 18px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Desktop: the whole dashboard fits the window without scrolling. The page is exactly the height
+   left under the top bar (.app-main's 104px top padding, and a 24px bottom padding here instead of
+   64px); the top row keeps its size and the two recent lists share what remains. Each list shows
+   only the rows that fit whole: with column wrap, rows past the bottom move into a second column
+   that the overflow hides, so none is ever cut in half. Below 520px of height the page scrolls. */
+@media (min-width: 1025px) {
+  .app-main:has(.adm-dash) {
+    padding-bottom: 24px;
+  }
+
+  .app-main .adm-dash {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 128px);
+    height: calc(100dvh - 128px);
+    min-height: 520px;
+  }
+
+  .app-main .adm-dash .page-header {
+    flex: none;
+    margin-bottom: 14px;
+  }
+
+  .app-main .adm-dash .page-header:first-child h2 {
+    font-size: clamp(28px, 2.5vw, 38px);
+  }
+
+  .app-main .adm-grid--top {
+    flex: none;
+  }
+
+  .app-main .adm-grid + .adm-grid {
+    flex: 1;
+    min-height: 0;
+    margin-top: 16px;
+    align-items: stretch;
+  }
+
+  .app-main .adm-grid + .adm-grid .adm-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .app-main .adm-grid + .adm-grid .adm-list {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow: hidden;
+  }
+
+  .app-main .adm-grid + .adm-grid .adm-list li {
+    flex: none;
+    width: 100%;
+  }
+
+  .app-main .adm-panel-head {
+    padding: 12px 18px 8px;
+  }
+
+  .app-main .adm-ledger th,
+  .app-main .adm-ledger td {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .app-main .adm-roles div {
+    padding: 5px 0;
+  }
+
+  .app-main .adm-list li {
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+}
+
+/* Narrow desktops and tablets: one column. The service table scrolls sideways inside its panel. */
+@media (max-width: 1024px) {
+  .app-main .adm-grid,
+  .app-main .adm-grid--top {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-main .adm-panel-head {
+    padding: 12px 14px 8px;
+  }
+
+  .app-main .adm-ledger th,
+  .app-main .adm-ledger td {
+    padding: 8px 8px;
+  }
+
+  .app-main .adm-list li {
+    padding: 9px 14px;
+  }
+
+  .app-main .adm-roles {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}

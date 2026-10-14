@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
@@ -37,28 +38,50 @@ const STATUS_LABELS: Record<string, string> = {
   UNASSIGNED: 'Unassigned',
 };
 
-function RequestTypeCard({ label, counts, bgColor }: { label: string; counts: Record<string, number>; bgColor: string }) {
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  return (
-    <div className="stat-card-sm" style={{ borderLeft: `4px solid ${bgColor}` }}>
-      <h4>{label}</h4>
-      <div className="stat-num">{total}</div>
-      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-        {Object.entries(counts)
-          .filter(([, c]) => c > 0)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([s, c]) => `${STATUS_LABELS[s] || s}: ${c}`)
-          .join(' | ')}
-      </div>
-    </div>
-  );
-}
+// Columns of the "Requests by service" table: each groups the statuses that mean the same thing
+// across services (IT says PENDING where multimedia says UNASSIGNED for "nobody assigned yet").
+const COLUMNS: Array<{ key: string; label: string; statuses: string[] }> = [
+  { key: 'waiting', label: 'Waiting', statuses: ['PENDING', 'UNASSIGNED'] },
+  { key: 'active', label: 'In progress', statuses: ['ASSIGNED', 'IN_PROGRESS'] },
+  { key: 'verify', label: 'For verification', statuses: ['FOR_VERIFICATION'] },
+  { key: 'done', label: 'Done', statuses: ['DONE'] },
+  { key: 'closed', label: 'Closed', statuses: ['CANCELLED', 'DECLINED', 'NOT_APPROVED'] },
+];
+
+const SERVICES: Array<{ key: keyof StatsData; label: string; manage: string }> = [
+  { key: 'it_counts', label: 'IT', manage: '/it-dashboard' },
+  { key: 'multimedia_counts', label: 'Multimedia', manage: '/multimedia-management' },
+  { key: 'digital_counts', label: 'Digital Media', manage: '/digitalmedia-management' },
+  { key: 'print_counts', label: 'Print Materials', manage: '/print-materials-management' },
+];
+
+const ROLE_LABELS: Record<string, string> = {
+  CLIENT: 'Clients',
+  TECHNICIAN: 'Technicians',
+  MULTIMEDIA: 'Multimedia staff',
+  IT_ADMIN: 'IT admins',
+  MULTIMEDIA_ADMIN: 'Multimedia admins',
+  ADMIN: 'Super admins',
+};
+
+const sum = (counts: Record<string, number>, statuses?: string[]) =>
+  Object.entries(counts).reduce((n, [s, c]) => (!statuses || statuses.includes(s) ? n + c : n), 0);
 
 function fmtDateTime(v: string | null | undefined): string {
   if (!v) return '-';
   const d = new Date(v);
   if (isNaN(d.getTime())) return v;
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Today: the time only. Earlier: the date. The full date and time is the tooltip. */
+function shortTime(v: string | null | undefined): string {
+  if (!v) return '-';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return v;
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 function AdminDashboard() {
@@ -95,141 +118,142 @@ function AdminDashboard() {
 
   if (!data) return null;
 
-  const userTotal = Object.values(data.user_counts).reduce((a, b) => a + b, 0);
-  const unassignedMultimedia = data.multimedia_counts.UNASSIGNED || 0;
-  const unassignedDigital = data.digital_counts.PENDING || 0;
-  const unassignedPrint = data.print_counts.PENDING || 0;
+  const userTotal = sum(data.user_counts);
+  const rows = SERVICES.map((svc) => ({ ...svc, counts: data[svc.key] as Record<string, number> }));
+  const allCounts = rows.reduce<Record<string, number>>((acc, r) => {
+    for (const [s, c] of Object.entries(r.counts)) acc[s] = (acc[s] || 0) + c;
+    return acc;
+  }, {});
 
   const getStatusClass = (s: string) => {
     const map: Record<string, string> = {
-      PENDING: 'pending', ASSIGNED: 'pending',
-      IN_PROGRESS: 'in-progress', DONE: 'done',
+      PENDING: 'pending', ASSIGNED: 'pending', UNASSIGNED: 'pending',
+      IN_PROGRESS: 'in-progress', FOR_VERIFICATION: 'for-verification', DONE: 'done',
       NOT_APPROVED: 'cancelled', CANCELLED: 'cancelled', DECLINED: 'declined',
-      UNASSIGNED: 'pending',
     };
     return map[s] || 'pending';
   };
 
+  // A count cell; zero is drawn faint so the numbers that matter stand out.
+  const countCell = (n: number) => <td className={n === 0 ? 'adm-zero' : undefined}>{n}</td>;
+
   return (
-    <div className="page-wrap">
+    <div className="page-wrap adm-dash">
       <div className="page-header">
         <h2>Admin Dashboard</h2>
       </div>
 
-      <div className="stat-row">
-        <div className="stat-card-sm" style={{ borderLeft: '4px solid #6366f1' }}>
-          <h4>Total Users</h4>
-          <div className="stat-num">{userTotal}</div>
-          <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {Object.entries(data.user_counts)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([role, count]) => `${role}: ${count}`)
-              .join(' | ')}
+      <div className="adm-grid adm-grid--top">
+        <section className="adm-panel" aria-labelledby="adm-services">
+          <header className="adm-panel-head">
+            <h3 id="adm-services">Requests by service</h3>
+            <Link to="/all-requests">All requests</Link>
+          </header>
+          <div className="adm-ledger-wrap">
+            <table className="adm-ledger">
+              <thead>
+                <tr>
+                  <th scope="col">Service</th>
+                  {COLUMNS.map((c) => <th key={c.key} scope="col">{c.label}</th>)}
+                  <th scope="col">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => {
+                  const waiting = sum(r.counts, COLUMNS[0].statuses);
+                  return (
+                    <tr key={r.key}>
+                      <th scope="row"><Link to={r.manage}>{r.label}</Link></th>
+                      {/* Requests nobody is assigned to yet: the one number an admin acts on. */}
+                      <td className={waiting === 0 ? 'adm-zero' : undefined}>
+                        {waiting > 0 ? (
+                          <Link to={r.manage} className="adm-waiting" title={`Assign ${r.label} requests`}>{waiting}</Link>
+                        ) : 0}
+                      </td>
+                      {COLUMNS.slice(1).map((c) => <Fragment key={c.key}>{countCell(sum(r.counts, c.statuses))}</Fragment>)}
+                      <td className="adm-total">{sum(r.counts)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row">All services</th>
+                  {COLUMNS.map((c) => <Fragment key={c.key}>{countCell(sum(allCounts, c.statuses))}</Fragment>)}
+                  <td className="adm-total">{sum(allCounts)}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-        </div>
+        </section>
+
+        <section className="adm-panel" aria-labelledby="adm-users">
+          <header className="adm-panel-head">
+            <h3 id="adm-users">Users <span className="adm-head-count">{userTotal}</span></h3>
+            <Link to="/users">Manage</Link>
+          </header>
+          <dl className="adm-roles">
+            {Object.entries(data.user_counts)
+              .sort(([, a], [, b]) => b - a)
+              .map(([role, count]) => (
+                <div key={role}>
+                  <dt>{ROLE_LABELS[role] || role}</dt>
+                  <dd>{count}</dd>
+                </div>
+              ))}
+          </dl>
+        </section>
       </div>
 
-      <div className="stat-row">
-        <RequestTypeCard label="IT Requests" counts={data.it_counts} bgColor="#3b82f6" />
-        <RequestTypeCard label="Multimedia" counts={data.multimedia_counts} bgColor="#8b5cf6" />
-        <RequestTypeCard label="Digital Media" counts={data.digital_counts} bgColor="#06b6d4" />
-        <RequestTypeCard label="Print Materials" counts={data.print_counts} bgColor="#f59e0b" />
-      </div>
-
-      {(unassignedMultimedia > 0 || unassignedDigital > 0 || unassignedPrint > 0) && (
-        <div className="page-header" style={{ marginTop: '24px', marginBottom: '12px' }}>
-          <h3>Needs Attention</h3>
-        </div>
-      )}
-      <div className="stat-row" style={{ marginBottom: '20px' }}>
-        {unassignedMultimedia > 0 && (
-            <Link to="/multimedia-management" className="hbtn hbtn-view" style={{ padding: '10px 16px', fontSize: '13px' }}>
-            <span className="count-circle" style={{ background: '#f59e0b' }}>{unassignedMultimedia}</span>
-            Unassigned Multimedia
-          </Link>
-        )}
-        {unassignedDigital > 0 && (
-            <Link to="/digitalmedia-management" className="hbtn hbtn-view" style={{ padding: '10px 16px', fontSize: '13px' }}>
-            <span className="count-circle" style={{ background: '#06b6d4' }}>{unassignedDigital}</span>
-            Unassigned Digital Media
-          </Link>
-        )}
-        {unassignedPrint > 0 && (
-            <Link to="/print-materials-management" className="hbtn hbtn-view" style={{ padding: '10px 16px', fontSize: '13px' }}>
-            <span className="count-circle" style={{ background: '#f59e0b' }}>{unassignedPrint}</span>
-            Unassigned Print Materials
-          </Link>
-        )}
-      </div>
-
-      <div className="page-header" style={{ marginTop: '24px', marginBottom: '12px' }}>
-        <h3>Recent Requests</h3>
-      </div>
-
-      {data.recent_requests.length === 0 ? (
-        <div className="empty-state">No requests yet</div>
-      ) : (
-        <div className="history-table-wrap">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Code</th>
-                <th>Status</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
+      <div className="adm-grid">
+        <section className="adm-panel" aria-labelledby="adm-recent">
+          <header className="adm-panel-head">
+            <h3 id="adm-recent">Recent requests</h3>
+            <Link to="/all-requests">View all</Link>
+          </header>
+          {data.recent_requests.length === 0 ? (
+            <p className="adm-empty">No requests yet.</p>
+          ) : (
+            <ul className="adm-list">
               {data.recent_requests.map((r, i) => (
-                <tr key={i}>
-                  <td data-label="Type"><span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-secondary)' }}>{r.type}</span></td>
-                  <td className="td-code" data-label="Code">{r.request_code}</td>
-                  <td data-label="Status">
-                    <span className={`hstatus ${getStatusClass(r.status)}`}>
-                      <span className={`hstatus-dot ${getStatusClass(r.status)}`} />
-                      {STATUS_LABELS[r.status] || r.status}
-                    </span>
-                  </td>
-                  <td className="td-cell" data-label="Created">{fmtDateTime(r.created_at)}</td>
-                </tr>
+                <li key={i}>
+                  <span className="adm-list-main">
+                    <span className="td-code">{r.request_code}</span>
+                    <span className="adm-list-sub">{r.type}</span>
+                  </span>
+                  <span className={`hstatus ${getStatusClass(r.status)}`}>
+                    <span className={`hstatus-dot ${getStatusClass(r.status)}`} />
+                    {STATUS_LABELS[r.status] || r.status}
+                  </span>
+                  <time className="adm-time" dateTime={r.created_at} title={fmtDateTime(r.created_at)}>{shortTime(r.created_at)}</time>
+                </li>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </ul>
+          )}
+        </section>
 
-      <div className="page-header" style={{ marginTop: '24px', marginBottom: '12px' }}>
-        <h3>Recent Activity</h3>
-      </div>
-
-      {data.recent_audit.length === 0 ? (
-        <div className="empty-state">No recent activity</div>
-      ) : (
-        <div className="history-table-wrap">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Action</th>
-                <th>Entity</th>
-                <th>Details</th>
-                <th>Time</th>
-              </tr>
-            </thead>
-            <tbody>
+        <section className="adm-panel" aria-labelledby="adm-activity">
+          <header className="adm-panel-head">
+            <h3 id="adm-activity">Recent activity</h3>
+            <Link to="/audit-logs">Audit log</Link>
+          </header>
+          {data.recent_audit.length === 0 ? (
+            <p className="adm-empty">No recent activity.</p>
+          ) : (
+            <ul className="adm-list">
               {data.recent_audit.map((a, i) => (
-                <tr key={i}>
-                  <td style={{ fontWeight: 500 }} data-label="User">{a.username}</td>
-                  <td data-label="Action"><code style={{ fontSize: '11px', padding: '2px 4px', background: 'var(--bg-secondary)', borderRadius: '3px' }}>{a.action}</code></td>
-                  <td className="td-cell" data-label="Entity">{a.entity_type}</td>
-                  <td className="td-truncate" style={{ maxWidth: '300px' }} data-label="Details">{a.details}</td>
-                  <td className="td-cell" data-label="Time">{fmtDateTime(a.timestamp)}</td>
-                </tr>
+                <li key={i}>
+                  <span className="adm-list-main">
+                    <span className="adm-activity">{a.details || a.action}</span>
+                    <span className="adm-list-sub">{a.username}</span>
+                  </span>
+                  <time className="adm-time" dateTime={a.timestamp} title={fmtDateTime(a.timestamp)}>{shortTime(a.timestamp)}</time>
+                </li>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
