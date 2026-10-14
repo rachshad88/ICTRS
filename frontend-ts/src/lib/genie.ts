@@ -16,8 +16,9 @@ export interface GenieGeometry {
 }
 
 export interface GenieFrame {
-  /** The panel's transform as matrix(a, 0, 0, d, e, f), origin top left. */
+  /** The panel's transform as matrix(a, 0, c, d, e, f), origin top left; c leans it toward the neck. */
   a: number;
+  c: number;
   d: number;
   e: number;
   f: number;
@@ -64,8 +65,9 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
   const outline = [...leftSide, ...rightSide.reverse()];
 
   // The content: its top edge rides just inside the leading edge, and it is squeezed to the
-  // funnel's width up there, centred on it.
-  let a: number, d: number, e: number, f: number;
+  // funnel's width up there, centred on it. It leans so its bottom follows the funnel toward the
+  // neck, which matters when the neck is far to one side (the tab is off under another part of the bar).
+  let a: number, c = 0, d: number, e: number, f: number;
   if (p <= 1) {
     const topHalf = g.neckHalf + (fullHalf - g.neckHalf) * tipWidth - g.margin * tipWidth;
     a = Math.max(0.05, Math.min(1, (2 * topHalf) / g.width));
@@ -73,6 +75,11 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
     e = topCentre - (a * g.width) / 2;
     d = 1;
     f = lead + g.margin * front;
+    const bottomY = g.height + f;
+    const span = lead - g.neckY;
+    const tb = span < 0 ? clamp01((bottomY - g.neckY) / span) : 0;
+    const bottomCentre = g.neckX + (fullCentre - g.neckX) * widthAt(tb);
+    c = (bottomCentre - topCentre) / g.height;
   } else {
     const k = 1 + (p - 1) * 0.5;
     a = k;
@@ -82,8 +89,11 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
   }
 
   // The clip applies before the transform, so map the outline back into the panel's own px.
-  const points = outline.map(([x, y]) => [(x - e) / a, (y - f) / d] as [number, number]);
-  return { a, d, e, f, points };
+  const points = outline.map(([x, y]) => {
+    const ly = (y - f) / d;
+    return [(x - e - c * ly) / a, ly] as [number, number];
+  });
+  return { a, c, d, e, f, points };
 }
 
 /** Points as a clip-path, shifted into a child's box (dx, dy = its offset in the panel). */

@@ -19,9 +19,13 @@ const STILL = { duration: 0 } as const;
 const POPOVER_W = 212;
 
 /** The choice bubble's genie: opening settles with a slight swell, closing drains straight back in. */
-// Open pours over ~360 ms and settles by ~800 ms with a ~2% swell; close drains in ~300 ms.
+// Open pours over ~360 ms and settles by ~800 ms with a ~2% swell; close drains in ~400 ms.
 const GENIE_OPEN = { type: 'spring', stiffness: 80, damping: 13, mass: 1, restDelta: 0.0005, restSpeed: 0.005 } as const;
-const GENIE_CLOSE = { type: 'spring', stiffness: 260, damping: 32, mass: 1, restDelta: 0.003, restSpeed: 0.01 } as const;
+const GENIE_CLOSE = { type: 'spring', stiffness: 150, damping: 24, mass: 1, restDelta: 0.003, restSpeed: 0.01 } as const;
+/** The lens's jelly spring first reaches its new tab after ~120 ms; the bubble pours out of it then. */
+const GENIE_WAIT = 0.13;
+/** How far into the lens's rounded top the genie's neck reaches, in px. */
+const GENIE_NECK_DEPTH = 8;
 
 /** A light tick on phones that support it, so a tap feels pressed. */
 const tick = () => navigator.vibrate?.(8);
@@ -123,8 +127,11 @@ function BottomNav() {
   }, [moreOpen]);
 
   // The glass lens sits on the open bubble's tab first, then the More sheet, then the current page.
-  const lensOn = (key: string) =>
-    openGroup ? key === openGroup : moreOpen ? key === '__more' : key === (activeTab?.key ?? '__more');
+  const lensKey = openGroup ?? (moreOpen ? '__more' : activeTab?.key ?? '__more');
+  const lensOn = (key: string) => key === lensKey;
+  // Where the lens sat before this render, so a bubble knows whether to wait for it to slide over.
+  const lastLensKey = useRef(lensKey);
+  useEffect(() => { lastLensKey.current = lensKey; }, [lensKey]);
 
   const lens = (
     <motion.span layoutId="bottom-nav-lens" className="bottom-nav-lens" transition={reduce ? STILL : JELLY}>
@@ -211,6 +218,7 @@ function BottomNav() {
               pathname={pathname}
               badgeFor={badgeFor}
               reduce={!!reduce}
+              wait={lastLensKey.current !== openGroup ? GENIE_WAIT : 0}
             />
           )}
         </AnimatePresence>
@@ -326,14 +334,17 @@ function JellyIcon({ on, reduce, children }: { on: boolean; reduce: boolean; chi
 }
 
 /** The glass bubble of a service's pages, pouring out of its tab like the macOS genie. */
-function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
+function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, wait }: {
   tab: Tab;
   navRef: React.RefObject<HTMLElement>;
   anchor: HTMLElement | null;
   pathname: string;
   badgeFor: (path: string) => number | null;
   reduce: boolean;
+  /** Seconds to hold before pouring, while the lens slides over to this tab (read once). */
+  wait: number;
 }) {
+  const [delay] = useState(wait);
   const [pos, setPos] = useState<{ left: number; tail: number } | null>(null);
   const [isPresent, safeToRemove] = usePresence();
   const root = useRef<HTMLDivElement>(null);
@@ -365,14 +376,25 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
       if (!isPresent) safeToRemove?.();
       return;
     }
-    const geometry = {
-      width: POPOVER_W,
-      height: el.offsetHeight,
-      // Down past the bubble's 16px gap into the top of the tab's icon.
-      neckY: el.offsetHeight + 24,
-      neckX: pos.tail,
-      neckHalf: 24,
-      margin: 30,
+    const nav = navRef.current;
+    const h = el.offsetHeight;
+    const geometry = { width: POPOVER_W, height: h, neckY: h + 30, neckX: pos.tail, neckHalf: 26, margin: 30 };
+    // The neck follows the glass lens wherever it is, read every frame: it lands on this tab before
+    // the bubble opens, and slides back to the current page's tab while the bubble drains, pulling
+    // the bubble along. The lens is a pill; the neck joins it a little way into its rounded top,
+    // exactly as wide as the pill is there, so the bubble reads as drawn out of it.
+    const followLens = () => {
+      const lens = nav?.querySelector<HTMLElement>('.bottom-nav-lens');
+      if (!nav || !lens) return;
+      const n = nav.getBoundingClientRect();
+      const r = lens.getBoundingClientRect();
+      const radius = Math.min(r.width, r.height) / 2;
+      const depth = Math.min(GENIE_NECK_DEPTH, radius);
+      // The bubble rests 16px above the bar (.nav-bubble in bottom-nav.css), positioned from its left.
+      const restTop = n.top - 16 - h;
+      geometry.neckX = r.left + r.width / 2 - (n.left + pos.left);
+      geometry.neckY = r.top + depth - restTop;
+      geometry.neckHalf = r.width / 2 - radius + Math.sqrt(radius * radius - (radius - depth) ** 2);
     };
     const rows = LITE_DEVICE ? 16 : 28;
     const setClip = (node: HTMLElement, clip: string) => {
@@ -380,8 +402,9 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
       node.style.setProperty('-webkit-clip-path', clip);
     };
     const apply = (p: number) => {
-      const { a, d, e, f, points } = genieFrame(p, geometry, rows);
-      el.style.transform = `matrix(${a.toFixed(4)}, 0, 0, ${d.toFixed(4)}, ${e.toFixed(2)}, ${f.toFixed(2)})`;
+      followLens();
+      const { a, c, d, e, f, points } = genieFrame(p, geometry, rows);
+      el.style.transform = `matrix(${a.toFixed(4)}, 0, ${c.toFixed(4)}, ${d.toFixed(4)}, ${e.toFixed(2)}, ${f.toFixed(2)})`;
       setClip(g, toClipPath(points));
       setClip(b, toClipPath(points, b.offsetLeft, b.offsetTop));
     };
@@ -397,14 +420,14 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
     apply(progress.get());
     const unsubscribe = progress.on('change', apply);
     const controls = animate(progress, isPresent ? 1 : 0, {
-      ...(isPresent ? GENIE_OPEN : GENIE_CLOSE),
+      ...(isPresent ? { ...GENIE_OPEN, delay } : GENIE_CLOSE),
       onComplete: () => (isPresent ? settle() : safeToRemove?.()),
     });
     return () => {
       controls.stop();
       unsubscribe();
     };
-  }, [pos, isPresent, reduce, safeToRemove, progress]);
+  }, [pos, isPresent, reduce, safeToRemove, progress, navRef]);
 
   if (!pos) return null;
   return (
