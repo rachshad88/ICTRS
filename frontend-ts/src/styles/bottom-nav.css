@@ -41,8 +41,9 @@
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .bottom-nav-glass,
   .nav-bubble-glass {
+    /* Mostly white, so busy pages (a technician's request cards) don't show through more than plain ones */
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.36) 0%, rgba(255, 255, 255, 0.12) 55%, rgba(255, 255, 255, 0.22) 100%);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(251, 252, 254, 0.76) 55%, rgba(255, 255, 255, 0.82) 100%);
     /* A small radius keeps the per-frame re-blur cheap; saturate does the "liquid" colour lift. */
     backdrop-filter: blur(12px) saturate(180%);
     -webkit-backdrop-filter: blur(12px) saturate(180%);
@@ -150,9 +151,10 @@
   border-radius: 999px;
 }
 
-/* The lens: a smaller, thicker drop of glass under the selected tab */
+/* The lens: a smaller, thicker drop of glass under the selected tab, icon and label together */
 .bottom-nav-lens {
   position: absolute;
+  /* A full pill: its round ends match the bar's, so on the end tabs it sits evenly inside the curve */
   inset: 0;
   border-radius: 999px;
   background:
@@ -161,8 +163,7 @@
     inset 0 1px 1px #fff,
     inset 0 -3px 6px -2px rgba(20, 82, 201, 0.18),
     inset 0 0 0 0.5px rgba(12, 31, 74, 0.1),
-    0 8px 18px -8px rgba(12, 31, 74, 0.45),
-    0 0 22px -6px rgba(255, 217, 26, 0.7);
+    0 8px 18px -8px rgba(12, 31, 74, 0.45);
 }
 
 .bottom-nav-lens-shine {
@@ -191,6 +192,7 @@
 }
 
 .bottom-nav-label {
+  position: relative;
   max-width: 100%;
   padding: 0 2px;
   font-size: 10.5px;
@@ -203,23 +205,16 @@
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
 
+/* Long names (Multimedia) shrink a touch so they clear the pill's round ends */
+.bottom-nav-label.long {
+  font-size: 9.5px;
+  letter-spacing: -0.01em;
+}
+
 .bottom-nav-item.current .bottom-nav-label,
 .bottom-nav-item.lensed .bottom-nav-label {
   font-weight: 800;
   color: var(--ink);
-}
-
-/* Marks the tab holding the page you are on, even while the lens is elsewhere */
-.bottom-nav-dot {
-  position: absolute;
-  bottom: -2px;
-  left: 50%;
-  width: 5px;
-  height: 5px;
-  margin-left: -2.5px;
-  border-radius: 50%;
-  background: var(--seal-yellow);
-  box-shadow: 0 0 0 1.5px rgba(12, 31, 74, 0.55), 0 0 8px rgba(255, 217, 26, 0.9);
 }
 
 .bottom-nav-badge {
@@ -368,7 +363,6 @@
 .nav-bubble-link.active .nav-bubble-icon {
   background: var(--seal-yellow);
   color: var(--ink);
-  box-shadow: 0 0 14px -2px rgba(255, 217, 26, 0.8);
 }
 
 .nav-bubble-text {
@@ -635,7 +629,7 @@
 .lite .bottom-nav-glass,
 .lite .nav-bubble-glass,
 .lite .nav-bubble-tail {
-  background: rgba(251, 252, 254, 0.72);
+  background: rgba(251, 252, 254, 0.84);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }

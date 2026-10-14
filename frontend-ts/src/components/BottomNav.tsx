@@ -136,12 +136,12 @@ function BottomNav() {
           const badge = tabBadge(t);
           const content = (
             <>
-              <JellyIcon on={lensOn(t.key)} lens={lensOn(t.key) ? lens : null} reduce={!!reduce}>
+              {lensOn(t.key) && lens}
+              <JellyIcon on={lensOn(t.key)} reduce={!!reduce}>
                 <NavIcon d={t.icon} size={22} />
                 <Badge count={badge || null} />
               </JellyIcon>
-              <span className="bottom-nav-label">{t.label}</span>
-              {current && <motion.span layoutId="bottom-nav-dot" className="bottom-nav-dot" transition={reduce ? STILL : JELLY} />}
+              <span className={`bottom-nav-label ${t.label.length >= 10 ? 'long' : ''}`}>{t.label}</span>
             </>
           );
           const cls = `bottom-nav-item ${current ? 'current' : ''} ${lensOn(t.key) ? 'lensed' : ''}`;
@@ -186,12 +186,12 @@ function BottomNav() {
           aria-controls="bottom-nav-sheet"
           aria-label={moreOpen ? 'Close menu' : 'More'}
         >
-          <JellyIcon on={lensOn('__more')} lens={lensOn('__more') ? lens : null} reduce={!!reduce}>
+          {lensOn('__more') && lens}
+          <JellyIcon on={lensOn('__more')} reduce={!!reduce}>
             <span className="more-glyph" aria-hidden="true"><i /><i /><i /><i /></span>
             {!moreOpen && <Badge count={moreBadge || null} />}
           </JellyIcon>
           <span className="bottom-nav-label">{moreOpen ? 'Close' : 'More'}</span>
-          {!activeTab && !moreOpen && <motion.span layoutId="bottom-nav-dot" className="bottom-nav-dot" transition={reduce ? STILL : JELLY} />}
         </button>
 
         <AnimatePresence>
@@ -299,9 +299,8 @@ function BottomNav() {
 
 /**
  * A tab's icon: squashes on press, and wobbles like jelly when the glass lens lands on it.
- * The lens is passed in so it renders behind the icon inside this box.
  */
-function JellyIcon({ on, lens, reduce, children }: { on: boolean; lens: React.ReactNode; reduce: boolean; children: React.ReactNode }) {
+function JellyIcon({ on, reduce, children }: { on: boolean; reduce: boolean; children: React.ReactNode }) {
   const [glyph, animate] = useAnimate<HTMLSpanElement>();
   // Runs once each time the lens arrives, not on every re-render.
   useEffect(() => {
@@ -314,7 +313,6 @@ function JellyIcon({ on, lens, reduce, children }: { on: boolean; lens: React.Re
   }, [on, reduce, animate, glyph]);
   return (
     <motion.span className="bottom-nav-icon" whileTap={reduce ? undefined : { scaleX: 1.18, scaleY: 0.84 }} transition={JELLY}>
-      {lens}
       <span ref={glyph} className="bottom-nav-glyph">{children}</span>
     </motion.span>
   );
