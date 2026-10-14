@@ -2,7 +2,7 @@ import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { queryClient } from '../services/queryClient';
 
 // Catches a render crash so it doesn't take the whole site down with a blank screen.
-//  - variant "page": inside the signed-in layout (App.tsx), so the sidebar and topbar keep
+//  - variant "page": inside the signed-in layout (App.tsx), so the menu bars keep
 //    working and only the page area shows the message. A new `resetKey` (the path) clears it.
 //  - variant "site": the last resort around everything; offers a reload.
 // A page file that failed to download after a redeploy is normally reloaded in main.tsx

@@ -337,7 +337,7 @@ function ClientGuide() {
           </Section>
 
           <Section id="request-types" n={2} title="Request types">
-            <p>The left sidebar lists four kinds of requests. Each one has its own form and its own history page.</p>
+            <p>The menu bar (along the top on a computer, the bottom on a phone) lists four kinds of requests. Each one has its own form and its own history page.</p>
             <div className="gd-tickets">
               {/* Dealt onto the table one after another, each landing from its own angle */}
               {REQUEST_TYPES.map((t, i) => (
@@ -370,7 +370,7 @@ function ClientGuide() {
 
           <Section id="submit" n={3} title="Submitting a request">
             <ol className="gd-steps">
-              <li>Choose the request type from the sidebar.</li>
+              <li>Choose the request type from the menu bar, then <strong>New request</strong>.</li>
               <li>Fill in the form. Fields marked with <strong>*</strong> are required.</li>
               <li>Set the <strong>Priority</strong>. Leave it at Normal unless work has stopped or your deadline is within two days. Keeping Urgent for real emergencies means they get handled first.</li>
               <li>Attach files if the form allows it and they will help the team.</li>
@@ -384,7 +384,7 @@ function ClientGuide() {
 
           <Section id="track" n={4} title="Tracking your requests">
             <p>
-              Open the matching <strong>History</strong> page in the sidebar. Each row shows the request code, its
+              Open the request type in the menu bar and choose <strong>History</strong>. Each row shows the request code, its
               status and who it is assigned to. The list refreshes on its own when your request is accepted or
               finished, so there is no need to reload. Use the search box to find a request by code or keyword,
               and <strong>View</strong> to see its full details and attachments.
@@ -423,12 +423,12 @@ function ClientGuide() {
           </Section>
 
           <Section id="account" n={7} title="Your account">
-            <p>Open <strong>Profile</strong> at the bottom of the sidebar to:</p>
+            <p>Open <strong>Profile</strong> (your initials at the right of the menu bar; under More on a phone) to:</p>
             <ul className="gd-list">
               <li>Update your first, middle and last name.</li>
               <li>Change your password (at least 8 characters). You will need your current password.</li>
             </ul>
-            <p>The sidebar also has <strong>Logout</strong> to end your session on shared computers.</p>
+            <p>The menu bar also has <strong>Logout</strong> to end your session on shared computers.</p>
           </Section>
 
           <Section id="faq" n={8} title="Common questions">

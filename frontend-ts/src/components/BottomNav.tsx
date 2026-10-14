@@ -5,33 +5,35 @@ import { AnimatePresence, animate, motion, useAnimate, useDragControls, useMotio
 import { useAuth } from '../contexts/AuthContext';
 import { useLogoutTransition } from './LogoutTransition';
 import { LITE_DEVICE } from '../lib/motion';
-import { genieFrame, toClipPath } from '../lib/genie';
+import { genieFrame, genieFrameBelow, toClipPath } from '../lib/genie';
 import { useNavItems, useNavBadge, NavIcon, PROFILE_ICON, LOGOUT_ICON, type NavEntry, type NavLink } from './navItems';
 
 /** Tabs shown in the bar itself, before More. */
 const BAR_SLOTS = 4;
 
 /** Low damping: things overshoot and settle like jelly. */
-const JELLY = { type: 'spring', stiffness: 420, damping: 22, mass: 0.9 } as const;
+export const JELLY = { type: 'spring', stiffness: 420, damping: 22, mass: 0.9 } as const;
 const SHEET_SPRING = { type: 'spring', stiffness: 360, damping: 30 } as const;
-const STILL = { duration: 0 } as const;
+export const STILL = { duration: 0 } as const;
 
 const POPOVER_W = 212;
+/** Space between a bar and its choice bubble (.nav-bubble in bottom-nav.css). */
+const BUBBLE_GAP = 16;
 
 /** The choice bubble's genie: opening settles with a slight swell, closing drains straight back in. */
 // Open pours over ~360 ms and settles by ~800 ms with a ~2% swell; close drains in ~400 ms.
 const GENIE_OPEN = { type: 'spring', stiffness: 80, damping: 13, mass: 1, restDelta: 0.0005, restSpeed: 0.005 } as const;
 const GENIE_CLOSE = { type: 'spring', stiffness: 150, damping: 24, mass: 1, restDelta: 0.003, restSpeed: 0.01 } as const;
 /** The lens's jelly spring first reaches its new tab after ~120 ms; the bubble pours out of it then. */
-const GENIE_WAIT = 0.13;
+export const GENIE_WAIT = 0.13;
 /** How far into the lens's rounded top the genie's neck reaches, in px. */
 const GENIE_NECK_DEPTH = 8;
 
 /** A light tick on phones that support it, so a tap feels pressed. */
-const tick = () => navigator.vibrate?.(8);
+export const tick = () => navigator.vibrate?.(8);
 
 /** One bar slot: a page, or a group of pages (a menu section) that opens a choice bubble above it. */
-interface Tab {
+export interface Tab {
   key: string;
   label: string;
   icon: string;
@@ -315,7 +317,7 @@ function BottomNav() {
 /**
  * A tab's icon: squashes on press, and wobbles like jelly when the glass lens lands on it.
  */
-function JellyIcon({ on, reduce, children }: { on: boolean; reduce: boolean; children: React.ReactNode }) {
+export function JellyIcon({ on, reduce, className = 'bottom-nav-icon', children }: { on: boolean; reduce: boolean; className?: string; children: React.ReactNode }) {
   const [glyph, animate] = useAnimate<HTMLSpanElement>();
   // Runs once each time the lens arrives, not on every re-render.
   useEffect(() => {
@@ -327,14 +329,17 @@ function JellyIcon({ on, reduce, children }: { on: boolean; reduce: boolean; chi
     );
   }, [on, reduce, animate, glyph]);
   return (
-    <motion.span className="bottom-nav-icon" whileTap={reduce ? undefined : { scaleX: 1.18, scaleY: 0.84 }} transition={JELLY}>
+    <motion.span className={className} whileTap={reduce ? undefined : { scaleX: 1.18, scaleY: 0.84 }} transition={JELLY}>
       <span ref={glyph} className="bottom-nav-glyph">{children}</span>
     </motion.span>
   );
 }
 
-/** The glass bubble of a service's pages, pouring out of its tab like the macOS genie. */
-function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, wait }: {
+/**
+ * The glass bubble of a service's pages, pouring out of its tab like the macOS genie: up out of the
+ * phone's bottom bar, or down out of the desktop's top bar (below).
+ */
+export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, wait, below = false, lensClass = 'bottom-nav-lens', width = POPOVER_W }: {
   tab: Tab;
   navRef: React.RefObject<HTMLElement>;
   anchor: HTMLElement | null;
@@ -343,6 +348,11 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, wait }:
   reduce: boolean;
   /** Seconds to hold before pouring, while the lens slides over to this tab (read once). */
   wait: number;
+  /** Hangs under the bar instead of rising above it. */
+  below?: boolean;
+  /** The bar's glass lens, which the neck follows. */
+  lensClass?: string;
+  width?: number;
 }) {
   const [delay] = useState(wait);
   const [pos, setPos] = useState<{ left: number; tail: number } | null>(null);
@@ -360,9 +370,9 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, wait }:
     const navBox = nav.getBoundingClientRect();
     const btnBox = anchor.getBoundingClientRect();
     const centre = btnBox.left + btnBox.width / 2 - navBox.left;
-    const left = Math.min(Math.max(centre - POPOVER_W / 2, 0), navBox.width - POPOVER_W);
+    const left = Math.min(Math.max(centre - width / 2, 0), navBox.width - width);
     setPos({ left, tail: centre - left });
-  }, [anchor, navRef]);
+  }, [anchor, navRef, width]);
 
   // Pours out of the tab on open and drains back into it on close (lib/genie.ts). The clip goes on
   // the glass and the content separately: clipping the bubble itself would stop its glass from
@@ -378,35 +388,47 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, wait }:
     }
     const nav = navRef.current;
     const h = el.offsetHeight;
-    const geometry = { width: POPOVER_W, height: h, neckY: h + 30, neckX: pos.tail, neckHalf: 26, margin: 30 };
+    // Below the bar, the geometry is measured upside down (lib/genie.ts genieFrameBelow). The
+    // margin keeps the panel's shadow inside the outline; hanging below, the shadow falls toward
+    // the leading edge and reaches ~52px, so it needs more room or the outline cuts it straight.
+    const margin = below ? 60 : 30;
+    const geometry = { width, height: h, neckY: h + margin, neckX: pos.tail, neckHalf: 26, margin };
     // The neck follows the glass lens wherever it is, read every frame: it lands on this tab before
     // the bubble opens, and slides back to the current page's tab while the bubble drains, pulling
     // the bubble along. The lens is a pill; the neck joins it a little way into its rounded top,
     // exactly as wide as the pill is there, so the bubble reads as drawn out of it.
     const followLens = () => {
-      const lens = nav?.querySelector<HTMLElement>('.bottom-nav-lens');
+      const lens = nav?.querySelector<HTMLElement>(`.${lensClass}`);
       if (!nav || !lens) return;
       const n = nav.getBoundingClientRect();
       const r = lens.getBoundingClientRect();
       const radius = Math.min(r.width, r.height) / 2;
       const depth = Math.min(GENIE_NECK_DEPTH, radius);
-      // The bubble rests 16px above the bar (.nav-bubble in bottom-nav.css), positioned from its left.
-      const restTop = n.top - 16 - h;
+      // The bubble rests BUBBLE_GAP above the bar (or below it), positioned from its left.
       geometry.neckX = r.left + r.width / 2 - (n.left + pos.left);
-      geometry.neckY = r.top + depth - restTop;
+      if (below) {
+        const restTop = n.bottom + BUBBLE_GAP;
+        geometry.neckY = h - (r.bottom - depth - restTop);
+      } else {
+        const restTop = n.top - BUBBLE_GAP - h;
+        geometry.neckY = r.top + depth - restTop;
+      }
       geometry.neckHalf = r.width / 2 - radius + Math.sqrt(radius * radius - (radius - depth) ** 2);
     };
     const rows = LITE_DEVICE ? 16 : 28;
+    // Read once: reading layout right after writing a clip would force a style pass every frame.
+    const bodyX = b.offsetLeft;
+    const bodyY = b.offsetTop;
     const setClip = (node: HTMLElement, clip: string) => {
       node.style.clipPath = clip;
       node.style.setProperty('-webkit-clip-path', clip);
     };
     const apply = (p: number) => {
       followLens();
-      const { a, c, d, e, f, points } = genieFrame(p, geometry, rows);
+      const { a, c, d, e, f, points } = (below ? genieFrameBelow : genieFrame)(p, geometry, rows);
       el.style.transform = `matrix(${a.toFixed(4)}, 0, ${c.toFixed(4)}, ${d.toFixed(4)}, ${e.toFixed(2)}, ${f.toFixed(2)})`;
       setClip(g, toClipPath(points));
-      setClip(b, toClipPath(points, b.offsetLeft, b.offsetTop));
+      setClip(b, toClipPath(points, bodyX, bodyY));
     };
     const settle = () => {
       el.classList.remove('genie');
@@ -427,11 +449,11 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, wait }:
       controls.stop();
       unsubscribe();
     };
-  }, [pos, isPresent, reduce, safeToRemove, progress, navRef]);
+  }, [pos, isPresent, reduce, safeToRemove, progress, navRef, below, lensClass, width]);
 
   if (!pos) return null;
   return (
-    <div ref={root} className="nav-bubble" role="menu" aria-label={tab.label} style={{ left: pos.left, width: POPOVER_W }}>
+    <div ref={root} className={`nav-bubble ${below ? 'below' : ''}`} role="menu" aria-label={tab.label} style={{ left: pos.left, width }}>
       <span ref={glass} className="nav-bubble-glass" aria-hidden="true" />
       <span className="nav-bubble-tail" style={{ left: pos.tail }} aria-hidden="true" />
       <div ref={body} className="nav-bubble-body">
@@ -476,7 +498,7 @@ function SheetLink({ link, active, badge }: { link: NavLink; active: boolean; ba
   );
 }
 
-function Badge({ count }: { count: number | null }) {
+export function Badge({ count }: { count: number | null }) {
   return (
     <AnimatePresence>
       {count !== null && count > 0 && (
@@ -496,7 +518,7 @@ function Badge({ count }: { count: number | null }) {
 }
 
 /** True while the reader is scrolling down the page; false near the top or when scrolling back up. */
-function useHideOnScroll(paused: boolean): boolean {
+export function useHideOnScroll(paused: boolean): boolean {
   const [hidden, setHidden] = useState(false);
   const last = useRef(0);
   useEffect(() => {

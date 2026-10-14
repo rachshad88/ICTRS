@@ -3,7 +3,7 @@
    paper, seal navy/cobalt as ink, seal yellow as the one accent. Page titles get the highlighter
    swipe, stats are ticket stubs, statuses are rubber stamps, empty states are sticky notes.
    Only restyles the shared classes; no markup or behaviour depends on this file.
-   Scope: .app-main, .sidebar and .mobile-topbar, plus toasts and the notification panel, so the
+   Scope: .app-main and .mobile-topbar, plus toasts and the notification panel, so the
    public pages (landing, guide, login, live) are untouched. Fonts come from fonts.css.
    Avoids :has() (some staff phones lack it); color-mix() and dvh get plain fallbacks first.
    Layers: gear -1 and grain -2 sit behind all content, so they never cover a table or modal. */
@@ -149,137 +149,6 @@
   max-width: 70ch;
   font-size: 15.5px;
   color: var(--ink-soft);
-}
-
-/* ----- Sidebar: navy ink with a yellow marker for where you are ----- */
-.sidebar {
-  background: var(--sidebar-bg);
-  background: linear-gradient(170deg, #0c1f4a 0%, #0b2c6e 100%);
-  border-right: none;
-  box-shadow: 14px 0 40px -22px rgba(12, 31, 74, 0.7);
-}
-
-.sidebar::after {
-  content: '';
-  position: absolute;
-  z-index: 0;
-  left: -150px;
-  bottom: -140px;
-  width: 360px;
-  height: 360px;
-  pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-110 -110 220 220'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.07)' stroke-width='1.6' stroke-linejoin='round'%3E%3Cpath d='M77.8 -18.7 L98.8 -15.6 L98.8 15.6 L77.8 18.7 L68.2 41.8 L80.9 58.8 L58.8 80.9 L41.8 68.2 L18.7 77.8 L15.6 98.8 L-15.6 98.8 L-18.7 77.8 L-41.8 68.2 L-58.8 80.9 L-80.9 58.8 L-68.2 41.8 L-77.8 18.7 L-98.8 15.6 L-98.8 -15.6 L-77.8 -18.7 L-68.2 -41.8 L-80.9 -58.8 L-58.8 -80.9 L-41.8 -68.2 L-18.7 -77.8 L-15.6 -98.8 L15.6 -98.8 L18.7 -77.8 L41.8 -68.2 L58.8 -80.9 L80.9 -58.8 L68.2 -41.8 Z'/%3E%3Ccircle r='38'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
-  animation: appTurn 240s linear infinite reverse;
-}
-
-.sidebar-brand,
-.sidebar-nav,
-.sidebar-footer {
-  position: relative;
-  z-index: 1;
-}
-
-.sidebar-brand::after {
-  background: linear-gradient(90deg, rgba(255, 217, 26, 0.5), rgba(255, 217, 26, 0));
-}
-
-.sidebar-logo-frame,
-.sidebar.collapsed .sidebar-logo-frame {
-  border-radius: 50%;
-  background: #fbfcfe;
-  box-shadow: 0 0 0 3px var(--seal-yellow);
-}
-
-.sidebar-logo {
-  width: 32px;
-  height: 32px;
-}
-
-.sidebar.collapsed .sidebar-logo {
-  width: 22px;
-  height: 22px;
-}
-
-.sidebar-brand-text {
-  font-family: var(--font-display);
-  font-size: 16px;
-  letter-spacing: -0.02em;
-}
-
-/* The signed-in name, written by hand */
-.sidebar-user-name {
-  margin-top: 1px;
-  font-family: var(--font-hand);
-  font-weight: 600;
-  font-size: 20px;
-  line-height: 1;
-  color: var(--seal-yellow-soft);
-}
-
-.sidebar-section {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  color: rgba(255, 217, 26, 0.72);
-}
-
-.sidebar-item {
-  border-radius: var(--radius-sm);
-  font-weight: 700;
-}
-
-.sidebar-item:focus-visible {
-  outline-color: var(--seal-yellow);
-}
-
-.sidebar-active-pill {
-  border-radius: var(--radius-sm);
-  background: var(--seal-yellow);
-  box-shadow: 0 10px 22px -12px rgba(255, 217, 26, 0.8);
-}
-
-.sidebar-active-pill::before {
-  content: none;
-}
-
-.sidebar-item.active,
-.sidebar-item.active svg,
-.sidebar-item.active:hover svg {
-  color: var(--ink);
-}
-
-.sidebar-badge {
-  background: var(--seal-yellow);
-  color: var(--ink);
-  box-shadow: none;
-  font-family: var(--font-mono);
-}
-
-.sidebar-item.active .sidebar-badge {
-  background: var(--ink);
-  color: var(--seal-yellow);
-}
-
-.sidebar-footer {
-  border-top-color: rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-footer .sidebar-item.active {
-  background: var(--seal-yellow);
-  color: var(--ink);
-}
-
-.sidebar-footer .sidebar-item.active svg {
-  color: var(--ink);
-}
-
-.sidebar .sidebar-logout-btn:hover {
-  background: rgba(255, 155, 145, 0.14) !important;
-  color: #ff9b91 !important;
-}
-
-.sidebar .sidebar-logout-btn:hover svg {
-  color: #ff9b91 !important;
 }
 
 /* ----- Buttons: ink pills like the landing page ----- */
@@ -1353,10 +1222,6 @@
     color: var(--ink);
   }
 
-  .sidebar-overlay {
-    background: rgba(12, 31, 74, 0.5);
-  }
-
   .app-main .page-header {
     margin-bottom: 20px;
   }
@@ -1429,8 +1294,7 @@
 
 /* The global reduced-motion rule shortens animations; the slow loops must stop outright. */
 @media (prefers-reduced-motion: reduce) {
-  .app-main::before,
-  .sidebar::after {
+  .app-main::before {
     animation: none;
   }
 

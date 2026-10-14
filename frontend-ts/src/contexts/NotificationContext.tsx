@@ -163,7 +163,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       'request_note_added'
     ];
 
-    // These only keep the sidebar counts fresh; what the user is told arrives as 'notification:new'.
+    // These only keep the menu bar counts fresh; what the user is told arrives as 'notification:new'.
     for (const event of events) {
       socket.on(event, fetchCounts);
     }

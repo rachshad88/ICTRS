@@ -62,12 +62,11 @@ export function BellIcon() {
 interface NotificationPanelProps {
   open: boolean;
   onClose: () => void;
-  // 'popover' grows out of the sidebar button on desktop; 'sheet' rises from the bottom on phones.
+  // 'popover' drops from the top bar's bell on desktop; 'sheet' rises from the bottom on phones.
   variant: 'popover' | 'sheet';
-  sidebarCollapsed: boolean;
 }
 
-export default function NotificationPanel({ open, onClose, variant, sidebarCollapsed }: NotificationPanelProps) {
+export default function NotificationPanel({ open, onClose, variant }: NotificationPanelProps) {
   const { inbox, unread, markRead, markAllRead, clearOne, clearAll } = useNotification();
   const navigate = useNavigate();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -146,7 +145,7 @@ export default function NotificationPanel({ open, onClose, variant, sidebarColla
             tabIndex={-1}
             role="dialog"
             aria-label="Notifications"
-            className={`notif-panel notif-panel--${variant} ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+            className={`notif-panel notif-panel--${variant}`}
             {...motionProps}
           >
             <header className="notif-head">

@@ -5,7 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './services/queryClient';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { NotificationProvider } from './contexts/NotificationContext';
-import Sidebar from './components/Sidebar';
+import TopNav from './components/TopNav';
 import BottomNav from './components/BottomNav';
 import ToastNotifications from './components/ToastNotifications';
 import ConnectionBanner from './components/ConnectionBanner';
@@ -20,7 +20,7 @@ import { useNotification } from './contexts/NotificationContext';
 import Landing from './pages/Landing';
 import { PUBLIC_PAGES, PRIVATE_PAGES, PAGE_TITLES, canOpen, homeFor, preloadInOrder } from './routes';
 
-function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSidebar, isMobile }: { children: React.ReactNode; allowedRoles?: string[]; sidebarCollapsed: boolean; onToggleSidebar: () => void; isMobile: boolean }) {
+function ProtectedRoute({ children, allowedRoles, isMobile }: { children: React.ReactNode; allowedRoles?: string[]; isMobile: boolean }) {
   const { user, loading } = useAuth();
   const location = useLocation();
   const { unread } = useNotification();
@@ -54,10 +54,10 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
 
   return (
     <>
-      {/* Phones get a bottom bar instead of the sidebar. */}
-      {isMobile ? <BottomNav /> : <Sidebar collapsed={sidebarCollapsed} onToggle={onToggleSidebar} onOpenNotifications={toggleNotifications} notificationsOpen={notifOpen} />}
-      <NotificationPanel open={notifOpen} onClose={closeNotifications} variant={isMobile ? 'sheet' : 'popover'} sidebarCollapsed={sidebarCollapsed} />
-      <div className={`app-main ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      {/* Glass bars: across the top on desktop, along the bottom on phones. */}
+      {isMobile ? <BottomNav /> : <TopNav onOpenNotifications={toggleNotifications} notificationsOpen={notifOpen} />}
+      <NotificationPanel open={notifOpen} onClose={closeNotifications} variant={isMobile ? 'sheet' : 'popover'} />
+      <div className="app-main">
         <IdleLogout />
         {isMobile && (
           <header className="mobile-topbar">
@@ -75,9 +75,9 @@ function ProtectedRoute({ children, allowedRoles, sidebarCollapsed, onToggleSide
           </header>
         )}
         <PageTransition>
-          {/* A crash shows a message in the page area only; the sidebar keeps working. */}
+          {/* A crash shows a message in the page area only; the menu bar keeps working. */}
           <ErrorBoundary variant="page" resetKey={location.pathname}>
-            {/* Shown only if a page's file is still downloading; the sidebar stays put meanwhile. */}
+            {/* Shown only if a page's file is still downloading; the menu bar stays put meanwhile. */}
             <Suspense fallback={<div className="loading">Loading...</div>}>{children}</Suspense>
           </ErrorBoundary>
         </PageTransition>
@@ -125,11 +125,9 @@ function useModalEscape() {
 const MOBILE_QUERY = '(max-width: 768px)';
 
 function AppRoutes() {
-  const location = useLocation();
   useDocumentTitle();
   useModalEscape();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(isMobile);
 
   useEffect(() => {
     const mql = window.matchMedia(MOBILE_QUERY);
@@ -137,12 +135,6 @@ function AppRoutes() {
     mql.addEventListener('change', handleChange);
     return () => mql.removeEventListener('change', handleChange);
   }, []);
-
-  useEffect(() => {
-    if (isMobile) setSidebarCollapsed(true);
-  }, [isMobile, location.pathname]);
-
-  const toggleSidebar = () => setSidebarCollapsed(prev => !prev);
 
   // Fetch pages ahead (routes.ts). Signed in: the home page now, then the rest of what the
   // account can open, plus /login for the logout transition. Signed out: the public pages once
@@ -172,7 +164,7 @@ function AppRoutes() {
     };
   }, [loading, userKey]); // per account, not per profile edit (userKey stands in for user)
 
-  const routeProps = { sidebarCollapsed, onToggleSidebar: toggleSidebar, isMobile };
+  const routeProps = { isMobile };
 
   return (
     // Public pages arrive behind a curtain or on a direct visit; nothing to show while they load.

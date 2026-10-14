@@ -27,29 +27,6 @@ button.toast-item:active {
   transform: scale(0.98);
 }
 
-/* Sidebar trigger */
-.sidebar-notif-btn.open {
-  background: var(--sidebar-hover);
-}
-
-/* With labels hidden the count sits on the icon's corner instead of trailing it. */
-.sidebar.collapsed .sidebar-notif-btn .sidebar-badge {
-  position: absolute;
-  top: 5px;
-  right: 7px;
-  margin: 0;
-  padding: 1px 4px;
-  min-width: 16px;
-  font-size: 9px;
-}
-
-/* Phones use the bell in the top bar. */
-@media (max-width: 768px) {
-  .sidebar-notif-btn {
-    display: none;
-  }
-}
-
 /* Mobile top bar trigger */
 .mobile-topbar-bell {
   position: relative;
@@ -119,19 +96,15 @@ button.toast-item:active {
   outline: none;
 }
 
-/* Desktop: opens beside the sidebar footer and grows out of the bell. */
+/* Desktop: drops from the top bar's bell, at the bar's right end (.top-nav in bottom-nav.css). */
 .notif-panel--popover {
-  left: calc(var(--sidebar-w) + 12px);
-  bottom: 16px;
+  top: 90px;
+  right: max(16px, calc((100vw - 1440px) / 2));
   width: 380px;
   max-height: 560px;
-  max-height: min(560px, calc(100vh - 32px));
+  max-height: min(560px, calc(100vh - 106px));
   border-radius: var(--radius-md);
-  transform-origin: bottom left;
-}
-
-.notif-panel--popover.sidebar-collapsed {
-  left: 68px;
+  transform-origin: top right;
 }
 
 /* Phones: a bottom sheet. */

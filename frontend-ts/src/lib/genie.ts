@@ -47,6 +47,13 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
   const front = smooth(clamp01(q / 0.5));
   const tipWidth = smoother(clamp01(q / 0.62));
   const neckOpen = smoother(clamp01((q - 0.45) / 0.55));
+  // The panel lets go of the tab last. Until then its near edge stretches down to the neck, so the
+  // funnel is glass all the way (left empty, the neck showed only a sliver of the panel's shadow).
+  const release = smoother(clamp01((q - 0.7) / 0.3));
+  // Where the outline ends at the neck side: the neck, then the panel's resting edge plus margin.
+  const near = g.neckY + (g.height + g.margin - g.neckY) * release;
+  // And the panel's own near edge: the neck, then its resting place.
+  const nearEdge = g.neckY + (g.height - g.neckY) * release;
 
   // Screen-space outline (relative to the panel's resting box).
   const lead = g.neckY + (top - g.neckY) * front;
@@ -58,7 +65,7 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
     const u = widthAt(t);
     const centre = g.neckX + (fullCentre - g.neckX) * u;
     const half = g.neckHalf + (fullHalf - g.neckHalf) * u;
-    const y = g.neckY + (lead - g.neckY) * t;
+    const y = near + (lead - near) * t;
     leftSide.push([centre - half, y]);
     rightSide.push([centre + half, y]);
   }
@@ -73,11 +80,11 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
     a = Math.max(0.05, Math.min(1, (2 * topHalf) / g.width));
     const topCentre = g.neckX + (fullCentre - g.neckX) * tipWidth;
     e = topCentre - (a * g.width) / 2;
-    d = 1;
     f = lead + g.margin * front;
-    const bottomY = g.height + f;
-    const span = lead - g.neckY;
-    const tb = span < 0 ? clamp01((bottomY - g.neckY) / span) : 0;
+    d = Math.max(1, (nearEdge - f) / g.height);
+    const bottomY = f + d * g.height;
+    const span = lead - near;
+    const tb = span < 0 ? clamp01((bottomY - near) / span) : 0;
     const bottomCentre = g.neckX + (fullCentre - g.neckX) * widthAt(tb);
     c = (bottomCentre - topCentre) / g.height;
   } else {
@@ -99,4 +106,22 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
 /** Points as a clip-path, shifted into a child's box (dx, dy = its offset in the panel). */
 export function toClipPath(points: Array<[number, number]>, dx = 0, dy = 0): string {
   return `polygon(${points.map(([x, y]) => `${(x - dx).toFixed(2)}px ${(y - dy).toFixed(2)}px`).join(',')})`;
+}
+
+/**
+ * The same genie for a panel that hangs below its tab (a top bar's bubble). Give it the geometry
+ * measured upside down (neckY from the panel's bottom edge, growing downward) and it returns the
+ * frame the right way up: the panel's matrix and outline mirrored top to bottom.
+ */
+export function genieFrameBelow(p: number, g: GenieGeometry, rows = 24): GenieFrame {
+  const { a, c, d, e, f, points } = genieFrame(p, g, rows);
+  const h = g.height;
+  return {
+    a,
+    c: -c,
+    d,
+    e: e + c * h,
+    f: h * (1 - d) - f,
+    points: points.map(([x, y]) => [x, h - y] as [number, number]),
+  };
 }

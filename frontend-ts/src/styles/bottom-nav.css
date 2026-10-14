@@ -1,11 +1,12 @@
-/* ========== PHONE BOTTOM NAV ========== */
-/* Replaces the sidebar on phones (BottomNav.tsx): a floating liquid-glass bar, a glass lens that
-   jelly-springs to the selected tab, choice bubbles that rise out of a service tab, and a glass
-   More sheet with the full menu.
+/* ========== GLASS NAV BARS ========== */
+/* Phones (BottomNav.tsx): a floating liquid-glass bar at the bottom, a glass lens that jelly-springs
+   to the selected tab, choice bubbles that rise out of a service tab, and a glass More sheet with
+   the full menu. Desktop (TopNav.tsx): the same bar, lens and bubbles across the top, the bubbles
+   pouring down; see "Desktop top nav" at the end.
    Glass recipe: a tinted backdrop blur, a bright rim drawn with a mask, a soft specular sheen, and
    inner shadows for thickness. The blur lives on child layers, never on .bottom-nav itself, so the
    bubbles inside it can still blur the page behind them.
-   Layers: bar 1300 over the bubble veil (1280), the More sheet (1295) and its backdrop (1290);
+   Layers: either bar 1300 over the bubble veil (1280), the More sheet (1295) and its backdrop (1290);
    under the notification sheet (1500), toasts and modals (2000). Loaded after app.css. */
 
 @media (max-width: 768px) {
@@ -22,6 +23,7 @@
 
 /* ----- Shared glass surface ----- */
 .bottom-nav-glass,
+.top-nav-glass,
 .nav-bubble-glass {
   position: absolute;
   inset: 0;
@@ -40,6 +42,7 @@
 
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .bottom-nav-glass,
+  .top-nav-glass,
   .nav-bubble-glass {
     /* Mostly white, so busy pages (a technician's request cards) don't show through more than plain ones */
     background:
@@ -52,6 +55,7 @@
 
 /* Specular sheen across the upper-left, like light on curved glass */
 .bottom-nav-glass::before,
+.top-nav-glass::before,
 .nav-bubble-glass::before {
   content: '';
   position: absolute;
@@ -65,6 +69,7 @@
 
 /* The rim: bright where light hits (top-left, bottom-right), almost clear elsewhere */
 .bottom-nav-glass::after,
+.top-nav-glass::after,
 .nav-bubble-glass::after {
   content: '';
   position: absolute;
@@ -152,7 +157,8 @@
 }
 
 /* The lens: a smaller, thicker drop of glass under the selected tab, icon and label together */
-.bottom-nav-lens {
+.bottom-nav-lens,
+.top-nav-lens {
   position: absolute;
   /* A full pill: its round ends match the bar's, so on the end tabs it sits evenly inside the curve */
   inset: 0;
@@ -293,9 +299,17 @@
   gap: 4px;
 }
 
-/* While the genie plays, its neck stands in for the tail */
-.nav-bubble.genie .nav-bubble-tail {
-  visibility: hidden;
+/* While the genie plays, its neck stands in for the tail, and the rim stays off: the panel's edge
+   is cut flat where it meets the neck, and a rim there reads as a stray line. Both fade back in. */
+.nav-bubble-tail,
+.nav-bubble-glass::after {
+  transition: opacity 200ms ease;
+}
+
+.nav-bubble.genie .nav-bubble-tail,
+.nav-bubble.genie .nav-bubble-glass::after {
+  opacity: 0;
+  transition: none;
 }
 
 .nav-bubble-tail {
@@ -630,8 +644,9 @@
 }
 
 /* ----- Lighter glass for slower phones and for people who ask for less transparency ----- */
-/* .lite is set by BottomNav on devices with little memory or few cores. */
+/* .lite is set by main.tsx on devices with little memory or few cores. */
 .lite .bottom-nav-glass,
+.lite .top-nav-glass,
 .lite .nav-bubble-glass,
 .lite .nav-bubble-tail {
   background: rgba(251, 252, 254, 0.84);
@@ -645,7 +660,8 @@
   -webkit-backdrop-filter: none;
 }
 
-.lite .bottom-nav-glass {
+.lite .bottom-nav-glass,
+.lite .top-nav-glass {
   box-shadow:
     inset 0 1px 1px rgba(255, 255, 255, 0.95),
     inset 0 0 0 0.5px rgba(12, 31, 74, 0.1),
@@ -660,11 +676,348 @@
 
 @media (prefers-reduced-transparency: reduce) {
   .bottom-nav-glass,
+  .top-nav-glass,
   .nav-bubble-glass,
   .nav-bubble-tail,
   .bottom-sheet {
     background: rgba(251, 252, 254, 0.97);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+}
+
+/* ========== DESKTOP TOP NAV ========== */
+/* The phone bar's sibling for wider screens (TopNav.tsx): brand at the left, tabs in the middle,
+   notifications, profile and logout at the right. Shares the glass, lens and bubbles above. */
+
+@media (min-width: 769px) {
+  /* Room for the bar above the first row of every page */
+  .app-main {
+    padding-top: 104px;
+  }
+
+  /* The turning gear sits clear of the bar: under its glass it would make the blur redraw on
+     every frame, forever. */
+  .app-main::before {
+    top: 100px;
+    right: -380px;
+  }
+}
+
+.top-nav {
+  position: fixed;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  max-width: 1440px;
+  margin: 0 auto;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 64px;
+  padding: 6px;
+  border-radius: 999px;
+  transition: transform 520ms var(--ease-spring);
+  will-change: transform;
+}
+
+/* Slides up off screen rather than fading, like the phone bar */
+.top-nav.is-hidden {
+  transform: translateY(calc(-100% - 30px)) scale(0.96);
+  pointer-events: none;
+  transition: transform 380ms var(--ease-drawer);
+}
+
+/* The sides share what the tabs leave, so the tabs sit in the middle whenever they fit */
+.top-nav-brand,
+.top-nav-actions {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.top-nav-actions {
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.top-nav-brand {
+  gap: 10px;
+  padding-left: 4px;
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 999px;
+}
+
+.top-nav-brand:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+
+.top-nav-logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fbfcfe;
+  box-shadow: 0 0 0 2.5px var(--seal-yellow), 0 6px 14px -8px rgba(12, 31, 74, 0.55);
+  transition: transform 520ms var(--ease-spring);
+}
+
+.top-nav-brand:hover .top-nav-logo {
+  transform: rotate(-10deg) scale(1.06);
+}
+
+.top-nav-logo img {
+  width: 30px;
+  height: 30px;
+}
+
+.top-nav-brand-text {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.top-nav-tabs {
+  flex: 0 1 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 100%;
+}
+
+.top-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  padding: 0 16px 0 13px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: rgba(12, 31, 74, 0.66);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 220ms ease, background-color 220ms ease;
+}
+
+.top-nav-item:hover {
+  color: var(--ink);
+  background: rgba(12, 31, 74, 0.05);
+}
+
+.top-nav-item.lensed,
+.top-nav-item.lensed:hover {
+  color: var(--ink);
+  background: none;
+}
+
+.top-nav-item:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: -2px;
+}
+
+.top-nav-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+}
+
+/* One lens for the whole bar, sized and placed by TopNav (not inset: 0 like the phone's) */
+.top-nav-lens {
+  inset: auto;
+  top: 0;
+  left: 0;
+  will-change: transform;
+}
+
+.top-nav-item.lensed .bottom-nav-glyph {
+  color: var(--cobalt);
+}
+
+.top-nav-label,
+.top-nav-caret {
+  position: relative;
+}
+
+.top-nav-caret {
+  margin-left: -3px;
+  opacity: 0.55;
+  transition: transform 420ms var(--ease-spring), opacity 220ms ease;
+}
+
+.top-nav-item:hover .top-nav-caret,
+.top-nav-caret.open {
+  opacity: 0.9;
+}
+
+.top-nav-caret.open {
+  transform: rotate(180deg);
+}
+
+.top-nav .bottom-nav-badge {
+  top: -9px;
+  right: -12px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  font-size: 9.5px;
+}
+
+/* Bell and logout: round buttons */
+.top-nav-round {
+  width: 52px;
+  padding: 0;
+  justify-content: center;
+}
+
+.top-nav-round.open {
+  color: var(--ink);
+  background: rgba(12, 31, 74, 0.08);
+}
+
+.top-nav-logout:hover {
+  color: var(--danger-red);
+  background: rgba(201, 55, 44, 0.08);
+}
+
+.top-nav-profile {
+  padding: 0 16px 0 7px;
+}
+
+.top-nav-profile .top-nav-icon {
+  width: 38px;
+  height: 38px;
+}
+
+.top-nav-avatar {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-grad);
+  color: var(--seal-yellow);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 0 3.5px rgba(255, 217, 26, 0.6), 0 6px 12px -6px rgba(12, 31, 74, 0.6);
+}
+
+.top-nav-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The bubble hangs under the bar, its tail pointing up at the tab. It sits behind the bar's glass,
+   so it slides out from under the pill: drawn over it, the start of the genie (a flat sliver at the
+   neck, inside the pill's lower edge) showed as a line across the tab. */
+.nav-bubble.below {
+  top: calc(100% + 16px);
+  bottom: auto;
+  z-index: -2;
+}
+
+/* Its drop shadow falls toward the genie's leading edge, where the outline would cut it straight
+   while the bubble grows; it stays off until the bubble settles, then fades in. */
+.nav-bubble.below .nav-bubble-glass {
+  transition: box-shadow 260ms ease;
+}
+
+.nav-bubble.below.genie .nav-bubble-glass {
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.4),
+    inset 0 -10px 18px -10px rgba(20, 82, 201, 0.12),
+    inset 0 0 0 0.5px rgba(12, 31, 74, 0.08),
+    0 0 0 0 rgba(12, 31, 74, 0),
+    0 0 0 0 rgba(12, 31, 74, 0);
+  transition: none;
+}
+
+.nav-bubble.below .nav-bubble-tail {
+  top: -7px;
+  bottom: auto;
+  box-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.85), -4px -4px 12px -8px rgba(12, 31, 74, 0.25);
+}
+
+/* A lighter veil than on phones: the page stays readable around the bubble */
+.top-nav-veil {
+  background: rgba(12, 31, 74, 0.08);
+}
+
+@media (hover: hover) {
+  .nav-bubble-icon {
+    transition: transform 360ms var(--ease-spring);
+  }
+
+  .nav-bubble-link:not(.active):hover {
+    background: rgba(255, 255, 255, 0.65);
+  }
+
+  .nav-bubble-link:not(.active):hover .nav-bubble-icon {
+    transform: rotate(-6deg) scale(1.06);
+  }
+}
+
+/* Narrower screens: the brand and name go first, then (with many tabs) the tab labels */
+@media (max-width: 1439px) {
+  .top-nav.crowded .top-nav-brand-text,
+  .top-nav.crowded .top-nav-name {
+    display: none;
+  }
+
+  .top-nav.crowded .top-nav-profile {
+    padding: 0 7px;
+  }
+}
+
+@media (max-width: 1199px) {
+  .top-nav.crowded .top-nav-tabs .top-nav-label {
+    display: none;
+  }
+
+  .top-nav.crowded .top-nav-tabs .top-nav-item {
+    padding: 0 15px;
+  }
+}
+
+@media (max-width: 1099px) {
+  .top-nav-brand-text,
+  .top-nav-name {
+    display: none;
+  }
+
+  .top-nav-profile {
+    padding: 0 7px;
+  }
+}
+
+@media (max-width: 899px) {
+  .top-nav-tabs .top-nav-label {
+    display: none;
+  }
+
+  .top-nav-tabs .top-nav-item {
+    padding: 0 15px;
   }
 }

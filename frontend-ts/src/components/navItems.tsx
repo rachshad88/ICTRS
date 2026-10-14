@@ -8,7 +8,8 @@ export interface NavEntry {
   label?: string;
   /** Label for the mobile bottom bar, where space is tight. */
   short?: string;
-  /** A heading; '' draws a divider. With icon and short, phones show it as one tab grouping its links. */
+  /** A heading; '' draws a divider. With icon and short, phones show it as one tab grouping its links;
+   *  desktop folds titled sections into one tab too (TopNav.tsx). */
   section?: string;
 }
 
@@ -49,7 +50,7 @@ const ROLE_NAV: Record<string, NavEntry[]> = {
     { to: '/all-requests', icon: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01', label: 'All Requests', short: 'Requests' },
     { to: '/audit-logs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H9H8', label: 'Audit Log' },
     { to: '/signatories', icon: 'M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z', label: 'Signatories' },
-    { section: 'Assign Requests' },
+    { section: 'Assign Requests', icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' },
     { to: '/it-dashboard', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4 M7 8l3 3-3 3 M13 14h4', label: 'IT Requests', short: 'IT' },
     { to: '/multimedia-management', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Mgmt', short: 'Multimedia' },
     { to: '/digitalmedia-management', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Mgmt', short: 'Digital' },
