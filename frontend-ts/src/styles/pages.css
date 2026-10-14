@@ -1030,6 +1030,7 @@ yt-channel-avatar.pm { background: #047857; }
   display: flex;
   flex-direction: column-reverse;
   gap: 2px;
+  min-width: 0; /* grid cells otherwise grow to their label and push the strip out of its card */
   padding: 2px 22px;
   cursor: default;
 }
@@ -1044,11 +1045,15 @@ yt-channel-avatar.pm { background: #047857; }
   color: var(--ink);
 }
 
+/* One line when there's room; otherwise it wraps (hyphenating long words) rather than spilling over
+   the tear line into the next counter. */
 .app-main .tech-stat-label {
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--ink-soft);
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  hyphens: auto;
 }
 
 /* The technician's own active work stands out; Beyond repair only once there is any. */
@@ -1147,20 +1152,12 @@ yt-channel-avatar.pm { background: #047857; }
   min-width: 220px;
 }
 
-/* Phones: filters and search each take their own row, the two counter groups stack, and the
-   period control fills its row. */
-@media (max-width: 768px) {
-  .app-main .tech-toolbar {
-    flex-basis: 100%;
-  }
-
-  .app-main .tech-dash .tech-search {
-    flex-basis: 100%;
-    max-width: none;
-    margin-left: 0;
-  }
-
-  .app-main .tech-stats {
+/* Tablets and narrow windows (and phones): the counter groups stack, one row per group, so labels
+   keep room instead of squeezing every counter into one row. Matches where the desktop fit-the-
+   window layouts start (1025px), so the two never overlap. */
+@media (max-width: 1024px) {
+  .app-main .tech-stats,
+  .app-main .it-dash .tech-stats {
     grid-template-columns: 1fr;
     padding: 0;
   }
@@ -1193,7 +1190,7 @@ yt-channel-avatar.pm { background: #047857; }
     content: none;
   }
 
-  /* Rows are 12px padded on phones, not 14px. */
+  /* Rows are 12px padded once stacked, not 14px. */
   .app-main .tech-stat + .tech-stat::after {
     top: -12px;
     bottom: -12px;
@@ -1202,14 +1199,24 @@ yt-channel-avatar.pm { background: #047857; }
   .app-main .tech-stat {
     padding: 0 14px;
   }
+}
 
-  .app-main .tech-stat-num {
-    font-size: 22px;
+/* Phones: filters and search each take their own row, the period control fills its row, and the
+   counter strip is hidden. */
+@media (max-width: 768px) {
+  .app-main .tech-toolbar {
+    flex-basis: 100%;
   }
 
-  .app-main .tech-stat-label {
-    font-size: 11.5px;
-    white-space: normal;
+  /* No counter strip on phones (technician and IT admin dashboards): straight to the requests. */
+  .app-main .tech-stats {
+    display: none;
+  }
+
+  .app-main .tech-dash .tech-search {
+    flex-basis: 100%;
+    max-width: none;
+    margin-left: 0;
   }
 
   .app-main .tech-period {
@@ -1574,5 +1581,150 @@ yt-channel-avatar.pm { background: #047857; }
   .app-main .adm-roles {
     padding-left: 14px;
     padding-right: 14px;
+  }
+}
+
+/* ========== IT ADMIN DASHBOARD (pages/ItAdminDashboard.tsx) ==========
+   Also has .tech-dash, so it shares the technician dashboard's header row (title, filters,
+   search), counter strip and tear lines; only what differs is here. */
+
+.app-main .it-dash .tech-stats-group {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+/* Desktop: the page fits the window, so ten requests show without scrolling it. The page is the
+   height left under the top bar (.app-main's 104px top padding, 24px bottom padding here); rows are
+   one line each (long text ends in "...", the whole of it is in the tooltip and the row's details).
+   If more rows than fit (e.g. many "still open from earlier"), only the table scrolls, under a
+   header that stays put. Below 560px of height the page scrolls as usual. */
+@media (min-width: 1025px) {
+  .app-main:has(.it-dash) {
+    padding-bottom: 24px;
+  }
+
+  /* Counter groups of 3, 2 and 4: each gets width for its own
+     count. Desktop only: narrower, the groups stack (see the max-width: 1024px block). */
+  .app-main .it-dash .tech-stats {
+    grid-template-columns: 3fr 2fr 4fr;
+  }
+
+  .app-main .it-dash {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 128px);
+    height: calc(100dvh - 128px);
+    min-height: 560px;
+  }
+
+  .app-main .it-dash > * {
+    flex: none;
+  }
+
+  .app-main .it-dash .page-header {
+    margin-bottom: 14px;
+  }
+
+  .app-main .it-dash .page-header:first-child h2 {
+    font-size: clamp(28px, 2.5vw, 38px);
+  }
+
+  .app-main .it-dash .tech-stats {
+    margin-bottom: 14px;
+    padding: 10px 0;
+  }
+
+  .app-main .it-dash .tech-stat {
+    padding: 2px 14px;
+  }
+
+  .app-main .it-dash .tech-stat-num {
+    font-size: 24px;
+  }
+
+  /* The tear-line notches sit on the strip's edges: match its 10px padding here. */
+  .app-main .it-dash .tech-stat + .tech-stat::after,
+  .app-main .it-dash .tech-stats-group + .tech-stats-group .tech-stat:first-child::after {
+    top: -10px;
+    bottom: -10px;
+  }
+
+  .app-main .it-dash .it-table {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* Full width, not the base max-content, so the issue column can absorb what's left and clip. */
+  .app-main .it-dash .it-table .history-table {
+    width: 100%;
+  }
+
+  .app-main .it-dash .it-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  .app-main .it-dash .history-table th {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  .app-main .it-dash .history-table td {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    white-space: nowrap;
+  }
+
+  /* Name, then office in grey, on one line. */
+  .app-main .it-dash .it-requester {
+    display: block;
+    max-width: 210px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-main .it-dash .it-requester .td-sub {
+    display: inline;
+    margin-left: 6px;
+  }
+
+  /* The issue takes whatever width is left and ends in "..." past it. */
+  .app-main .it-dash .it-issue {
+    width: 100%;
+    max-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-main .it-dash .it-issue .note-count {
+    margin: 0 6px 0 0;
+  }
+
+  /* Completed time is in the tooltip and the details on desktop. */
+  .app-main .it-dash .it-created .td-sub {
+    display: none;
+  }
+
+  .app-main .it-dash td .td-sub.mov-returned-sub {
+    display: inline;
+    margin: 0 0 0 6px;
+  }
+
+  .app-main .it-dash .req-flags {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    margin: 0 0 0 6px;
+    vertical-align: middle;
+  }
+
+  .app-main .it-dash .history-table .hbtn {
+    padding: 4px 11px;
+  }
+
+  .app-main .it-dash .history-actions {
+    flex-wrap: nowrap;
   }
 }

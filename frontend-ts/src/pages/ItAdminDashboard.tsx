@@ -85,6 +85,34 @@ const EARLIER_LABEL: Record<string, string> = {
 };
 const PERIOD_LABEL: Record<string, string> = { daily: 'This day', weekly: 'This week', monthly: 'This month' };
 
+const PERIODS = [
+  { value: 'all', label: 'All' },
+  { value: 'daily', label: 'Day' },
+  { value: 'weekly', label: 'Week' },
+  { value: 'monthly', label: 'Month' },
+];
+
+// The counter strip, in three groups split by ticket tear lines: open work, what needs attention,
+// and how finished work turned out. Same strip as the technician dashboard (pages.css).
+interface StatDef { key: keyof Counts; label: string; tone?: 'accent' | 'warn' }
+const STAT_GROUPS: StatDef[][] = [
+  [
+    { key: 'pending_count', label: 'Pending', tone: 'accent' },
+    { key: 'progress_count', label: 'In progress' },
+    { key: 'verification_count', label: 'For verification' },
+  ],
+  [
+    { key: 'urgent_count', label: 'Urgent (open)', tone: 'warn' },
+    { key: 'overdue_count', label: 'Overdue', tone: 'warn' },
+  ],
+  [
+    { key: 'done_count', label: 'Done' },
+    { key: 'declined_count', label: 'Declined' },
+    { key: 'repaired_count', label: 'Repaired' },
+    { key: 'beyond_repair_count', label: 'Beyond repair' },
+  ],
+];
+
 function ItAdminDashboard() {
   const { user } = useAuth();
   const [filterType, setFilterType] = useState('daily');
@@ -261,18 +289,18 @@ function ItAdminDashboard() {
         </button>
         <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} reopened={req.reopened} />
       </td>
-      <td className="td-cell td-wrap" data-label="Requested By">
-        <span className="td-stack">
+      <td className="td-cell" data-label="Requested By">
+        <span className="it-requester" title={`${req.client_name}, ${req.office}`}>
           {req.client_name}
           <span className="td-sub">{req.office}</span>
         </span>
       </td>
       <td className="td-cell" data-label="Assigned To">{req.assigned_name || '-'}</td>
-      <td className="td-wrap" data-label="Issue">
-        {req.issue}
+      <td className="it-issue" data-label="Issue" title={req.issue}>
         {req.notes && req.notes.length > 0 && (
           <span className="note-count" title="Notes from the client">{req.notes.length} {req.notes.length === 1 ? 'note' : 'notes'}</span>
         )}
+        {req.issue}
       </td>
       <td data-label="Status">
         <span className={`hstatus ${req.statusClass}`}>
@@ -281,7 +309,7 @@ function ItAdminDashboard() {
         </span>
         {req.mov_return_reason && <span className="td-sub mov-returned-sub">MOV returned</span>}
       </td>
-      <td className="td-cell" data-label="Created">
+      <td className="td-cell it-created" data-label="Created" title={req.completed_at !== '-' ? `Completed ${req.completed_at}` : undefined}>
         <span className="td-stack">
           {req.created_at}
           {req.completed_at !== '-' && <span className="td-sub">Completed {req.completed_at}</span>}
@@ -292,74 +320,62 @@ function ItAdminDashboard() {
   );
 
   return (
-    <div className="page-wrap">
+    <div className="page-wrap tech-dash it-dash">
       <div className="page-header">
         <h2>IT Assign Dashboard</h2>
+        <div className="tech-toolbar">
+          <div className="tech-period" role="group" aria-label="Period">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                className={filterType === p.value ? 'on' : ''}
+                aria-pressed={filterType === p.value}
+                onClick={() => setFilterType(p.value)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {/* "All" ignores the date, so the picker is off rather than silently doing nothing. */}
+          <input
+            type="date"
+            className="tech-date"
+            aria-label="Date"
+            value={selectedDate}
+            disabled={filterType === 'all'}
+            onChange={(e) => setSelectedDate(e.target.value)}
+          />
+          <label className="tech-check">
+            <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
+            Show done
+          </label>
+        </div>
+        <SearchBox className="tech-search" placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
-      <div className="filters-row">
-        <SearchBox placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
-
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-          <option value="all">All</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-
-        <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-
-        <label>
-          <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
-          <span>Show Done</span>
-        </label>
-      </div>
-
-      <div className="stat-row">
-        <div className="stat-card-sm">
-          <h4>Pending</h4>
-          <p className="stat-num">{counts.pending_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>In Progress</h4>
-          <p className="stat-num">{counts.progress_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>For Verification</h4>
-          <p className="stat-num">{counts.verification_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Done</h4>
-          <p className="stat-num">{counts.done_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Declined</h4>
-          <p className="stat-num">{counts.declined_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Urgent (open)</h4>
-          <p className="stat-num">{counts.urgent_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Overdue</h4>
-          <p className="stat-num">{counts.overdue_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Repaired</h4>
-          <p className="stat-num">{counts.repaired_count}</p>
-        </div>
-        <div className="stat-card-sm">
-          <h4>Beyond Repair</h4>
-          <p className="stat-num">{counts.beyond_repair_count}</p>
-        </div>
+      <div className="tech-stats">
+        {STAT_GROUPS.map((group, i) => (
+          <div key={i} className="tech-stats-group">
+            {group.map((stat) => (
+              <div
+                key={stat.key}
+                className={`tech-stat ${stat.tone === 'accent' && counts[stat.key] > 0 ? 'accent' : ''} ${stat.tone === 'warn' && counts[stat.key] > 0 ? 'warn' : ''}`}
+              >
+                <span className="tech-stat-label">{stat.label}</span>
+                <span className="tech-stat-num">{counts[stat.key]}</span>
+              </div>
+            ))}
+          </div>
+        ))}
       </div>
 
       {loading ? (
         <Skeleton variant="table" rows={5} />
       ) : (
-        <div className="history-table-wrap">
+        <div className="history-table-wrap it-table">
           <table className="history-table stack-mobile">
             <thead>
               <tr>
