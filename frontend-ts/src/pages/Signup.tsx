@@ -34,6 +34,14 @@ const ink = {
   visible: (delay: number) => ({ opacity: 1, scale: 1, filter: 'blur(0px)', transition: { duration: 0.65, delay, ease: EASE_OUT } }),
 };
 
+// On a direct visit (no curtain) the headline is the page's largest text, and browsers time the
+// page's load (LCP) by when it first shows. So it is drawn at once and only settles into place;
+// the full stamp-in plays when arriving through the registration-slip transition.
+const settle = {
+  hidden: { scale: 1.06 },
+  visible: (delay: number) => ({ scale: 1, transition: { duration: 0.5, delay, ease: EASE_OUT } }),
+};
+
 // The form prints top to bottom while the paper feeds down out of the "printer".
 const PRINT_S = 1.25;
 const PRINT_EASE = [0.45, 0, 0.25, 1] as const;
@@ -64,6 +72,7 @@ function Signup() {
   const openedAt = useRef(Date.now());
   // Waits for the registration slip to tear open before the entrance plays.
   const d = useRevealDelay('signup');
+  const direct = d === 0;
 
   // Focus the first field once it has printed.
   useEffect(() => {
@@ -124,24 +133,24 @@ function Signup() {
 
       <div className="login-layout">
         <section className="login-intro">
-          <motion.p className="login-place" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: d }}>
+          <motion.p className="login-place" initial={direct ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: d }}>
             Municipality of Solano, Nueva Vizcaya
           </motion.p>
           <h1 className="login-headline" aria-label="Join ITRS.">
             <span className="login-line" aria-hidden="true">
-              <motion.span custom={d + 0.1} variants={ink} initial="hidden" animate="visible">Join</motion.span>
+              <motion.span custom={d + 0.1} variants={direct ? settle : ink} initial="hidden" animate="visible">Join</motion.span>
             </span>
             <span className="login-line" aria-hidden="true">
-              <motion.span custom={d + 0.3} variants={ink} initial="hidden" animate="visible">
+              <motion.span custom={d + 0.3} variants={direct ? settle : ink} initial="hidden" animate="visible">
                 <span className="login-highlight">ITRS.</span>
               </motion.span>
             </span>
           </h1>
           <motion.p
             className="login-lede"
-            initial={{ opacity: 0, y: 12 }}
+            initial={direct ? { y: 12 } : { opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: d + 0.55, ease: EASE_OUT }}
+            transition={{ duration: 0.6, delay: direct ? 0.15 : d + 0.55, ease: EASE_OUT }}
           >
             Client accounts are for LGU offices filing IT, multimedia, digital media and print requests.
           </motion.p>

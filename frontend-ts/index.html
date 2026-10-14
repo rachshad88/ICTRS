@@ -8,8 +8,9 @@
     <meta name="theme-color" content="#0b3a8c" />
     <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Only the headline face is preloaded: it is small and headlines are what loads the page (LCP).
+         The body face (Inter) loads with the stylesheet instead of competing with the scripts. -->
     <link rel="preload" href="/fonts/plus-jakarta-sans-latin-var.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin />
     <script>
       // The boot loader only runs for the landing page; main.tsx lifts it.
       if (location.pathname === '/') document.documentElement.classList.add('boot');
@@ -261,7 +262,8 @@
             <circle class="arc" cx="66" cy="66" r="62" />
           </svg>
           <div class="boot-seal">
-            <img src="/solano-logo.png" alt="" onload="this.classList.add('ok')" />
+            <!-- lazy: the loader is hidden on every page but the landing page, and a hidden lazy image never downloads -->
+            <img src="/solano-logo.png" alt="" loading="lazy" onload="this.classList.add('ok')" />
           </div>
         </div>
         <div class="boot-pct"><span id="boot-pct">0</span><small>%</small></div>

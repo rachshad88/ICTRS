@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import type { OutputBundle, OutputChunk, Plugin } from 'vite';
 
 // Libraries go in their own files, apart from ITRS's code. A deploy renames every file whose
 // contents (or imports) changed, and browsers re-download renamed files; library files don't
@@ -18,8 +19,50 @@ const VENDOR_GROUPS: Record<string, string[]> = {
 };
 const GROUP_OF = new Map(Object.entries(VENDOR_GROUPS).flatMap(([group, pkgs]) => pkgs.map((p) => [p, group])));
 
+// Public pages that are their own files (routes.ts PUBLIC_PAGES), by URL.
+const PAGE_FILES: Record<string, string> = {
+  '/login': 'src/pages/Login.tsx',
+  '/signup': 'src/pages/Signup.tsx',
+  '/guide': 'src/pages/ClientGuide.tsx',
+};
+
+/**
+ * A visit straight to /signup (or /login, /guide) would otherwise wait for the main script to run
+ * before even asking for the page's own file. This puts a tiny script in index.html that preloads
+ * the current page's file and the shared files it imports, so they download alongside the main
+ * script and the page can draw as soon as it runs.
+ */
+function preloadCurrentPage(): Plugin {
+  return {
+    name: 'preload-current-page',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        const bundle = ctx.bundle as OutputBundle | undefined;
+        if (!bundle) return html;
+        const chunks = Object.values(bundle).filter((c): c is OutputChunk => c.type === 'chunk');
+        const entry = chunks.find((c) => c.isEntry);
+        // Files index.html already loads: the entry and everything it imports up front.
+        const loaded = new Set(entry ? [entry.fileName, ...entry.imports] : []);
+        const map: Record<string, string[]> = {};
+        for (const [url, src] of Object.entries(PAGE_FILES)) {
+          const chunk = chunks.find((c) => c.facadeModuleId?.endsWith(src));
+          if (!chunk) continue;
+          map[url] = [chunk.fileName, ...chunk.imports].filter((f) => !loaded.has(f)).map((f) => '/' + f);
+        }
+        const script =
+          `<script>(function(m){var f=m[location.pathname];if(!f)return;f.forEach(function(h){` +
+          `var l=document.createElement('link');l.rel='modulepreload';l.crossOrigin='';l.href=h;document.head.appendChild(l)})})(` +
+          `${JSON.stringify(map)})</script>`;
+        return html.replace('</head>', `    ${script}\n  </head>`);
+      },
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), preloadCurrentPage()],
   build: {
     rollupOptions: {
       output: {
