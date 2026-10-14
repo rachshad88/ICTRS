@@ -86,8 +86,8 @@ router.get('/unassigned-count', isAuthenticated, async (req: AuthenticatedReques
     const userId = req.user!.user_id;
     const roles = req.user!.roles;
 
-    // Multimedia admins see how many requests are waiting to be assigned on their management pages.
-    if (roles.includes('MULTIMEDIA_ADMIN')) {
+    // Multimedia admins (and the super admin) see how many requests are waiting to be assigned on the management pages.
+    if (roles.includes('MULTIMEDIA_ADMIN') || roles.includes('ADMIN')) {
       const [multimedia, digitalMedia, printMaterials] = await Promise.all([
         getMultimediaRequestsCollection().countDocuments({ status: 'UNASSIGNED' }),
         getDigitalMediaRequestsCollection().countDocuments({ status: 'PENDING', assigned_to: null }),

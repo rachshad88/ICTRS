@@ -35,11 +35,14 @@ export const PUBLIC_PAGES: Record<string, PageEntry> = {
 
 const STAFF = ['TECHNICIAN', 'ADMIN', 'MULTIMEDIA', 'IT_ADMIN', 'MULTIMEDIA_ADMIN'];
 const ADMINS = ['ADMIN', 'IT_ADMIN', 'MULTIMEDIA_ADMIN'];
+// The super admin can also open the IT and multimedia admins' pages to assign or take requests; media admins
+// (and the super admin) can open the staff pages too, which notification links point at once they take one.
+const MEDIA_ADMINS = ['MULTIMEDIA_ADMIN', 'ADMIN'];
 
 // Signed-in pages and the roles that may open them (none listed: any signed-in user).
 export const PRIVATE_PAGES: Array<{ path: string; roles?: string[] } & PageEntry> = [
   { path: '/dashboard', roles: ['TECHNICIAN'], ...page(() => import('./pages/Dashboard')) },
-  { path: '/it-dashboard', roles: ['IT_ADMIN'], ...page(() => import('./pages/ItAdminDashboard')) },
+  { path: '/it-dashboard', roles: ['IT_ADMIN', 'ADMIN'], ...page(() => import('./pages/ItAdminDashboard')) },
   { path: '/request', roles: ['CLIENT'], ...page(() => import('./pages/Request')) },
   { path: '/requested', ...page(() => import('./pages/Requested')) },
   { path: '/reports', roles: STAFF, ...page(() => import('./pages/Reports')) },
@@ -48,19 +51,19 @@ export const PRIVATE_PAGES: Array<{ path: string; roles?: string[] } & PageEntry
   { path: '/profile', ...page(() => import('./pages/Profile')) },
   { path: '/multimedia-request', roles: ['CLIENT'], ...page(() => import('./pages/MultimediaRequest')) },
   { path: '/multimedia-history', roles: ['CLIENT'], ...page(() => import('./pages/MultimediaHistory')) },
-  { path: '/multimedia-dashboard', roles: ['MULTIMEDIA'], ...page(() => import('./pages/MultimediaRequestsDashboard')) },
-  { path: '/digitalmedia-dashboard', roles: ['MULTIMEDIA'], ...page(() => import('./pages/DigitalMediaRequestsDashboard')) },
-  { path: '/multimedia-management', roles: ['MULTIMEDIA_ADMIN'], ...page(() => import('./pages/MultimediaManagement')) },
+  { path: '/multimedia-dashboard', roles: ['MULTIMEDIA', ...MEDIA_ADMINS], ...page(() => import('./pages/MultimediaRequestsDashboard')) },
+  { path: '/digitalmedia-dashboard', roles: ['MULTIMEDIA', ...MEDIA_ADMINS], ...page(() => import('./pages/DigitalMediaRequestsDashboard')) },
+  { path: '/multimedia-management', roles: MEDIA_ADMINS, ...page(() => import('./pages/MultimediaManagement')) },
   { path: '/digital-media-request', roles: ['CLIENT'], ...page(() => import('./pages/DigitalMediaRequest')) },
   { path: '/digitalmedia-history', roles: ['CLIENT'], ...page(() => import('./pages/DigitalMediaHistory')) },
-  { path: '/digitalmedia-management', roles: ['MULTIMEDIA_ADMIN'], ...page(() => import('./pages/DigitalMediaManagement')) },
+  { path: '/digitalmedia-management', roles: MEDIA_ADMINS, ...page(() => import('./pages/DigitalMediaManagement')) },
   { path: '/print-materials-request', roles: ['CLIENT'], ...page(() => import('./pages/PrintMaterialsRequest')) },
   { path: '/print-materials-history', roles: ['CLIENT'], ...page(() => import('./pages/PrintMaterialsHistory')) },
-  { path: '/print-materials-management', roles: ['MULTIMEDIA_ADMIN'], ...page(() => import('./pages/PrintMaterialsManagement')) },
+  { path: '/print-materials-management', roles: MEDIA_ADMINS, ...page(() => import('./pages/PrintMaterialsManagement')) },
   { path: '/all-requests', roles: ADMINS, ...page(() => import('./pages/AllRequests')) },
   { path: '/audit-logs', roles: ['ADMIN'], ...page(() => import('./pages/AuditLogs')) },
   { path: '/signatories', roles: ['ADMIN'], ...page(() => import('./pages/Signatories')) },
-  { path: '/print-materials-dashboard', roles: ['MULTIMEDIA'], ...page(() => import('./pages/PrintMaterialsDashboard')) },
+  { path: '/print-materials-dashboard', roles: ['MULTIMEDIA', ...MEDIA_ADMINS], ...page(() => import('./pages/PrintMaterialsDashboard')) },
 ];
 
 // The browser tab's name per page ("Dashboard · ITRS"); the tab also shows the unread count (App.tsx).

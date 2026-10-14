@@ -7,7 +7,7 @@ import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
-import { RequestFlags, PriorityForm, ReassignForm } from '../components/Priority';
+import { RequestFlags, PriorityForm, ReassignForm, CompleteForm } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
 
 interface PrintMaterialsRequest {
@@ -86,19 +86,20 @@ function PrintMaterialsManagement() {
   const totalAll = allQuery.data?.total || 0;
   const loading = (activeTab === 'unassigned' ? unassignedQuery : allQuery).isPending;
 
-  const handleAssign = async () => {
+  // "Take" (in the table row) passes the request and the signed-in admin's own id.
+  const handleAssign = async (request = selectedRequest, assigneeId = selectedTechnician) => {
     if (assigning) return;
-    if (!selectedRequest || !selectedTechnician) {
+    if (!request || !assigneeId) {
       setMessage('Please select a technician');
       return;
     }
     setAssigning(true);
     try {
       await api.post('/printmaterials/assign', {
-        request_id: selectedRequest._id,
-        technician_id: selectedTechnician
+        request_id: request._id,
+        technician_id: assigneeId
       });
-      setMessage('Request assigned successfully');
+      setMessage(assigneeId === user?.user_id ? 'Request taken successfully' : 'Request assigned successfully');
       setSelectedRequest(null);
       setSelectedTechnician('');
       setTimeout(() => { setMessage(''); refreshService('printMaterials'); }, 1500);
@@ -190,9 +191,14 @@ function PrintMaterialsManagement() {
                   <td className="col-actions">
                     <div className="history-actions">
                       {request.status === 'PENDING' && !request.assignedTechnician?.[0] ? (
-                        <button className="hbtn hbtn-assign" onClick={() => { setSelectedRequest(request); setSelectedTechnician(''); }}>
-                          Assign
-                        </button>
+                        <>
+                          <button className="hbtn hbtn-assign" onClick={() => { setSelectedRequest(request); setSelectedTechnician(''); }}>
+                            Assign
+                          </button>
+                          <button className="hbtn hbtn-done" onClick={() => user && handleAssign(request, user.user_id)} disabled={assigning}>
+                            Take
+                          </button>
+                        </>
                       ) : (
                         <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
                           {request.status === 'IN_PROGRESS' ? 'Manage' : 'View'}
@@ -237,6 +243,13 @@ function PrintMaterialsManagement() {
             <DeclineReason reason={selectedRequest.decline_reason} />
             <NotesList notes={selectedRequest.notes} />
 
+            {!declining && selectedRequest.status === 'IN_PROGRESS' && selectedRequest.assigned_to === user?.user_id && (
+              <CompleteForm
+                endpoint="/printmaterials/complete_request"
+                requestId={selectedRequest._id}
+                onDone={() => handleAdminChange('Request completed successfully')}
+              />
+            )}
             {!declining && selectedRequest.status === 'IN_PROGRESS' && (
               <ReassignForm
                 endpoint="/printmaterials/reassign"
@@ -284,7 +297,7 @@ function PrintMaterialsManagement() {
               <div className="modal-actions">
                 {selectedRequest.status === 'PENDING' && !selectedRequest.assignedTechnician?.[0] && (
                   <>
-                    <button onClick={handleAssign} className="btn-primary" disabled={!selectedTechnician || assigning}>
+                    <button onClick={() => handleAssign()} className="btn-primary" disabled={!selectedTechnician || assigning}>
                       {assigning ? 'Assigning...' : 'Assign Request'}
                     </button>
                     <button onClick={() => setDeclining(true)} className="btn-danger">

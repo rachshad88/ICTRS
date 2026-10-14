@@ -28,13 +28,26 @@ watchOverdue({
   pages: { staff: TECH_PAGE, admin: IT_ADMIN_PAGE },
 });
 
-// IT requests can go to a technician, or the IT admin making the change can take it themselves.
+// IT requests can go to a technician, or the IT admin (or super admin) making the change can take it themselves.
 function findAssignableStaff(staffId: string, actor: AuthenticatedRequest['user']) {
   const filter = staffId === actor!.user_id
     ? { _id: new ObjectId(staffId) }
     : { _id: new ObjectId(staffId), roles: 'TECHNICIAN' as const };
   return getUsersCollection().findOne(filter);
 }
+
+// How audit entries name the admin acting on an IT request.
+function adminTitle(req: AuthenticatedRequest): string {
+  return req.user!.roles.includes('ADMIN') ? 'Admin' : 'IT Admin';
+}
+
+// The signed-in user's full name, for notification messages.
+function actorName(req: AuthenticatedRequest): string {
+  return `${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username;
+}
+
+// The super admin is told about every IT request as it is added, assigned, taken and completed.
+const SUPER_ADMINS = { roles: ['ADMIN' as const] };
 
 function clip(text: string, max = 80): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
@@ -120,7 +133,7 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
       });
     }
     liveRequestAdded('it', result.insertedId);
-    notify({ roles: ['IT_ADMIN'] }, {
+    notify({ roles: ['IT_ADMIN', 'ADMIN'] }, {
       level: 'info', title: 'New IT request', request_code, link: IT_ADMIN_PAGE,
       message: `${request_code} from ${office}: ${clip(String(issue).trim())}`,
     }, created_by);
@@ -165,8 +178,8 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
 
     const assignedTo = `${technician.first_name} ${technician.last_name}`;
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'ACCEPT_REQUEST', 'IT_REQUEST', request_id, technician_id === req.user!.user_id
-      ? `IT Admin ${req.user!.username} took request ${result.value.request_code}`
-      : `IT Admin ${req.user!.username} assigned request to ${assignedTo}`);
+      ? `${adminTitle(req)} ${req.user!.username} took request ${result.value.request_code}`
+      : `${adminTitle(req)} ${req.user!.username} assigned request to ${assignedTo}`);
 
     const io = req.app.get('io');
     if (io) {
@@ -197,6 +210,12 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
       level: 'info', title: 'Assigned to you', request_code: result.value.request_code, link: TECH_PAGE,
       message: `IT request ${result.value.request_code} is now yours.`,
     }, req.user!.user_id);
+    notify(SUPER_ADMINS, technician_id === req.user!.user_id
+      ? { level: 'info', title: 'Request taken', request_code: result.value.request_code, link: IT_ADMIN_PAGE,
+          message: `${actorName(req)} took IT request ${result.value.request_code}.` }
+      : { level: 'info', title: 'Request assigned', request_code: result.value.request_code, link: IT_ADMIN_PAGE,
+          message: `${actorName(req)} assigned IT request ${result.value.request_code} to ${assignedTo}.` },
+      req.user!.user_id);
 
     res.json({ status: 'success' });
   } catch (error) {
@@ -231,7 +250,7 @@ router.post('/reassign', isAuthenticated, isItAdmin, validateBody(reassignReques
     const requestCode = result.value.request_code || 'unknown';
     const assignedTo = `${technician.first_name} ${technician.last_name}`;
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'REASSIGN_REQUEST', 'IT_REQUEST', request_id,
-      `IT Admin ${req.user!.username} reassigned request ${requestCode} to ${assignedTo}${reason ? `: ${reason}` : ''}`,
+      `${adminTitle(req)} ${req.user!.username} reassigned request ${requestCode} to ${assignedTo}${reason ? `: ${reason}` : ''}`,
       { from: previousTechId, to: technician_id, reason: reason || null });
 
     const io = req.app.get('io');
@@ -254,6 +273,10 @@ router.post('/reassign', isAuthenticated, isItAdmin, validateBody(reassignReques
     notify(result.value.created_by, {
       level: 'info', title: 'Technician changed', request_code: requestCode, link: OWNER_PAGE,
       message: `${requestCode} is now handled by ${assignedTo}.`,
+    }, actorId);
+    notify(SUPER_ADMINS, {
+      level: 'info', title: 'Request reassigned', request_code: requestCode, link: IT_ADMIN_PAGE,
+      message: `${actorName(req)} moved IT request ${requestCode} to ${assignedTo}.`,
     }, actorId);
 
     res.json({ status: 'success' });
@@ -384,7 +407,7 @@ router.post('/request_finish', isAuthenticated, isItAdminOrTechnician, receiveMo
         timestamp: new Date()
       });
     }
-    notify({ roles: ['IT_ADMIN'] }, {
+    notify({ roles: ['IT_ADMIN', 'ADMIN'] }, {
       level: 'info', title: 'MOV to verify', request_code: requestCode, link: IT_ADMIN_PAGE,
       message: `${`${req.user!.first_name} ${req.user!.last_name}`.trim() || req.user!.username} finished ${requestCode} and sent photos to verify.`,
     }, userId);
@@ -449,6 +472,10 @@ router.post('/verify_mov', isAuthenticated, validateBody(verifyMovSchema), async
         message: `Your MOV for ${requestCode} was approved. The request is done.`,
       }, userId);
     }
+    notify(SUPER_ADMINS, {
+      level: 'success', title: 'Request completed', request_code: requestCode, link: IT_ADMIN_PAGE,
+      message: `IT request ${requestCode} is done (${doc.finished}); ${actorName(req)} verified the MOV.`,
+    }, userId);
 
     res.json({ status: 'success' });
   } catch (error) {
@@ -598,7 +625,7 @@ router.post('/reopen_request', isAuthenticated, validateBody(reopenRequestSchema
     if (handler) {
       notify(handler._id, {
         level: 'warning', title: 'Request reopened', request_code: requestCode, message,
-        link: handler.roles?.includes('IT_ADMIN') ? IT_ADMIN_PAGE : TECH_PAGE
+        link: handler.roles?.includes('TECHNICIAN') ? TECH_PAGE : IT_ADMIN_PAGE
       }, userId);
     }
     notify({ roles: ['IT_ADMIN'] }, {
@@ -693,7 +720,7 @@ router.post('/decline_request', isAuthenticated, isItAdmin, validateBody(decline
     void syncRatingStatus('requests', result.value._id);
 
     const requestCode = result.value.request_code || 'unknown';
-    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'DECLINE_REQUEST', 'IT_REQUEST', request_id, `IT Admin ${req.user!.username} declined request ${requestCode}: ${reason}`, { reason });
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'DECLINE_REQUEST', 'IT_REQUEST', request_id, `${adminTitle(req)} ${req.user!.username} declined request ${requestCode}: ${reason}`, { reason });
 
     const io = req.app.get('io');
     if (io) {

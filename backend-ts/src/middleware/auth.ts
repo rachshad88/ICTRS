@@ -107,8 +107,9 @@ export function isAdmin(req: AuthenticatedRequest, res: Response, next: NextFunc
   next();
 }
 
+// The super admin (ADMIN) may do everything the IT and multimedia admins do.
 export function isItAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (!hasRole(req, 'IT_ADMIN')) {
+  if (!hasRole(req, 'IT_ADMIN') && !hasRole(req, 'ADMIN')) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
@@ -116,7 +117,7 @@ export function isItAdmin(req: AuthenticatedRequest, res: Response, next: NextFu
 }
 
 export function isMultimediaAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (!hasRole(req, 'MULTIMEDIA_ADMIN')) {
+  if (!hasRole(req, 'MULTIMEDIA_ADMIN') && !hasRole(req, 'ADMIN')) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
@@ -124,7 +125,7 @@ export function isMultimediaAdmin(req: AuthenticatedRequest, res: Response, next
 }
 
 export function isItAdminOrTechnician(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (!hasRole(req, 'IT_ADMIN') && !hasRole(req, 'TECHNICIAN')) {
+  if (!hasRole(req, 'IT_ADMIN') && !hasRole(req, 'TECHNICIAN') && !hasRole(req, 'ADMIN')) {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }

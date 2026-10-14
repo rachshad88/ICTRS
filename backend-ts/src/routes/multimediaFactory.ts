@@ -71,6 +71,17 @@ function clip(text: string, max = 80): string {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
 }
 
+// Media requests go to multimedia staff, or the admin making the change can take it themselves.
+function findAssignableStaff(staffId: string, actor: AuthenticatedRequest['user']) {
+  const filter = staffId === actor!.user_id
+    ? { _id: new ObjectId(staffId) }
+    : { _id: new ObjectId(staffId), roles: 'MULTIMEDIA' as const };
+  return getUsersCollection().findOne(filter);
+}
+
+// The super admin is told about every media request as it is added, assigned, taken and completed.
+const SUPER_ADMINS = { roles: ['ADMIN' as const] };
+
 function displayName(user: { first_name: string; last_name: string; username: string }): string {
   return `${user.first_name} ${user.last_name}`.trim() || user.username;
 }
@@ -302,7 +313,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       }
       liveRequestAdded(config.liveLane, result.insertedId);
       const summary = String(req.body[config.summaryField] ?? '').trim();
-      notify({ roles: ['MULTIMEDIA_ADMIN'] }, {
+      notify({ roles: ['MULTIMEDIA_ADMIN', 'ADMIN'] }, {
         level: 'info', title: `New ${config.label.toLowerCase()} request`, request_code, link: config.pages.admin,
         message: summary ? `${request_code}: ${clip(summary)}` : `${request_code} is waiting to be assigned.`,
       }, userId);
@@ -411,9 +422,7 @@ export function createRequestRouter(config: RouteConfig): Router {
     try {
       const { request_id, technician_id, priority } = req.body;
       const collection = config.getCollection();
-      const usersCollection = getUsersCollection();
-
-      const technician = await usersCollection.findOne({ _id: new ObjectId(technician_id), roles: 'MULTIMEDIA' });
+      const technician = await findAssignableStaff(technician_id, req.user);
       if (!technician) {
         return res.status(404).json({ error: 'Technician not found' });
       }
@@ -440,7 +449,9 @@ export function createRequestRouter(config: RouteConfig): Router {
       await logAudit(
         new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
         'ASSIGN_REQUEST', config.auditEntityType, request_id,
-        `Admin ${req.user!.username} assigned ${config.entity} request ${requestCode} to ${assignedTo}`
+        technician_id === req.user!.user_id
+          ? `Admin ${req.user!.username} took ${config.entity} request ${requestCode}`
+          : `Admin ${req.user!.username} assigned ${config.entity} request ${requestCode} to ${assignedTo}`
       );
 
       const io = getIO();
@@ -472,6 +483,12 @@ export function createRequestRouter(config: RouteConfig): Router {
         level: 'info', title: 'Assigned to you', request_code: requestCode, link: config.pages.staff,
         message: `${config.label} request ${requestCode} is now yours.`,
       }, req.user!.user_id);
+      notify(SUPER_ADMINS, technician_id === req.user!.user_id
+        ? { level: 'info', title: 'Request taken', request_code: requestCode, link: config.pages.admin,
+            message: `${displayName(req.user!)} took ${config.label.toLowerCase()} request ${requestCode}.` }
+        : { level: 'info', title: 'Request assigned', request_code: requestCode, link: config.pages.admin,
+            message: `${displayName(req.user!)} assigned ${config.label.toLowerCase()} request ${requestCode} to ${assignedTo}.` },
+        req.user!.user_id);
       liveRequestRemoved(config.liveLane, request_id, 'ACCEPTED', assignedTo);
 
       res.json({ status: 'success' });
@@ -488,7 +505,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       const reason = typeof req.body.reason === 'string' ? req.body.reason.trim() : '';
       const collection = config.getCollection();
 
-      const technician = await getUsersCollection().findOne({ _id: new ObjectId(technician_id), roles: 'MULTIMEDIA' });
+      const technician = await findAssignableStaff(technician_id, req.user);
       if (!technician) {
         return res.status(404).json({ error: 'Staff member not found' });
       }
@@ -541,6 +558,10 @@ export function createRequestRouter(config: RouteConfig): Router {
       notify(result.value.created_by, {
         level: 'info', title: 'Staff member changed', request_code: requestCode, link: config.pages.owner,
         message: `${requestCode} is now handled by ${assignedTo}.`,
+      }, actorId);
+      notify(SUPER_ADMINS, {
+        level: 'info', title: 'Request reassigned', request_code: requestCode, link: config.pages.admin,
+        message: `${displayName(req.user!)} moved ${config.label.toLowerCase()} request ${requestCode} to ${assignedTo}.`,
       }, actorId);
 
       res.json({ status: 'success' });
@@ -668,7 +689,7 @@ export function createRequestRouter(config: RouteConfig): Router {
       await logAudit(
         new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role,
         'COMPLETE_REQUEST', config.auditEntityType, request_id,
-        `Multimedia staff ${req.user!.username} completed ${config.entity} request ${requestCode}`,
+        `${req.user!.roles.includes('MULTIMEDIA') ? 'Multimedia staff' : 'Admin'} ${req.user!.username} completed ${config.entity} request ${requestCode}`,
         { remarks: remarks || null, ...(config.hasRecommendation ? { recommendation: recommendation || null } : {}) }
       );
 
@@ -694,6 +715,10 @@ export function createRequestRouter(config: RouteConfig): Router {
         level: 'success', title: 'Request completed', request_code: requestCode, link: config.pages.owner,
         message: `${config.label} request ${requestCode} is done.`,
         rate: ratingType ? { request_id: result.value._id.toString(), type: ratingType } : null,
+      }, req.user!.user_id);
+      notify(SUPER_ADMINS, {
+        level: 'success', title: 'Request completed', request_code: requestCode, link: config.pages.admin,
+        message: `${displayName(req.user!)} completed ${config.label.toLowerCase()} request ${requestCode}.`,
       }, req.user!.user_id);
 
       res.json({ status: 'success' });

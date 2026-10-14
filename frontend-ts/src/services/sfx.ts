@@ -679,7 +679,7 @@ function notificationCue(title: string, level: string): (s: Stage) => void {
   if (t.includes('completed')) return cueCompleted;
   if (t.includes('declined') || t.includes('cancelled')) return cueDeclined;
   if (t.includes('reassigned') || (t.includes('changed') && !t.includes('priority'))) return cueTransferred;
-  if (t.includes('assigned') || t.includes('accepted') || t.includes('shared')) return cueAssigned;
+  if (t.includes('assigned') || t.includes('taken') || t.includes('accepted') || t.includes('shared')) return cueAssigned;
   if (t.includes('note')) return cueNote;
   if (t.includes('overdue') || level === 'warning' || level === 'error') return cueAlert;
   if (level === 'success') return cueCompleted;

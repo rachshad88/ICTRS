@@ -171,7 +171,8 @@ function ItAdminDashboard() {
     refreshService('it');
   };
 
-  // "Take" passes the signed-in IT admin's own id instead of the selected technician.
+  // Assigns from the modal; "Take" (in the table row) skips it with the signed-in admin's own id,
+  // the request's priority and its due date (or the one suggested for that priority).
   const handleAssign = async (assigneeId = selectedTechnician) => {
     if (!selectedRequest || !assigneeId) return;
     setSubmitting(true);
@@ -193,6 +194,26 @@ function ItAdminDashboard() {
     }
   };
 
+  const takeRequest = async (req: Request) => {
+    if (!user || submitting) return;
+    const priority = req.priority || 'NORMAL';
+    setSubmitting(true);
+    try {
+      await api.post('/requests/accept_request', {
+        request_id: req._id,
+        technician_id: user.user_id,
+        priority,
+        due_date: req.due_date || suggestedDueDate(priority)
+      });
+      refreshService('it');
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setError(err.response?.data?.message || 'Failed to take request');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   const getActionButtons = (req: Request) => {
@@ -209,6 +230,7 @@ function ItAdminDashboard() {
       return (
         <div className="history-actions">
           <button className="hbtn hbtn-assign" onClick={() => openAssignModal(req)}>Assign</button>
+          <button className="hbtn hbtn-done" onClick={() => takeRequest(req)} disabled={submitting}>Take</button>
           <button className="hbtn hbtn-cancel" onClick={() => setDeclineTarget(req)}>Decline</button>
         </div>
       );
@@ -402,9 +424,6 @@ function ItAdminDashboard() {
             <div className="modal-actions">
               <button className="btn-primary" onClick={() => handleAssign()} disabled={submitting || !selectedTechnician}>
                 {submitting ? 'Assigning...' : 'Assign'}
-              </button>
-              <button className="btn-primary" onClick={() => user && handleAssign(user.user_id)} disabled={submitting}>
-                Take
               </button>
               <button data-modal-dismiss className="btn-secondary" onClick={() => setShowAssignModal(false)}>Cancel</button>
             </div>

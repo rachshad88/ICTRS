@@ -181,3 +181,49 @@ export function PriorityForm({ endpoint, requestId, priority, dueDate, withDueDa
     </div>
   );
 }
+
+/** Lets an admin who took a media request finish it from the management page. */
+export function CompleteForm({ endpoint, requestId, withRecommendation = false, onDone }: {
+  endpoint: string;
+  requestId: string;
+  withRecommendation?: boolean;
+  onDone: () => void;
+}) {
+  const [remarks, setRemarks] = useState('');
+  const [recommendation, setRecommendation] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      await api.post(endpoint, { request_id: requestId, remarks, ...(withRecommendation && { recommendation }) });
+      onDone();
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Failed to complete request'));
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="admin-control">
+      <p className="admin-control-title">Complete (assigned to you)</p>
+      <div className="form-group">
+        <label htmlFor={`complete-remarks-${requestId}`}>Remarks</label>
+        <textarea id={`complete-remarks-${requestId}`} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Any additional remarks" rows={3} />
+      </div>
+      {withRecommendation && (
+        <div className="form-group">
+          <label htmlFor={`complete-rec-${requestId}`}>Recommendation</label>
+          <textarea id={`complete-rec-${requestId}`} value={recommendation} onChange={(e) => setRecommendation(e.target.value)} placeholder="Recommendations for future events" rows={3} />
+        </div>
+      )}
+      {error && <div className="error-message">{error}</div>}
+      <button type="button" className="btn-primary" onClick={submit} disabled={saving}>
+        {saving ? 'Saving...' : 'Complete Request'}
+      </button>
+    </div>
+  );
+}
