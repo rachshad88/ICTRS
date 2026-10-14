@@ -287,6 +287,17 @@
   border-radius: 26px;
 }
 
+.nav-bubble-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* While the genie plays, its neck stands in for the tail */
+.nav-bubble.genie .nav-bubble-tail {
+  visibility: hidden;
+}
+
 .nav-bubble-tail {
   position: absolute;
   bottom: -7px;
@@ -312,7 +323,6 @@
 }
 
 .nav-bubble-link {
-  animation: bubbleRowIn 380ms var(--ease-spring) backwards;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -335,11 +345,6 @@
 .nav-bubble-link:focus-visible {
   outline: 2px solid var(--cobalt);
   outline-offset: 1px;
-}
-
-@keyframes bubbleRowIn {
-  from { transform: translateY(10px) scale(0.9); }
-  to { transform: none; }
 }
 
 .nav-bubble-icon {
@@ -648,8 +653,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bottom-sheet-body,
-  .nav-bubble-link {
+  .bottom-sheet-body {
     animation: none;
   }
 }

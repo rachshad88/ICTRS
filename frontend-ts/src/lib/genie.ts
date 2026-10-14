@@ -1,0 +1,92 @@
+// macOS-style genie for a small panel (the bottom nav's choice bubble): it pours out of a tab through
+// a neck the tab's width, its top edge rising and widening first with S-curved sides; the neck opens
+// last. Clipping alone would only cut the panel's outline, so the content also travels through the
+// neck and is squeezed to the funnel's width, the way macOS warps the window.
+
+export interface GenieGeometry {
+  /** The panel's own size. */
+  width: number;
+  height: number;
+  /** Where the neck meets the tab, in the panel's px: y below its bottom, x at the tab's centre. */
+  neckY: number;
+  neckX: number;
+  neckHalf: number;
+  /** Room around the panel left unclipped, so its shadow isn't cut once it is full size. */
+  margin: number;
+}
+
+export interface GenieFrame {
+  /** The panel's transform as matrix(a, 0, 0, d, e, f), origin top left. */
+  a: number;
+  d: number;
+  e: number;
+  f: number;
+  /** The outline in the panel's own (untransformed) px, ready for clip-path. */
+  points: Array<[number, number]>;
+}
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const smooth = (v: number) => v * v * (3 - 2 * v);
+const smoother = (v: number) => v * v * v * (v * (v * 6 - 15) + 10);
+
+/**
+ * The genie at progress p: 0 = inside the tab, 1 = full size. Above 1 (a spring's overshoot) the
+ * panel swells slightly from the tab and settles back.
+ */
+export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
+  // A spring rushes its start; the power gives the pour time to read, and keeps its speed smooth.
+  const q = clamp01(p) ** 1.5;
+  const top = -g.margin;
+  const left = -g.margin;
+  const right = g.width + g.margin;
+  const fullCentre = (left + right) / 2;
+  const fullHalf = (right - left) / 2;
+
+  // The top edge reaches its place by halfway; it widens a little behind; the neck opens last.
+  const front = smooth(clamp01(q / 0.5));
+  const tipWidth = smoother(clamp01(q / 0.62));
+  const neckOpen = smoother(clamp01((q - 0.45) / 0.55));
+
+  // Screen-space outline (relative to the panel's resting box).
+  const lead = g.neckY + (top - g.neckY) * front;
+  const widthAt = (t: number) => tipWidth * (neckOpen + (1 - neckOpen) * smooth(t));
+  const leftSide: Array<[number, number]> = [];
+  const rightSide: Array<[number, number]> = [];
+  for (let i = 0; i <= rows; i++) {
+    const t = i / rows;
+    const u = widthAt(t);
+    const centre = g.neckX + (fullCentre - g.neckX) * u;
+    const half = g.neckHalf + (fullHalf - g.neckHalf) * u;
+    const y = g.neckY + (lead - g.neckY) * t;
+    leftSide.push([centre - half, y]);
+    rightSide.push([centre + half, y]);
+  }
+  const outline = [...leftSide, ...rightSide.reverse()];
+
+  // The content: its top edge rides just inside the leading edge, and it is squeezed to the
+  // funnel's width up there, centred on it.
+  let a: number, d: number, e: number, f: number;
+  if (p <= 1) {
+    const topHalf = g.neckHalf + (fullHalf - g.neckHalf) * tipWidth - g.margin * tipWidth;
+    a = Math.max(0.05, Math.min(1, (2 * topHalf) / g.width));
+    const topCentre = g.neckX + (fullCentre - g.neckX) * tipWidth;
+    e = topCentre - (a * g.width) / 2;
+    d = 1;
+    f = lead + g.margin * front;
+  } else {
+    const k = 1 + (p - 1) * 0.5;
+    a = k;
+    d = k;
+    e = g.neckX * (1 - k);
+    f = g.neckY * (1 - k);
+  }
+
+  // The clip applies before the transform, so map the outline back into the panel's own px.
+  const points = outline.map(([x, y]) => [(x - e) / a, (y - f) / d] as [number, number]);
+  return { a, d, e, f, points };
+}
+
+/** Points as a clip-path, shifted into a child's box (dx, dy = its offset in the panel). */
+export function toClipPath(points: Array<[number, number]>, dx = 0, dy = 0): string {
+  return `polygon(${points.map(([x, y]) => `${(x - dx).toFixed(2)}px ${(y - dy).toFixed(2)}px`).join(',')})`;
+}

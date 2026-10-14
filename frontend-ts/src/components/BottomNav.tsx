@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion, useAnimate, useDragControls, useReducedMotion, type PanInfo } from 'framer-motion';
+import { AnimatePresence, animate, motion, useAnimate, useDragControls, useMotionValue, usePresence, useReducedMotion, type PanInfo } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLogoutTransition } from './LogoutTransition';
+import { LITE_DEVICE } from '../lib/motion';
+import { genieFrame, toClipPath } from '../lib/genie';
 import { useNavItems, useNavBadge, NavIcon, PROFILE_ICON, LOGOUT_ICON, type NavEntry, type NavLink } from './navItems';
 
 /** Tabs shown in the bar itself, before More. */
@@ -15,6 +17,11 @@ const SHEET_SPRING = { type: 'spring', stiffness: 360, damping: 30 } as const;
 const STILL = { duration: 0 } as const;
 
 const POPOVER_W = 212;
+
+/** The choice bubble's genie: opening settles with a slight swell, closing drains straight back in. */
+// Open pours over ~360 ms and settles by ~800 ms with a ~2% swell; close drains in ~300 ms.
+const GENIE_OPEN = { type: 'spring', stiffness: 80, damping: 13, mass: 1, restDelta: 0.0005, restSpeed: 0.005 } as const;
+const GENIE_CLOSE = { type: 'spring', stiffness: 260, damping: 32, mass: 1, restDelta: 0.003, restSpeed: 0.01 } as const;
 
 /** A light tick on phones that support it, so a tap feels pressed. */
 const tick = () => navigator.vibrate?.(8);
@@ -318,7 +325,7 @@ function JellyIcon({ on, reduce, children }: { on: boolean; reduce: boolean; chi
   );
 }
 
-/** The glass bubble of a service's pages, rising out of its tab with a jelly overshoot. */
+/** The glass bubble of a service's pages, pouring out of its tab like the macOS genie. */
 function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
   tab: Tab;
   navRef: React.RefObject<HTMLElement>;
@@ -328,6 +335,12 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
   reduce: boolean;
 }) {
   const [pos, setPos] = useState<{ left: number; tail: number } | null>(null);
+  const [isPresent, safeToRemove] = usePresence();
+  const root = useRef<HTMLDivElement>(null);
+  const glass = useRef<HTMLSpanElement>(null);
+  const body = useRef<HTMLDivElement>(null);
+  // A motion value, so a tap mid-animation reverses from where it is, keeping its speed.
+  const progress = useMotionValue(0);
 
   // Centre over the tab, kept inside the bar; the tail still points at the tab.
   useLayoutEffect(() => {
@@ -340,32 +353,74 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
     setPos({ left, tail: centre - left });
   }, [anchor, navRef]);
 
+  // Pours out of the tab on open and drains back into it on close (lib/genie.ts). The clip goes on
+  // the glass and the content separately: clipping the bubble itself would stop its glass from
+  // blurring the page. Never fades, for the same reason. The tail hides meanwhile; the neck is the tail.
+  useLayoutEffect(() => {
+    const el = root.current;
+    const g = glass.current;
+    const b = body.current;
+    if (!pos || !el || !g || !b) return;
+    if (reduce) {
+      if (!isPresent) safeToRemove?.();
+      return;
+    }
+    const geometry = {
+      width: POPOVER_W,
+      height: el.offsetHeight,
+      // Down past the bubble's 16px gap into the top of the tab's icon.
+      neckY: el.offsetHeight + 24,
+      neckX: pos.tail,
+      neckHalf: 24,
+      margin: 30,
+    };
+    const rows = LITE_DEVICE ? 16 : 28;
+    const setClip = (node: HTMLElement, clip: string) => {
+      node.style.clipPath = clip;
+      node.style.setProperty('-webkit-clip-path', clip);
+    };
+    const apply = (p: number) => {
+      const { a, d, e, f, points } = genieFrame(p, geometry, rows);
+      el.style.transform = `matrix(${a.toFixed(4)}, 0, 0, ${d.toFixed(4)}, ${e.toFixed(2)}, ${f.toFixed(2)})`;
+      setClip(g, toClipPath(points));
+      setClip(b, toClipPath(points, b.offsetLeft, b.offsetTop));
+    };
+    const settle = () => {
+      el.classList.remove('genie');
+      el.style.transform = '';
+      setClip(g, '');
+      setClip(b, '');
+    };
+
+    el.classList.add('genie');
+    el.style.transformOrigin = '0 0';
+    apply(progress.get());
+    const unsubscribe = progress.on('change', apply);
+    const controls = animate(progress, isPresent ? 1 : 0, {
+      ...(isPresent ? GENIE_OPEN : GENIE_CLOSE),
+      onComplete: () => (isPresent ? settle() : safeToRemove?.()),
+    });
+    return () => {
+      controls.stop();
+      unsubscribe();
+    };
+  }, [pos, isPresent, reduce, safeToRemove, progress]);
+
   if (!pos) return null;
   return (
-    <motion.div
-      className="nav-bubble"
-      role="menu"
-      aria-label={tab.label}
-      style={{ left: pos.left, width: POPOVER_W, transformOrigin: `${pos.tail}px 100%` }}
-      // Grows and shrinks but never fades: while an element is partly transparent, browsers stop
-      // the glass inside it from blurring the page, so a fade would show plain see-through until it ends.
-      initial={reduce ? false : { scale: 0, y: 24 }}
-      animate={{ scale: 1, y: 0 }}
-      exit={reduce ? { scale: 0, transition: STILL } : { scale: 0, y: 16, transition: { duration: 0.18, ease: [0.4, 0, 1, 1] } }}
-      transition={reduce ? STILL : { type: 'spring', stiffness: 520, damping: 20 }}
-    >
-      <span className="nav-bubble-glass" aria-hidden="true" />
+    <div ref={root} className="nav-bubble" role="menu" aria-label={tab.label} style={{ left: pos.left, width: POPOVER_W }}>
+      <span ref={glass} className="nav-bubble-glass" aria-hidden="true" />
       <span className="nav-bubble-tail" style={{ left: pos.tail }} aria-hidden="true" />
+      <div ref={body} className="nav-bubble-body">
       {/* The tab is keyed by its section's full name: IT Services, Multimedia, ... */}
       <span className="nav-bubble-title">{tab.key}</span>
-      {tab.links.map((l, i) => {
+      {tab.links.map((l) => {
         const active = l.to === pathname;
         const badge = badgeFor(l.to);
         return (
             <Link
               key={l.to}
               to={l.to}
-              style={{ animationDelay: `${60 + i * 50}ms` }}
               role="menuitem"
               className={`nav-bubble-link ${active ? 'active' : ''}`}
               aria-current={active ? 'page' : undefined}
@@ -377,7 +432,8 @@ function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce }: {
             </Link>
         );
       })}
-    </motion.div>
+      </div>
+    </div>
   );
 }
 
