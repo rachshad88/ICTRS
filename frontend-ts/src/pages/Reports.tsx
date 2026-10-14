@@ -357,7 +357,15 @@ function Reports() {
             return '-';
           })();
 
-          groupedByType[typeKey].push({ date: dateValue, type: REPORT_TYPE_LABELS[typeKey], detail: detailValue });
+          // Units are saved as "desktop" or "others: printer"; print them as "Desktop" or "Printer".
+          const unit = typeKey === 'it' ? String(row.unit || '').replace(/^others:\s*/i, '').trim() : '';
+          const equipment = unit ? unit.charAt(0).toUpperCase() + unit.slice(1) : undefined;
+          // Digital media and print forms carry the requestor's own name; otherwise the account's.
+          const requester = [row.requestor_name, row.client_name]
+            .map((n) => String(n || '').trim())
+            .find((n) => n && n !== 'Unknown');
+
+          groupedByType[typeKey].push({ date: dateValue, type: REPORT_TYPE_LABELS[typeKey], detail: detailValue, equipment, requester });
         });
       });
 

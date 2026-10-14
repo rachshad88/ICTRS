@@ -42,6 +42,10 @@ export interface DarRow {
   date: string;
   type: string;
   detail: string;
+  // The IT request's unit (Desktop, Laptop, ...); media requests have none.
+  equipment?: string;
+  // Who asked for the work.
+  requester?: string;
 }
 
 export interface DarMeta {
@@ -580,7 +584,10 @@ export async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<
     if (isNaN(d.getTime())) return;
     const key = d.toDateString();
     const list = entriesByDay.get(key) ?? [];
-    list.push(`${row.type || '-'}: ${truncateLongWords(row.detail || '-')}`);
+    // e.g. "IT Request (Desktop): Won't turn on, requested by Juan Dela Cruz"
+    const equipment = row.equipment ? ` (${row.equipment})` : '';
+    const requester = row.requester ? `, requested by ${row.requester}` : '';
+    list.push(`${row.type || '-'}${equipment}: ${truncateLongWords(row.detail || '-')}${requester}`);
     entriesByDay.set(key, list);
   });
 
