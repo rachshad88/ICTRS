@@ -1585,6 +1585,7 @@ yt-channel-avatar.pm { background: #047857; }
 }
 
 /* ========== IT ADMIN DASHBOARD (pages/ItAdminDashboard.tsx) ==========
+   The media assign dashboard (pages/MediaAdminDashboard.tsx) has .it-dash too, plus .media-dash.
    Also has .tech-dash, so it shares the technician dashboard's header row (title, filters,
    search), counter strip and tear lines; only what differs is here. */
 
@@ -1604,10 +1605,20 @@ yt-channel-avatar.pm { background: #047857; }
     padding-bottom: 24px;
   }
 
-  /* Counter groups of 3, 2 and 4: each gets width for its own
+  /* Counter groups of 3, 2 and 4 (2, 2 and 3 on the media dashboard): each gets width for its own
      count. Desktop only: narrower, the groups stack (see the max-width: 1024px block). */
   .app-main .it-dash .tech-stats {
     grid-template-columns: 3fr 2fr 4fr;
+  }
+
+  .app-main .media-dash .tech-stats {
+    grid-template-columns: 2fr 2fr 3fr;
+  }
+
+  /* Media requests' detail (event location, form of media...) follows the title in grey. */
+  .app-main .media-dash .it-issue .media-detail {
+    display: inline;
+    margin-left: 6px;
   }
 
   .app-main .it-dash {

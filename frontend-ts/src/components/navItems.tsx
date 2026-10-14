@@ -69,10 +69,10 @@ const ROLE_NAV: Record<string, NavEntry[]> = {
   ],
   MULTIMEDIA_ADMIN: [
     { section: 'Management' },
+    { to: '/media-dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
     { to: '/multimedia-management', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z', label: 'Multimedia Mgmt', short: 'Multimedia' },
     { to: '/digitalmedia-management', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4', label: 'Digital Media Mgmt', short: 'Digital' },
     { to: '/print-materials-management', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z', label: 'Print Materials Mgmt', short: 'Print' },
-    { to: '/all-requests', icon: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01', label: 'All Requests', short: 'Requests' },
     { section: '' },
     { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
   ],

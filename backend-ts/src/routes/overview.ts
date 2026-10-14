@@ -228,7 +228,12 @@ router.get('/requests', isAuthenticated, isOverviewAdmin, async (req: Authentica
                 unassigned: { $sum: { $cond: [{ $and: [{ $in: ['$status', OPEN_STATUSES] }, { $eq: ['$assigned_to', null] }] }, 1, 0] } },
                 urgent_open: { $sum: { $cond: [{ $and: [{ $in: ['$status', OPEN_STATUSES] }, { $eq: ['$priority', 'URGENT'] }] }, 1, 0] } },
                 overdue: { $sum: { $cond: ['$overdue', 1, 0] } },
-                done: { $sum: { $cond: [{ $eq: ['$status', 'DONE'] }, 1, 0] } }
+                done: { $sum: { $cond: [{ $eq: ['$status', 'DONE'] }, 1, 0] } },
+                // Per-status counts for the media assign dashboard's counter strip.
+                waiting: { $sum: { $cond: [{ $in: ['$status', ['PENDING', 'UNASSIGNED']] }, 1, 0] } },
+                in_progress: { $sum: { $cond: [{ $eq: ['$status', 'IN_PROGRESS'] }, 1, 0] } },
+                declined: { $sum: { $cond: [{ $eq: ['$status', 'DECLINED'] }, 1, 0] } },
+                cancelled: { $sum: { $cond: [{ $eq: ['$status', 'CANCELLED'] }, 1, 0] } }
               }
             }
           ],
@@ -269,7 +274,11 @@ router.get('/requests', isAuthenticated, isOverviewAdmin, async (req: Authentica
         unassigned: counts.unassigned || 0,
         urgent_open: counts.urgent_open || 0,
         overdue: counts.overdue || 0,
-        done: counts.done || 0
+        done: counts.done || 0,
+        waiting: counts.waiting || 0,
+        in_progress: counts.in_progress || 0,
+        declined: counts.declined || 0,
+        cancelled: counts.cancelled || 0
       },
       total,
       page,

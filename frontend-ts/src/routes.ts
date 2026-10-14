@@ -61,6 +61,7 @@ export const PRIVATE_PAGES: Array<{ path: string; roles?: string[] } & PageEntry
   { path: '/print-materials-history', roles: ['CLIENT'], ...page(() => import('./pages/PrintMaterialsHistory')) },
   { path: '/print-materials-management', roles: MEDIA_ADMINS, ...page(() => import('./pages/PrintMaterialsManagement')) },
   { path: '/all-requests', roles: ADMINS, ...page(() => import('./pages/AllRequests')) },
+  { path: '/media-dashboard', roles: MEDIA_ADMINS, ...page(() => import('./pages/MediaAdminDashboard')) },
   { path: '/audit-logs', roles: ['ADMIN'], ...page(() => import('./pages/AuditLogs')) },
   { path: '/signatories', roles: ['ADMIN'], ...page(() => import('./pages/Signatories')) },
   { path: '/print-materials-dashboard', roles: ['MULTIMEDIA', ...MEDIA_ADMINS], ...page(() => import('./pages/PrintMaterialsDashboard')) },
@@ -92,6 +93,7 @@ export const PAGE_TITLES: Record<string, string> = {
   '/print-materials-history': 'Print Materials History',
   '/print-materials-management': 'Print Materials Management',
   '/all-requests': 'All Requests',
+  '/media-dashboard': 'Media Assign Dashboard',
   '/audit-logs': 'Audit Log',
   '/signatories': 'Signatories',
   '/print-materials-dashboard': 'Print Materials Requests',
@@ -102,7 +104,7 @@ export function homeFor(primaryRole: string): string {
   if (primaryRole === 'CLIENT') return '/request';
   if (primaryRole === 'MULTIMEDIA') return '/multimedia-dashboard';
   if (primaryRole === 'IT_ADMIN') return '/it-dashboard';
-  if (primaryRole === 'MULTIMEDIA_ADMIN') return '/multimedia-management';
+  if (primaryRole === 'MULTIMEDIA_ADMIN') return '/media-dashboard';
   if (primaryRole === 'ADMIN') return '/admin-dashboard';
   return '/dashboard';
 }
