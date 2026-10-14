@@ -19,10 +19,8 @@ function ToastNotifications() {
     <div className="toast-list">
       <AnimatePresence initial={false}>
         {notifications.map((notification) => (
-          <motion.button
-            type="button"
+          <motion.div
             key={notification.id}
-            onClick={() => openToast(notification)}
             className={`toast-item ${notification.type}`}
             layout="position"
             initial={{ opacity: 0, x: 48, scale: 0.96 }}
@@ -30,9 +28,23 @@ function ToastNotifications() {
             exit={{ opacity: 0, x: 48, scale: 0.96, transition: { duration: 0.16, ease: EASE_OUT } }}
             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           >
-            <div className="toast-title">{notification.title}</div>
-            <div className="toast-message">{notification.message}</div>
-          </motion.button>
+            <button type="button" className="toast-open" onClick={() => openToast(notification)}>
+              <div className="toast-title">{notification.title}</div>
+              <div className="toast-message">{notification.message}</div>
+            </button>
+            {/* Closes the toast at once instead of waiting for it to time out; the notification stays in the panel. */}
+            <button
+              type="button"
+              className="toast-close"
+              onClick={() => dismissToast(notification.id)}
+              aria-label={`Dismiss: ${notification.title}`}
+              title="Dismiss"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </motion.div>
         ))}
       </AnimatePresence>
     </div>

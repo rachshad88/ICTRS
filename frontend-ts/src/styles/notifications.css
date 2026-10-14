@@ -12,10 +12,20 @@
   border: 0;
 }
 
-/* Toasts are buttons now (they open the notification), so undo button defaults. */
-button.toast-item {
+/* A toast is a card holding two buttons: the body opens the notification, the X dismisses it. The
+   padding moves from the card to the body button so the whole card stays clickable. */
+div.toast-item {
+  position: relative;
+  padding: 0;
+}
+
+.toast-open {
   display: block;
   width: 100%;
+  padding: 16px 44px 16px 18px;
+  border: none;
+  border-radius: inherit;
+  background: none;
   text-align: left;
   font: inherit;
   color: inherit;
@@ -23,8 +33,36 @@ button.toast-item {
   transition: var(--tr-press);
 }
 
-button.toast-item:active {
+.toast-open:active {
   transform: scale(0.98);
+}
+
+.toast-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.toast-close:hover,
+.toast-close:focus-visible {
+  opacity: 1;
+  background: rgba(127, 127, 127, 0.16);
+}
+
+.toast-close:active {
+  transform: scale(0.92);
 }
 
 /* Mobile top bar trigger */
