@@ -993,8 +993,36 @@ yt-channel-avatar.pm { background: #047857; }
   grid-template-columns: repeat(3, 1fr);
 }
 
-.app-main .tech-stats-group + .tech-stats-group {
-  border-left: 1px solid rgba(12, 31, 74, 0.1);
+/* Ticket perforation between counters, like the old stubs' tear line: a dashed line the full
+   height of the strip, with a half-circle notch of page colour cut into the top and bottom edges.
+   The 14px offsets match the strip's vertical padding. */
+.app-main .tech-stat + .tech-stat,
+.app-main .tech-stats-group + .tech-stats-group .tech-stat:first-child {
+  position: relative;
+}
+
+.app-main .tech-stat + .tech-stat::before,
+.app-main .tech-stats-group + .tech-stats-group .tech-stat:first-child::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  left: -1px;
+  border-left: 2px dashed rgba(12, 31, 74, 0.18);
+}
+
+.app-main .tech-stat + .tech-stat::after,
+.app-main .tech-stats-group + .tech-stats-group .tech-stat:first-child::after {
+  content: '';
+  position: absolute;
+  top: -14px;
+  bottom: -14px;
+  left: -9px;
+  width: 18px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 0, var(--paper) 8px, transparent 8.5px),
+    radial-gradient(circle at 50% 100%, var(--paper) 8px, transparent 8.5px);
 }
 
 /* Label first in the markup so it is read before the number; shown below it. */
@@ -1141,9 +1169,34 @@ yt-channel-avatar.pm { background: #047857; }
     padding: 12px 0;
   }
 
+  /* The groups stack, so the tear between them runs across, notched at both sides. */
   .app-main .tech-stats-group + .tech-stats-group {
-    border-left: none;
-    border-top: 1px solid rgba(12, 31, 74, 0.1);
+    position: relative;
+    border-top: 2px dashed rgba(12, 31, 74, 0.18);
+  }
+
+  .app-main .tech-stats-group + .tech-stats-group::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -9px;
+    right: -9px;
+    height: 18px;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 9px 50%, var(--paper) 8px, transparent 8.5px),
+      radial-gradient(circle at calc(100% - 9px) 50%, var(--paper) 8px, transparent 8.5px);
+  }
+
+  .app-main .tech-stats-group + .tech-stats-group .tech-stat:first-child::before,
+  .app-main .tech-stats-group + .tech-stats-group .tech-stat:first-child::after {
+    content: none;
+  }
+
+  /* Rows are 12px padded on phones, not 14px. */
+  .app-main .tech-stat + .tech-stat::after {
+    top: -12px;
+    bottom: -12px;
   }
 
   .app-main .tech-stat {
