@@ -5,6 +5,9 @@ let io: Server | null = null;
 
 export function initSocket(httpServer: HttpServer, corsOrigin: string | boolean): Server {
     io = new Server(httpServer, {
+        // WebSocket only: PM2 spreads connections over several processes, and long-polling needs
+        // every request of a session to reach the same one. nginx forwards the upgrade.
+        transports: ['websocket'],
         cors: {
             origin: corsOrigin,
             methods: ['GET', 'POST'],

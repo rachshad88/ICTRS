@@ -3,7 +3,7 @@ import 'dotenv/config';
 // Users are in the Philippines. Day filters ("today", "this week") and displayed times are
 // computed in this timezone rather than the server's (UTC). Set before any date is handled.
 process.env.TZ = process.env.APP_TIMEZONE || 'Asia/Manila';
-import express, { Express } from 'express';
+import express, { Express, ErrorRequestHandler } from 'express';
 import session, { SessionData } from 'express-session';
 import MongoStore from 'connect-mongo';
 import cors from 'cors';
@@ -11,7 +11,8 @@ import { createServer, IncomingMessage } from 'http';
 import { Socket } from 'socket.io';
 import helmet from 'helmet';
 import { ObjectId } from 'mongodb';
-import { connectDB, connectRedis, client as mongoClient, redisClient, getUsersCollection, sessionStatus } from './config/database';
+import { connectDB, connectRedis, createRedisPubSub, client as mongoClient, redisClient, getUsersCollection, sessionStatus, isDBReady, pingDB, mongoClientReady } from './config/database';
+import { createAdapter } from '@socket.io/redis-adapter';
 import { startRatingSync } from './utils/ratingSync';
 import { startOverdueAlerts } from './utils/overdueAlerts';
 import { backfillRequestTimestamps } from './utils/backfillTimestamps';
@@ -68,6 +69,28 @@ app.use(cors({
 app.use(helmet({
   contentSecurityPolicy: false
 }));
+// PM2 runs one backend process per core (ecosystem.config.js) and numbers them from 0.
+const INSTANCE = process.env.NODE_APP_INSTANCE ?? '0';
+
+// 503 when MongoDB is down, so monitoring and nginx see it. Ahead of the session middleware,
+// which would otherwise wait on the database.
+app.use('/api/health', async (_req, res) => {
+  const database = await pingDB();
+  res.status(database ? 200 : 503).json({
+    status: database ? 'ok' : 'error',
+    database: database ? 'up' : 'down',
+    timestamp: new Date(),
+    instance: INSTANCE,
+  });
+});
+
+// Until the first MongoDB connection succeeds (startServer retries it), every other API call
+// gets a clear 503 instead of failing on an unset database.
+app.use('/api', (_req, res, next) => {
+  if (isDBReady()) return next();
+  res.status(503).json({ error: 'The server is starting up. Please try again in a moment.' });
+});
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -87,7 +110,7 @@ const sessionMiddleware = session({
   saveUninitialized: false,
   rolling: true,
   store: MongoStore.create({
-    mongoUrl: process.env.MONGO_URI,
+    clientPromise: mongoClientReady,
     dbName: process.env.MONGO_DB,
     collectionName: 'sessions',
     ttl: SESSION_IDLE_MS / 1000,
@@ -182,9 +205,8 @@ io.on('connection', async (socket) => {
   });
 });
 
-app.use('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
-});
+// Timed jobs run in one process only, or each would run once per core (duplicate overdue alerts).
+const IS_PRIMARY = INSTANCE === '0';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
@@ -203,6 +225,24 @@ app.use('/api/signatories', signatoryRoutes);
 // Wall display queue: no login, limited to LIVE_ALLOWED_CIDRS (see routes/live.ts).
 app.use('/api/live', liveRoutes);
 
+// Last resort for errors no route handled (e.g. malformed JSON from express.json()). Always JSON,
+// never Express's default HTML page, which includes the stack trace outside production.
+const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = Number(err?.status || err?.statusCode) || 500;
+  if (status >= 500) {
+    console.error(`Unhandled error on ${req.method} ${req.originalUrl}:`, err);
+    res.status(500).json({ error: 'Internal server error' });
+  } else if (err?.type === 'entity.parse.failed') {
+    res.status(400).json({ error: 'Invalid request body' });
+  } else if (err?.type === 'entity.too.large') {
+    res.status(413).json({ error: 'Request is too large' });
+  } else {
+    res.status(status).json({ error: err?.expose ? err.message : 'Bad request' });
+  }
+};
+app.use(errorHandler);
+
 const rawPort = process.env.PORT || '3000';
 const PORT = parseInt(rawPort, 10);
 if (isNaN(PORT) || PORT < 1 || PORT > 65535) {
@@ -215,24 +255,43 @@ if (isNaN(PORT) || PORT < 1 || PORT > 65535) {
 // calls port 3000 directly; then set BIND_HOST=127.0.0.1 in .env.
 const BIND_HOST = process.env.BIND_HOST || '0.0.0.0';
 
-async function startServer() {
-  try {
-    await connectDB();
-    console.log('Connected to MongoDB');
-    // Copy request statuses into the shared rating database now and every 10 minutes (deploy/RATING_DB.md).
-    startRatingSync();
-    // Notify staff and admins about requests past their due/event/target date, every 30 minutes.
-    startOverdueAlerts();
-    // One-time: older requests get their accepted/cancelled times from the audit log.
-    backfillRequestTimestamps().catch((err) => console.error('Timestamp backfill failed:', err));
-  } catch (error) {
-    console.error('Failed to connect to MongoDB:', error);
-    console.log('Server will start but database operations will fail');
+// After a reboot MongoDB (Docker) can still be starting when PM2 starts the backend, so keep trying
+// instead of running on without a database until someone restarts it.
+async function connectDBWithRetry(): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await connectDB();
+      return;
+    } catch (error) {
+      const delayMs = Math.min(attempt * 2000, 15000);
+      console.error(`MongoDB connection attempt ${attempt} failed (${(error as Error).message}); retrying in ${delayMs / 1000}s`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
   }
+}
+
+async function startServer() {
+  // Not awaited: the server listens meanwhile, answering 503 until MongoDB is connected.
+  connectDBWithRetry().then(() => {
+    console.log('Connected to MongoDB');
+    if (IS_PRIMARY) {
+      // Copy request statuses into the shared rating database now and every 10 minutes (deploy/RATING_DB.md).
+      startRatingSync();
+      // Notify staff and admins about requests past their due/event/target date, every 30 minutes.
+      startOverdueAlerts();
+      // One-time: older requests get their accepted/cancelled times from the audit log.
+      backfillRequestTimestamps().catch((err) => console.error('Timestamp backfill failed:', err));
+    }
+  });
 
   const redisConnected = await connectRedis();
-  if (redisConnected) {
-    console.log('Connected to Redis (caching enabled)');
+  // The other backend processes hold other users' sockets; Redis relays each broadcast to them.
+  const pubSub = redisConnected ? await createRedisPubSub() : null;
+  if (pubSub) {
+    io.adapter(createAdapter(pubSub[0], pubSub[1]));
+    console.log(`Connected to Redis (instance ${INSTANCE}: caching, shared login throttle, live events across processes)`);
+  } else {
+    console.warn(`Redis unavailable (instance ${INSTANCE}): live events only reach users on this process; run a single instance without Redis.`);
   }
 
   httpServer.on('error', (err: NodeJS.ErrnoException) => {

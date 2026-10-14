@@ -23,8 +23,10 @@ const setConnection = (up: boolean) => {
 // The server identifies the user from the session cookie sent with the connection.
 export const initSocket = (): Socket => {
   if (!socket) {
+    // WebSocket only: the backend runs one process per core, and long-polling would need every
+    // request of a connection to reach the same one (backend-ts/src/config/socket.ts).
     socket = io('/', {
-      transports: ['websocket', 'polling']
+      transports: ['websocket']
     });
     socket.onAny(tell);
     socket.io.on('reconnect', () => tell('reconnect'));

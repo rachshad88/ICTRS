@@ -11,6 +11,7 @@
     "restart": "node -e \"require('child_process').exec('netstat -ano | findstr :3000',(e,o)=>{const p=o.split('\\n').find(l=>l.includes('LISTENING'));if(p){const pid=p.trim().split(/ +/).pop();try{process.kill(+pid)}catch{}}})\" & node dist/index.js"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^5.1.1",
     "connect-mongo": "^6.0.0",
     "cors": "^2.8.5",

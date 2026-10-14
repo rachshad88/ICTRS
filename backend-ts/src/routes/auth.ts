@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { getUsersCollection, logAudit, redisClient, Role, User } from '../config/database';
+import { forgetUserLists, getUsersCollection, logAudit, redisClient, Role, User } from '../config/database';
 import { notify } from '../utils/notify';
 import { getIO } from '../config/socket';
 import { AuthenticatedRequest, isAuthenticated, AWAITING_APPROVAL } from '../middleware/auth';
@@ -44,9 +44,9 @@ function sendLockout(res: Response, retryAfter: number) {
 
 // Counts a failed sign-in. The failure that triggers the lockout answers as locked straight away,
 // so the sign-in page can pause the button now instead of one attempt later.
-function rejectLogin(res: Response, username: string, ip: string) {
-  recordLoginFailure(username, ip);
-  const retryAfter = loginRetryAfter(username, ip);
+async function rejectLogin(res: Response, username: string, ip: string) {
+  await recordLoginFailure(username, ip);
+  const retryAfter = await loginRetryAfter(username, ip);
   if (retryAfter > 0) return sendLockout(res, retryAfter);
   return res.status(401).json({ error: 'Invalid username or password' });
 }
@@ -60,14 +60,14 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     }
 
     const ip = req.ip || '';
-    const retryAfter = loginRetryAfter(username, ip);
+    const retryAfter = await loginRetryAfter(username, ip);
     if (retryAfter > 0) return sendLockout(res, retryAfter);
 
     const usersCollection = getUsersCollection();
     const user = await usersCollection.findOne({ username });
 
     if (!user) {
-      return rejectLogin(res, username, ip);
+      return await rejectLogin(res, username, ip);
     }
 
     let isValid = false;
@@ -94,9 +94,9 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     }
 
     if (!isValid) {
-      return rejectLogin(res, username, ip);
+      return await rejectLogin(res, username, ip);
     }
-    recordLoginSuccess(username, ip);
+    await recordLoginSuccess(username, ip);
 
     // Self sign-ups wait for an admin (see the signup route). Only said after the password checked
     // out, so it tells a guesser nothing.
@@ -219,7 +219,7 @@ const MIN_FORM_MS = 3000;
 router.post('/signup', validateBody(signupSchema), async (req: Request, res: Response) => {
   try {
     const ip = req.ip || '';
-    const retryAfter = signupRetryAfter(ip);
+    const retryAfter = await signupRetryAfter(ip);
     if (retryAfter > 0) {
       const minutes = Math.ceil(retryAfter / 60);
       res.setHeader('Retry-After', String(retryAfter));
@@ -267,7 +267,7 @@ router.post('/signup', validateBody(signupSchema), async (req: Request, res: Res
       }
       throw error;
     }
-    recordSignup(ip);
+    await recordSignup(ip);
 
     if (redisClient) {
       await redisClient.del('users:all:non-admin').catch(() => {});
@@ -369,6 +369,8 @@ router.post('/change_password', isAuthenticated, validateBody(changePasswordSche
 
     req.session.is_default_password = false;
     req.session.session_version = updated.value?.session_version || 0;
+    // The admin's user list shows who is still on the default password.
+    await forgetUserLists();
 
     await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'CHANGE_PASSWORD', 'USER', userId, `User ${req.user!.username} changed their password`);
     res.json({ status: 'success', message: 'Password changed successfully' });
@@ -414,6 +416,7 @@ router.put('/update_profile', isAuthenticated, validateBody(updateProfileSchema)
       { _id: new ObjectId(userId) },
       { $set: updateData }
     );
+    await forgetUserLists();
 
     req.session.first_name = first_name;
     req.session.middle_name = middle_name || '';

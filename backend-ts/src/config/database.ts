@@ -215,16 +215,49 @@ const MONGO_DB = process.env.MONGO_DB || 'itrs';
 const REDIS_HOST = process.env.REDIS_HOST || '127.0.0.1';
 const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379', 10);
 
+// True once connectDB() has succeeded. Until then `db` is unset, so the API answers 503 (index.ts).
+let dbReady = false;
+let resolveClient: (c: MongoClient) => void;
+// Resolves with the connected client; the session store waits on it instead of opening its own
+// connection, which would fail for good if MongoDB was still starting when the backend did.
+export const mongoClientReady = new Promise<MongoClient>((resolve) => { resolveClient = resolve; });
+
+export function isDBReady(): boolean {
+  return dbReady;
+}
+
+/** True when MongoDB answers a ping within timeoutMs. Used by /api/health. */
+export async function pingDB(timeoutMs = 2000): Promise<boolean> {
+  if (!dbReady) return false;
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<boolean>((resolve) => { timer = setTimeout(() => resolve(false), timeoutMs); });
+  const ping = db.command({ ping: 1 }).then(() => true, () => false);
+  try {
+    return await Promise.race([ping, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Connects once; throws if MongoDB is unreachable. index.ts retries until it succeeds. */
 export async function connectDB(): Promise<void> {
   const mongoUri = process.env.MONGO_URI;
   const dbName = process.env.MONGO_DB || 'itrs';
   if (!mongoUri || mongoUri === '') {
     throw new Error('MONGO_URI environment variable is required');
   }
-  client = new MongoClient(mongoUri);
-  await client.connect();
+  const candidate = new MongoClient(mongoUri);
+  try {
+    await candidate.connect();
+  } catch (error) {
+    await candidate.close().catch(() => {});
+    throw error;
+  }
+  client = candidate;
   db = client.db(dbName);
-  
+  dbReady = true;
+  resolveClient(client);
+
   // Migrate users: add roles[] and primary_role from existing role field
   try {
     const usersCollection = db.collection<User>('users');
@@ -291,20 +324,63 @@ async function createIndexes(): Promise<void> {
   }
 }
 
+// Redis is shared by every backend process (PM2 runs one per core): it relays Socket.IO events
+// between them, holds the login throttle's counters and caches a few lists. Everything falls back
+// when it is down: no cache, per-process login counts, and live events only within one process.
+let redisEverConnected = false;
+let redisErrorLogged = false;
+
+function watchRedis(c: RedisClientType, name: string): RedisClientType {
+  // Without an 'error' listener a dropped connection would crash the process. Logged once per outage.
+  c.on('error', (err: Error) => {
+    if (redisErrorLogged) return;
+    redisErrorLogged = true;
+    console.error(`Redis (${name}) unavailable: ${err.message}`);
+  });
+  c.on('ready', () => {
+    if (redisErrorLogged) console.log(`Redis (${name}) reconnected`);
+    redisErrorLogged = false;
+  });
+  return c;
+}
+
 export async function connectRedis(): Promise<boolean> {
+  const c = createClient({
+    socket: {
+      host: REDIS_HOST,
+      port: REDIS_PORT,
+      connectTimeout: 5000,
+      // After the first connection, keep retrying (at most every 5 s) through a Redis restart. Before
+      // it, give up quickly so a server without Redis still starts.
+      reconnectStrategy: (retries: number) =>
+        redisEverConnected ? Math.min(250 * (retries + 1), 5000) : retries < 2 ? 500 : new Error('Redis not reachable'),
+    },
+    // While disconnected, commands fail at once instead of queueing, so requests never wait on Redis.
+    disableOfflineQueue: true,
+  }) as RedisClientType;
+  watchRedis(c, 'main');
   try {
-    redisClient = createClient({
-      socket: {
-        host: REDIS_HOST,
-        port: REDIS_PORT,
-        connectTimeout: 5000
-      }
-    });
-    await redisClient.connect();
+    await c.connect();
+    redisEverConnected = true;
+    redisClient = c;
     return true;
   } catch {
     redisClient = null;
     return false;
+  }
+}
+
+/** A connected publisher/subscriber pair for the Socket.IO adapter, or null without Redis. */
+export async function createRedisPubSub(): Promise<[RedisClientType, RedisClientType] | null> {
+  if (!redisClient) return null;
+  const pub = watchRedis(redisClient.duplicate() as RedisClientType, 'pub');
+  const sub = watchRedis(redisClient.duplicate() as RedisClientType, 'sub');
+  try {
+    await Promise.all([pub.connect(), sub.connect()]);
+    return [pub, sub];
+  } catch (error) {
+    console.error('Redis pub/sub connection failed:', error);
+    return null;
   }
 }
 
@@ -405,6 +481,11 @@ export async function setCache<T>(key: string, data: T, ttl: number = 60): Promi
   } catch {
     // Ignore cache errors
   }
+}
+
+/** Drops the cached user lists (routes/users.ts) after any change to a user they show. */
+export async function forgetUserLists(): Promise<void> {
+  await redisClient?.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
 }
 
 export async function generateRequestCode(prefix: string, collectionName?: string): Promise<string> {

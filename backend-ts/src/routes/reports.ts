@@ -3,7 +3,7 @@ import { ObjectId, Collection, Document } from 'mongodb';
 import * as XLSX from 'xlsx';
 import {
   getRequestsCollection, getMultimediaRequestsCollection, getDigitalMediaRequestsCollection,
-  getPrintMaterialsRequestsCollection, getUsersCollection, getCache, setCache
+  getPrintMaterialsRequestsCollection, getUsersCollection
 } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 import { formatDateTime, todayString } from '../utils/dates';
@@ -187,17 +187,9 @@ router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, re
       return;
     }
 
-    const cacheKey = `reports:${typeKey}:${roles.join(',')}:${userId}:${filterType}:${selectedDate}:${showDone}:${search || ''}:${page}:${limit}`;
-    const cached = await getCache<{ reports: Record<string, unknown>[]; total: number; page: number; limit: number; totalPages: number }>(cacheKey);
-    if (cached) {
-      res.json(cached);
-      return;
-    }
-
     const result = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search, page, limit);
-    const response = { ...result, page, limit, totalPages: Math.ceil(result.total / limit) };
-    await setCache(cacheKey, response, 60);
-    res.json(response);
+    // Not cached: the page refreshes live when a request changes, and a cached copy would lag.
+    res.json({ ...result, page, limit, totalPages: Math.ceil(result.total / limit) });
   } catch (error) {
     console.error('Get reports error:', error);
     res.status(500).json({ error: 'Failed to get reports' });

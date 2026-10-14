@@ -5,6 +5,9 @@ import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import { validateFileMagicBytes, mimeTypeForFilename } from './fileValidation';
 
+// PM2 runs one backend process per core; libvips would otherwise start a thread per core in each.
+sharp.concurrency(2);
+
 // MOV (means of verification): the photos a technician attaches when finishing an IT request, which
 // an IT admin checks before the request counts as done (routes/requests.ts). Stored per request in
 // uploads/requests/<request id>/, served by routes/files.ts. Phones send JPG/PNG; each is kept as a

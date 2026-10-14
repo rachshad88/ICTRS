@@ -252,7 +252,7 @@ export default function LiveQueue() {
   }, []);
 
   useEffect(() => {
-    const socket = io('/live', { transports: ['websocket', 'polling'] });
+    const socket = io('/live', { transports: ['websocket'] }); // see services/socket.ts
 
     // Fires on the first connection and on every reconnection; reloading covers anything missed meanwhile.
     socket.on('connect', () => {
