@@ -198,6 +198,7 @@ function TopNav({ onOpenNotifications, notificationsOpen }: { onOpenNotification
             type="button"
             className={`top-nav-item top-nav-round ${notificationsOpen ? 'open' : ''}`}
             onClick={onOpenNotifications}
+            data-notif-anchor
             title="Notifications"
             aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
             aria-expanded={notificationsOpen}
