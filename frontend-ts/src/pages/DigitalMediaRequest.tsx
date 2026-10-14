@@ -109,7 +109,7 @@ function DigitalMediaRequest() {
   };
 
   return (
-    <div className="request-page">
+    <div className="request-page fit-request">
 
       <div className="container">
         <h2>Digital Media Production and Online Information Dissemination</h2>
@@ -124,8 +124,8 @@ function DigitalMediaRequest() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="request-form" data-ticket="Digital Media">
-          <div className="form-group">
+        <form onSubmit={handleSubmit} className="request-form grid-ticket" data-ticket="Digital Media">
+          <div className="form-group c6">
             <label>Title *</label>
             <input
               type="text"
@@ -138,7 +138,7 @@ function DigitalMediaRequest() {
             />
           </div>
 
-          <div className="form-group">
+          <div className="form-group c6">
             <label>Form of Digital Media *</label>
             <select
               name="form_of_digital_media"
@@ -153,20 +153,7 @@ function DigitalMediaRequest() {
             </select>
           </div>
 
-          <div className="form-group">
-            <label>Description of the Digital Media Being Requested *</label>
-            <textarea
-              name="digital_media_description"
-              value={formData.digital_media_description}
-              onChange={handleInputChange}
-              required
-              rows={4}
-              maxLength={100}
-              placeholder="Briefly describe the type of digital media you are requesting (e.g., social media post, infographic, poster, teaser video, etc.). Include specific details or key messages if available."
-            />
-          </div>
-
-          <div className="form-group">
+          <div className="form-group c6">
             <label>Name of Event or PPA Related to the Digital Media Being Requested *</label>
             <input
               type="text"
@@ -180,7 +167,7 @@ function DigitalMediaRequest() {
           </div>
 
           <div className="form-row">
-            <div className="form-group">
+            <div className="form-group c3">
               <label>Target Date of Posting or Use *</label>
               <input
                 type="date"
@@ -192,7 +179,7 @@ function DigitalMediaRequest() {
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group c3">
               <label>Target Time of Posting or Use *</label>
               <input
                 type="time"
@@ -205,7 +192,7 @@ function DigitalMediaRequest() {
           </div>
 
           <div className="form-row">
-            <div className="form-group">
+            <div className="form-group c6">
               <label>Name of Requestor *</label>
             <input
               autoComplete="name"
@@ -219,7 +206,7 @@ function DigitalMediaRequest() {
             />
             </div>
 
-            <div className="form-group">
+            <div className="form-group c6">
               <label>Contact Number of the Requestor *</label>
             <input
               autoComplete="tel"
@@ -234,9 +221,22 @@ function DigitalMediaRequest() {
             </div>
           </div>
 
-          <PriorityField value={priority} onChange={setPriority} />
+          <div className="form-group c6">
+            <label>Description of the Digital Media Being Requested *</label>
+            <textarea
+              name="digital_media_description"
+              value={formData.digital_media_description}
+              onChange={handleInputChange}
+              required
+              rows={4}
+              maxLength={100}
+              placeholder="Briefly describe the type of digital media you are requesting (e.g., social media post, infographic, poster, teaser video, etc.). Include specific details or key messages if available."
+            />
+          </div>
 
-          <div className="form-group">
+          <div className="c3"><PriorityField value={priority} onChange={setPriority} /></div>
+
+          <div className="form-group c3">
             <label>Supporting Files (Optional)</label>
             <input
               type="file"

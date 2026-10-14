@@ -142,33 +142,20 @@ function Requested() {
     <div className="requested-page">
       {confirmDialog}
 
-      <div className="container">
+      {/* Same header row, counter strip and fit-the-window layout as the IT dashboards (pages.css). */}
+      <div className="container tech-dash it-dash client-dash">
         <div className="page-header">
           <h2>My Requests</h2>
-          <p className="page-subtitle">Track and manage your support tickets</p>
-        </div>
-        
-        <div className="stats-container">
-          <div className="stat-card">
-            <div className="stat-label">Pending</div>
-            <div className="stat-number">{counts.pending_count}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">In Progress</div>
-            <div className="stat-number">{counts.progress_count + (counts.verification_count || 0)}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Completed</div>
-            <div className="stat-number">{counts.done_count}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Declined</div>
-            <div className="stat-number">{counts.declined_count}</div>
-          </div>
+          <SearchBox className="tech-search" placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
         </div>
 
-        <div className="filters-row">
-          <SearchBox placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
+        <div className="tech-stats">
+          <div className="tech-stats-group">
+            <div className="tech-stat"><span className="tech-stat-label">Pending</span><span className="tech-stat-num">{counts.pending_count}</span></div>
+            <div className="tech-stat accent"><span className="tech-stat-label">In progress</span><span className="tech-stat-num">{counts.progress_count + (counts.verification_count || 0)}</span></div>
+            <div className="tech-stat"><span className="tech-stat-label">Completed</span><span className="tech-stat-num">{counts.done_count}</span></div>
+            <div className="tech-stat"><span className="tech-stat-label">Declined</span><span className="tech-stat-num">{counts.declined_count}</span></div>
+          </div>
         </div>
 
         {error && <div className="error-message">{error}</div>}
@@ -187,7 +174,7 @@ function Requested() {
             onClearSearch={() => setSearchTerm('')}
           />
         ) : (
-          <div className="table-container">
+          <div className="table-container it-table">
             <table className="requests-table stack-mobile">
               <thead>
                 <tr>
@@ -205,7 +192,7 @@ function Requested() {
                   return (
                     <tr key={req._id}>
                       <td className="request-code" data-label="Request ID">{req.request_code}</td>
-                      <td className="issue-cell" data-label="Issue">{truncateCell(req.issue)}</td>
+                      <td className="issue-cell" data-label="Issue" title={req.issue}>{truncateCell(req.issue)}</td>
                       <td data-label="Status">
                         <span className={`status-badge ${getStatusClass(req.status)}`}>
                           {STATUS_LABELS[req.status] || req.status}
@@ -214,7 +201,7 @@ function Requested() {
                       <td className="date-cell" data-label="Created">{formatDate(req.created_at)}</td>
                       <td className="date-cell" data-label="Completed">{formatDate(req.completed_at)}</td>
                       <td className="col-actions">
-                        <span style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span className="req-actions">
                         <button className="btn btn-sm btn-view" onClick={() => setSelectedRequest(req)}>
                           {OPEN_STATUSES.includes(req.status) ? 'Details / Add note' : 'Details'}
                         </button>
@@ -227,14 +214,13 @@ function Requested() {
                           </button>
                         )}
                         {req.status === 'DONE' && (
-                          <span style={{ display: 'inline-flex', gap: '6px', alignItems: 'center' }}>
+                          <span className="req-actions">
                             <span className={`status-badge ${req.finished === 'repaired' ? 'badge-repaired' : 'badge-beyond-repair'}`}>
                               {req.finished === 'repaired' ? 'Repaired' : 'Beyond Repair'}
                             </span>
                             <button 
                               className="btn-rate"
                               onClick={() => openRating(req._id, req.request_code, 'it_request')}
-                              style={{ padding: '6px 12px', fontSize: '11px' }}
                             >
                               Rate
                             </button>

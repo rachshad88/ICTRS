@@ -50,7 +50,7 @@ function Request() {
   };
 
   return (
-    <div className="request-page">
+    <div className="request-page fit-request">
 
       <div className="container">
         <h2>Submit Request</h2>
@@ -61,16 +61,16 @@ function Request() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="request-form" data-ticket="IT Request">
+        <form onSubmit={handleSubmit} className="request-form it-request-form" data-ticket="IT Request">
           {/* Shown for reference only; the server records the actual submission time. */}
-          <div className="form-group">
+          <div className="form-group rf-static">
             <label>Date requested</label>
             <div className="form-control-static">
               {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
             </div>
           </div>
 
-          <div className="form-group">
+          <div className="form-group rf-static">
             <label>Office</label>
             <div className="form-control-static">{user?.office || 'N/A'}</div>
             {!user?.office && (
@@ -81,14 +81,14 @@ function Request() {
           </div>
           
           {/* Set by the server from the submission date: January-June is the 1st, July-December the 2nd. */}
-          <div className="form-group">
+          <div className="form-group rf-static">
             <label>Semester</label>
             <div className="form-control-static">
               {new Date().getMonth() < 6 ? '1st Semester (January-June)' : '2nd Semester (July-December)'}
             </div>
           </div>
           
-          <div className="form-group">
+          <div className="form-group rf-unit">
             <label>Unit *</label>
             <select
               value={unit}
@@ -104,7 +104,7 @@ function Request() {
           </div>
 
           {unit === 'others' && (
-            <div className="form-group">
+            <div className="form-group rf-unit-other">
               <label>What is the unit? *</label>
               <input
                 type="text"
@@ -118,9 +118,11 @@ function Request() {
             </div>
           )}
           
-          <PriorityField value={priority} onChange={setPriority} />
+          <div className="rf-priority">
+            <PriorityField value={priority} onChange={setPriority} />
+          </div>
 
-          <div className="form-group">
+          <div className="form-group rf-issue">
             <label>Issue *</label>
             <textarea
               value={issue}

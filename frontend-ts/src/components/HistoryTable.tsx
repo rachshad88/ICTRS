@@ -145,10 +145,12 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
   };
 
   return (
-    <div className="history-page">
+    // Same header row and fit-the-window layout as the IT history and the dashboards (pages.css).
+    <div className="history-page tech-dash it-dash client-dash">
       {confirmDialog}
       <div className="page-header">
         <h2>{config.title}</h2>
+        <SearchBox className="tech-search" placeholder={config.searchPlaceholder} value={searchTerm} onSearch={setSearchTerm} />
         {requests.length > 0 && (
           <button className="btn-export" onClick={handleExport}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -159,10 +161,6 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
             Export
           </button>
         )}
-      </div>
-
-      <div className="filters-row">
-        <SearchBox placeholder={config.searchPlaceholder} value={searchTerm} onSearch={setSearchTerm} />
       </div>
 
       {error && <div className="error-message">{error}</div>}
@@ -179,7 +177,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
         />
       ) : (
         <>
-          <div className="history-table-wrap">
+          <div className="history-table-wrap it-table">
             <table className="history-table stack-mobile">
               <thead>
                 <tr>
@@ -203,7 +201,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                     <td data-label="Status">{renderStatusBadge(request.status)}</td>
                     <td className="td-code" data-label="Code">{request.request_code}</td>
                     {config.columns.map(col => (
-                      <td key={col.key} className="td-cell" data-label={col.label}>{defaultRender(request, col)}</td>
+                      <td key={col.key} className="td-cell" data-label={col.label} title={typeof request[col.key] === 'string' ? request[col.key] : undefined}>{defaultRender(request, col)}</td>
                     ))}
                     <td className="td-cell" data-label="Assigned To">{renderAssignedTechnician(request.assignedTechnician)}</td>
                     <td className="col-actions">

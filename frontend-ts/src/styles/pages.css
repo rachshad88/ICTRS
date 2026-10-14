@@ -1739,3 +1739,214 @@ yt-channel-avatar.pm { background: #047857; }
     flex-wrap: nowrap;
   }
 }
+
+/* ========== CLIENT: IT HISTORY (pages/Requested.tsx) ==========
+   Has .tech-dash and .it-dash on its container, so it gets the dashboards' header row, counter strip
+   and fit-the-window layout (above); here only what differs: one group of four counters, and its
+   table (.requests-table) compacted like the dashboards' tables. */
+@media (min-width: 1025px) {
+  .app-main .client-dash .tech-stats {
+    grid-template-columns: 1fr;
+  }
+
+  /* The .container's own vertical padding would come out of the fitted height. */
+  .app-main .it-dash.container {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .app-main .it-dash .it-table .requests-table {
+    width: 100%;
+  }
+
+  .app-main .it-dash .requests-table th {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+
+  .app-main .it-dash .requests-table td {
+    padding: 5px 16px;
+    white-space: nowrap;
+  }
+
+  .app-main .it-dash .requests-table .btn-sm,
+  .app-main .it-dash .requests-table .btn-rate {
+    padding: 3px 10px;
+  }
+
+  /* Actions stay on one line; the issue column (already cut to 25 characters) doesn't take the
+     spare width from them. */
+  .app-main .it-dash .requests-table .req-actions {
+    flex-wrap: nowrap;
+  }
+
+  .app-main .it-dash .requests-table .col-actions {
+    width: 1%;
+  }
+}
+
+/* The action buttons in a history row (Details, Cancel, Repaired + Rate). Wraps on narrow screens. */
+.app-main .req-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-main .req-actions .btn-rate {
+  padding: 6px 12px;
+  font-size: 11px;
+}
+
+/* ========== CLIENT: IT REQUEST FORM (pages/Request.tsx) ==========
+   Desktop: the ticket is laid out on a six-column grid so it fits the window without scrolling.
+   Date, office and semester share the first row; unit and priority the second (the "other unit"
+   field drops in under unit); the issue spans the ticket; the tear line and submit end it.
+   Phones and tablets keep the single column. */
+@media (min-width: 1025px) {
+  .app-main:has(.fit-request) {
+    padding-bottom: 24px;
+  }
+
+  .app-main .fit-request .container {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .app-main .fit-request .container::before {
+    margin-bottom: 8px;
+  }
+
+  .app-main .fit-request .container > h2 {
+    font-size: clamp(28px, 2.5vw, 38px);
+  }
+
+  .app-main .fit-request .container > h2 + * {
+    margin-top: 16px;
+  }
+
+  .app-main .it-request-form {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    column-gap: 20px;
+    padding-bottom: 24px;
+  }
+
+  /* The navy ticket head is the form's ::before: a grid item, so it spans the ticket. */
+  .app-main .it-request-form::before {
+    grid-column: 1 / -1;
+    margin-bottom: 20px;
+  }
+
+  .app-main .it-request-form > * {
+    grid-column: 1 / -1;
+  }
+
+  .app-main .it-request-form .form-group {
+    margin-bottom: 16px;
+  }
+
+  .app-main .it-request-form .rf-static {
+    grid-column: span 2;
+  }
+
+  .app-main .it-request-form .rf-static .form-control-static {
+    padding: 9px 14px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .app-main .it-request-form .rf-unit {
+    grid-column: 1 / 4;
+    grid-row: 3;
+  }
+
+  .app-main .it-request-form .rf-priority {
+    grid-column: 4 / 7;
+    grid-row: 3;
+  }
+
+  .app-main .it-request-form .rf-unit-other {
+    grid-column: 1 / 4;
+    grid-row: 4;
+  }
+
+  .app-main .it-request-form .rf-issue textarea {
+    height: 84px;
+    min-height: 84px;
+    resize: vertical;
+  }
+
+  .app-main .it-request-form .ticket-tear {
+    margin-top: 10px;
+    margin-bottom: 20px;
+  }
+}
+
+/* ========== CLIENT: MEDIA REQUEST FORMS (Multimedia, Digital Media, Print Materials) ==========
+   Desktop: .grid-ticket lays the ticket out on twelve columns so it fits the window. Each field
+   says how wide it is (c2 a sixth, c3 a quarter, c4 a third, c6 a half; anything else spans the
+   ticket), and the forms' paired .form-row wrappers step aside so their fields join the grid.
+   With .fit-request on the page (shared with the IT form) for the smaller title and spacing. */
+@media (min-width: 1025px) {
+  .app-main .grid-ticket {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    column-gap: 18px;
+    align-items: start;
+    padding-bottom: 22px;
+  }
+
+  .app-main .grid-ticket::before {
+    grid-column: 1 / -1;
+    margin-bottom: 18px;
+  }
+
+  .app-main .grid-ticket > * {
+    grid-column: 1 / -1;
+  }
+
+  .app-main .grid-ticket .form-row {
+    display: contents;
+  }
+
+  .app-main .grid-ticket .c2 { grid-column: span 2; }
+  .app-main .grid-ticket .c3 { grid-column: span 3; }
+  .app-main .grid-ticket .c4 { grid-column: span 4; }
+  .app-main .grid-ticket .c6 { grid-column: span 6; }
+
+  .app-main .grid-ticket .form-group {
+    margin-bottom: 14px;
+  }
+
+  .app-main .grid-ticket .form-group input:not([type='file']),
+  .app-main .grid-ticket .form-group select {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .app-main .grid-ticket .form-group textarea {
+    height: 66px;
+    min-height: 66px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    resize: vertical;
+  }
+
+  .app-main .grid-ticket .ticket-tear {
+    margin-top: 8px;
+    margin-bottom: 18px;
+  }
+
+  /* Field hints (priority, file limits) in a small plain font instead of the 19px handwriting, so
+     they fit under a narrow field. The IT form too. */
+  .app-main .fit-request .form-group small:not(.field-error) {
+    margin-top: 4px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--ink-soft);
+  }
+}

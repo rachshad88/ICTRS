@@ -111,7 +111,7 @@ function MultimediaRequest() {
   };
 
   return (
-    <div className="request-page">
+    <div className="request-page fit-request">
 
       <div className="container">
         <h2>Multimedia Request</h2>
@@ -122,8 +122,8 @@ function MultimediaRequest() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="request-form" data-ticket="Multimedia">
-          <div className="form-group">
+        <form onSubmit={handleSubmit} className="request-form grid-ticket" data-ticket="Multimedia">
+          <div className="form-group c6">
             <label>Event Title *</label>
             <input
               type="text"
@@ -137,7 +137,7 @@ function MultimediaRequest() {
           </div>
           
           <div className="form-row three-cols">
-            <div className="form-group">
+            <div className="form-group c2">
               <label>Event Date *</label>
               <input
                 type="date"
@@ -149,7 +149,7 @@ function MultimediaRequest() {
               />
             </div>
             
-            <div className="form-group">
+            <div className="form-group c2">
               <label>Start Time *</label>
               <input
                 type="time"
@@ -160,7 +160,7 @@ function MultimediaRequest() {
               />
             </div>
             
-            <div className="form-group">
+            <div className="form-group c2">
               <label>Estimated End Time *</label>
               <input
                 type="time"
@@ -173,7 +173,7 @@ function MultimediaRequest() {
           </div>
           
           <div className="form-row">
-            <div className="form-group">
+            <div className="form-group c4">
               <label>Contact Number *</label>
               <input
                 autoComplete="tel"
@@ -187,7 +187,7 @@ function MultimediaRequest() {
               />
             </div>
             
-            <div className="form-group">
+            <div className="form-group c4">
               <label>Location Type *</label>
               <select
                 name="location_type"
@@ -203,7 +203,7 @@ function MultimediaRequest() {
             </div>
           </div>
           
-          <div className="form-group">
+          <div className="form-group c4">
             <label>Specific Location *</label>
             <textarea
               name="specific_location"
@@ -216,9 +216,9 @@ function MultimediaRequest() {
             />
           </div>
           
-          <PriorityField value={priority} onChange={setPriority} />
+          <div className="c6"><PriorityField value={priority} onChange={setPriority} /></div>
 
-          <div className="form-group">
+          <div className="form-group c6">
             <label>Program/Schedule of Event (Optional)</label>
             <input
               type="file"

@@ -108,7 +108,7 @@ function PrintMaterialsRequest() {
   };
 
   return (
-    <div className="request-page">
+    <div className="request-page fit-request">
 
       <div className="container">
         <h2>Request for Design and Production of Print Materials for Physical Dissemination</h2>
@@ -123,8 +123,8 @@ function PrintMaterialsRequest() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="request-form" data-ticket="Print Materials">
-          <div className="form-group">
+        <form onSubmit={handleSubmit} className="request-form grid-ticket" data-ticket="Print Materials">
+          <div className="form-group c6">
             <label>Form of Printed Media Being Requested *</label>
             <select
               name="form_of_printed_media"
@@ -139,7 +139,7 @@ function PrintMaterialsRequest() {
             </select>
           </div>
 
-          <div className="form-group">
+          <div className="form-group c6">
             <label>Size of the Printed Media Being Requested *</label>
             <input
               type="text"
@@ -152,20 +152,7 @@ function PrintMaterialsRequest() {
             />
           </div>
 
-          <div className="form-group">
-            <label>Description of the Printed Media Being Requested *</label>
-            <textarea
-              name="printed_media_description"
-              value={formData.printed_media_description}
-              onChange={handleInputChange}
-              required
-              rows={4}
-              maxLength={100}
-              placeholder="Provide a short description of the content, purpose, or layout of the material (e.g., for event backdrop, with official logos, program title, etc.)"
-            />
-          </div>
-
-          <div className="form-group">
+          <div className="form-group c6">
             <label>Name of Event or PPA Related to the Printed Media Being Requested *</label>
             <input
               type="text"
@@ -179,7 +166,7 @@ function PrintMaterialsRequest() {
           </div>
 
           <div className="form-row">
-            <div className="form-group">
+            <div className="form-group c3">
               <label>Target Date of Posting or Use *</label>
               <input
                 type="date"
@@ -191,7 +178,7 @@ function PrintMaterialsRequest() {
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group c3">
               <label>Target Time of Posting or Use *</label>
               <input
                 type="time"
@@ -204,7 +191,7 @@ function PrintMaterialsRequest() {
           </div>
 
           <div className="form-row">
-            <div className="form-group">
+            <div className="form-group c6">
               <label>Name of Requestor *</label>
             <input
               autoComplete="name"
@@ -218,7 +205,7 @@ function PrintMaterialsRequest() {
             />
             </div>
 
-            <div className="form-group">
+            <div className="form-group c6">
               <label>Contact Number of Requestor *</label>
             <input
               autoComplete="tel"
@@ -233,9 +220,22 @@ function PrintMaterialsRequest() {
             </div>
           </div>
 
-          <PriorityField value={priority} onChange={setPriority} />
+          <div className="form-group c6">
+            <label>Description of the Printed Media Being Requested *</label>
+            <textarea
+              name="printed_media_description"
+              value={formData.printed_media_description}
+              onChange={handleInputChange}
+              required
+              rows={4}
+              maxLength={100}
+              placeholder="Provide a short description of the content, purpose, or layout of the material (e.g., for event backdrop, with official logos, program title, etc.)"
+            />
+          </div>
 
-          <div className="form-group">
+          <div className="c3"><PriorityField value={priority} onChange={setPriority} /></div>
+
+          <div className="form-group c3">
             <label>Upload relevant files and materials (Optional)</label>
             <input
               type="file"
