@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the frontend and publishes it to /var/www/itrs, which nginx serves.
-# Run from anywhere as the normal user; it asks for sudo only to copy the files:
+# Run from anywhere as the normal user; it asks for sudo only if the web root isn't writable:
 #   ./deploy/deploy-frontend.sh
 # Frontend changes are NOT live until this is run (nginx no longer proxies to the Vite dev server).
 set -euo pipefail
@@ -18,8 +18,10 @@ npx vite build --outDir "$BUILD_DIR" --emptyOutDir
 echo "Pre-compressing..."
 node "$REPO/deploy/precompress.mjs" "$BUILD_DIR"
 
-echo "Publishing to $WEB_ROOT (sudo)..."
-sudo mkdir -p "$WEB_ROOT"
+SUDO=sudo
+[ -w "$WEB_ROOT" ] && SUDO=
+echo "Publishing to $WEB_ROOT${SUDO:+ (sudo)}..."
+$SUDO mkdir -p "$WEB_ROOT"
 # --delay-updates swaps files in at the end, so visitors never load a half-copied build.
-sudo rsync -a --delete --delay-updates --chmod=D755,F644 "$BUILD_DIR"/ "$WEB_ROOT"/
+$SUDO rsync -a --delete --delay-updates --chmod=D755,F644 "$BUILD_DIR"/ "$WEB_ROOT"/
 echo "Done. Live at https://<server>/ (hard-refresh browsers that were open)."
