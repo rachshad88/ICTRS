@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
 import { OFFICES } from '../data/offices';
+import PasswordInput from '../components/PasswordInput';
 
 function Profile() {
   const { user, updateUser, refreshUser } = useAuth();
@@ -334,10 +335,10 @@ function Profile() {
                 
                 <form onSubmit={handleChangePassword}>
                   <div className="form-group">
-                    <label>Current Password</label>
-                    <input
+                    <label htmlFor="pw-current">Current Password</label>
+                    <PasswordInput
+                      id="pw-current"
                       autoComplete="current-password"
-                      type="password"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
                       required
@@ -345,20 +346,20 @@ function Profile() {
                   </div>
                   <div className="form-row">
                     <div className="form-group">
-                      <label>New Password</label>
-                      <input
+                      <label htmlFor="pw-new">New Password</label>
+                      <PasswordInput
+                        id="pw-new"
                         autoComplete="new-password"
-                        type="password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         required
                       />
                     </div>
                     <div className="form-group">
-                      <label>Confirm Password</label>
-                      <input
+                      <label htmlFor="pw-confirm">Confirm Password</label>
+                      <PasswordInput
+                        id="pw-confirm"
                         autoComplete="new-password"
-                        type="password"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required

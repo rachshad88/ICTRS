@@ -266,6 +266,55 @@
   color: var(--purple);
 }
 
+/* PasswordInput: the show/hide eye sits inside the field's right edge. */
+.pw-field {
+  position: relative;
+}
+
+.form-group .pw-field input {
+  padding-right: 50px;
+}
+
+/* Edge draws its own reveal eye in password fields; ours replaces it. */
+.pw-field input::-ms-reveal,
+.pw-field input::-ms-clear {
+  display: none;
+}
+
+.pw-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pw-toggle:hover {
+    color: var(--cobalt);
+    background: rgba(20, 82, 201, 0.1);
+  }
+}
+
+.pw-toggle:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+
+.pw-toggle[aria-pressed='true'] {
+  color: var(--cobalt);
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
