@@ -60,6 +60,27 @@ const EARLIER_LABEL: Record<string, string> = {
 };
 const PERIOD_LABEL: Record<string, string> = { daily: 'This day', weekly: 'This week', monthly: 'This month' };
 
+const PERIODS = [
+  { value: 'all', label: 'All' },
+  { value: 'daily', label: 'Day' },
+  { value: 'weekly', label: 'Week' },
+  { value: 'monthly', label: 'Month' },
+];
+
+// The counters, in two groups: work still open, and how this period's finished work turned out.
+// The hint is the tooltip (the old cards printed it under each number).
+interface StatDef { key: keyof Counts; label: string; hint: string; tone?: 'accent' | 'warn' }
+const OPEN_STATS: StatDef[] = [
+  { key: 'pending_count', label: 'Pending', hint: 'Requests awaiting technician assignment.' },
+  { key: 'progress_count', label: 'In progress', hint: 'Requests currently being serviced.', tone: 'accent' },
+  { key: 'verification_count', label: 'For verification', hint: 'Finished, waiting for the IT admin to check the MOV.' },
+];
+const CLOSED_STATS: StatDef[] = [
+  { key: 'done_count', label: 'Completed', hint: 'Requests finished this period.' },
+  { key: 'repaired_count', label: 'Repaired', hint: 'Equipment successfully repaired.' },
+  { key: 'beyond_repair_count', label: 'Beyond repair', hint: 'Requests requiring escalation.', tone: 'warn' },
+];
+
 function Dashboard() {
   const { user } = useAuth();
   const [filterType, setFilterType] = useState('daily');
@@ -135,9 +156,11 @@ function Dashboard() {
         {req.request_code}
         <RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} reopened={req.reopened} />
       </td>
-      <td className="td-cell" data-label="Office">{req.office}</td>
-      <td className="td-cell" data-label="Requested By">{req.client_name}</td>
-      <td data-label="Issue">
+      <td className="td-cell" data-label="Requested By">
+        {req.client_name}
+        <span className="td-sub">{req.office}</span>
+      </td>
+      <td className="tech-issue" data-label="Issue">
         {req.issue}
         {req.notes && req.notes.length > 0 && (
           <span className="note-count" title="Notes from the client">{req.notes.length} {req.notes.length === 1 ? 'note' : 'notes'}</span>
@@ -150,69 +173,67 @@ function Dashboard() {
         </span>
         {req.mov_return_reason && <span className="td-sub mov-returned-sub">MOV returned: {req.mov_return_reason}</span>}
       </td>
-      <td className="td-cell" data-label="Created">{req.created_at}</td>
-      <td className="td-cell" data-label="Completed">{req.completed_at}</td>
+      <td className="td-cell tech-dates" data-label="Filed">
+        {req.created_at}
+        {req.completed_at && req.completed_at !== '-' && <span className="td-sub">Done {req.completed_at}</span>}
+      </td>
       <td className="col-actions">{getActionButtons(req)}</td>
     </motion.tr>
   );
 
   return (
-    <div className="page-wrap">
+    <div className="page-wrap tech-dash">
       <div className="page-header">
         <h2>Dashboard</h2>
+        <div className="tech-toolbar">
+          <div className="tech-period" role="group" aria-label="Period">
+            {PERIODS.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                className={filterType === p.value ? 'on' : ''}
+                aria-pressed={filterType === p.value}
+                onClick={() => setFilterType(p.value)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {/* "All" ignores the date, so the picker is off rather than silently doing nothing. */}
+          <input
+            type="date"
+            className="tech-date"
+            aria-label="Date"
+            value={selectedDate}
+            disabled={filterType === 'all'}
+            onChange={(e) => setSelectedDate(e.target.value)}
+          />
+          <label className="tech-check">
+            <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
+            Show done
+          </label>
+        </div>
+        <SearchBox className="tech-search" placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
       </div>
 
       {error && <div className="error-message">{error}</div>}
 
-      <div className="filters-row">
-        <SearchBox placeholder="Search by code, issue, office..." value={searchTerm} onSearch={setSearchTerm} />
-
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-          <option value="all">All</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-
-        <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
-
-        <label>
-          <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
-          <span>Show Done</span>
-        </label>
-      </div>
-
-      <motion.div className="stats-container" variants={staggerContainer} initial="hidden" animate="visible">
-        <motion.div className="stat-card" variants={staggerItem}>
-          <div className="stat-label">Pending Requests</div>
-          <div className="stat-number"><AnimatedNumber value={counts.pending_count} /></div>
-          <p className="stat-note">Requests awaiting technician assignment.</p>
-        </motion.div>
-        <motion.div className="stat-card" variants={staggerItem}>
-          <div className="stat-label">In Progress</div>
-          <div className="stat-number"><AnimatedNumber value={counts.progress_count} /></div>
-          <p className="stat-note">Requests currently being serviced.</p>
-        </motion.div>
-        <motion.div className="stat-card" variants={staggerItem}>
-          <div className="stat-label">For Verification</div>
-          <div className="stat-number"><AnimatedNumber value={counts.verification_count} /></div>
-          <p className="stat-note">Finished, waiting for the IT admin to check the MOV.</p>
-        </motion.div>
-        <motion.div className="stat-card" variants={staggerItem}>
-          <div className="stat-label">Completed</div>
-          <div className="stat-number"><AnimatedNumber value={counts.done_count} /></div>
-          <p className="stat-note">Requests finished this period.</p>
-        </motion.div>
-        <motion.div className="stat-card" variants={staggerItem}>
-          <div className="stat-label">Repaired</div>
-          <div className="stat-number"><AnimatedNumber value={counts.repaired_count} /></div>
-          <p className="stat-note">Equipment successfully repaired.</p>
-        </motion.div>
-        <motion.div className="stat-card" variants={staggerItem}>
-          <div className="stat-label">Beyond Repair</div>
-          <div className="stat-number"><AnimatedNumber value={counts.beyond_repair_count} /></div>
-          <p className="stat-note">Requests requiring escalation.</p>
-        </motion.div>
+      <motion.div className="tech-stats" variants={staggerContainer} initial="hidden" animate="visible">
+        {[OPEN_STATS, CLOSED_STATS].map((group, i) => (
+          <div key={i} className="tech-stats-group">
+            {group.map((stat) => (
+              <motion.div
+                key={stat.key}
+                variants={staggerItem}
+                className={`tech-stat ${stat.tone === 'accent' ? 'accent' : ''} ${stat.tone === 'warn' && counts[stat.key] > 0 ? 'warn' : ''}`}
+                title={stat.hint}
+              >
+                <span className="tech-stat-label">{stat.label}</span>
+                <span className="tech-stat-num"><AnimatedNumber value={counts[stat.key]} /></span>
+              </motion.div>
+            ))}
+          </div>
+        ))}
       </motion.div>
 
       {loading ? (
@@ -224,22 +245,20 @@ function Dashboard() {
               <thead>
                 <tr>
                   <th>Code</th>
-                  <th>Office</th>
                   <th>Requested By</th>
                   <th>Issue</th>
                   <th>Status</th>
-                  <th>Created</th>
-                  <th>Completed</th>
+                  <th>Filed</th>
                   <th className="col-actions">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {earlier.length > 0 && (
-                  <tr className="group-row"><td colSpan={8}>{EARLIER_LABEL[filterType]} ({earlier.length})</td></tr>
+                  <tr className="group-row"><td colSpan={6}>{EARLIER_LABEL[filterType]} ({earlier.length})</td></tr>
                 )}
                 {earlier.map(renderRow)}
                 {earlier.length > 0 && (
-                  <tr className="group-row"><td colSpan={8}>{PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</td></tr>
+                  <tr className="group-row"><td colSpan={6}>{PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</td></tr>
                 )}
                 {requests.map(renderRow)}
               </tbody>

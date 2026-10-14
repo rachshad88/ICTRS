@@ -962,3 +962,212 @@ yt-channel-avatar.pm { background: #047857; }
   color: var(--text-secondary);
   margin: 16px 0 0;
 }
+
+/* ========== TECHNICIAN DASHBOARD (pages/Dashboard.tsx) ==========
+   Built to get to the table fast: the title, filters and search share one row, and the six counters
+   are one short strip in two groups (open work, then this period's outcomes) right above the table.
+   On narrower desktops the search wraps to its own row first. */
+.app-main .tech-dash .page-header {
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.app-main .tech-dash .tech-search {
+  flex: 1 1 260px;
+  max-width: 360px;
+  margin-left: auto;
+}
+
+.app-main .tech-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 22px;
+  padding: 14px 0;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+}
+
+.app-main .tech-stats-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.app-main .tech-stats-group + .tech-stats-group {
+  border-left: 1px solid rgba(12, 31, 74, 0.1);
+}
+
+/* Label first in the markup so it is read before the number; shown below it. */
+.app-main .tech-stat {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  padding: 2px 22px;
+  cursor: default;
+}
+
+.app-main .tech-stat-num {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.app-main .tech-stat-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* The technician's own active work stands out; Beyond repair only once there is any. */
+.app-main .tech-stat.accent .tech-stat-num {
+  color: var(--cobalt);
+}
+
+.app-main .tech-stat.warn .tech-stat-num {
+  color: var(--danger-red);
+}
+
+.app-main .tech-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 12px;
+}
+
+.app-main .tech-period {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--paper-2);
+}
+
+.app-main .tech-period button {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color 150ms ease, background-color 150ms ease, var(--tr-press);
+}
+
+.app-main .tech-period button.on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(12, 31, 74, 0.14);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-main .tech-period button:not(.on):hover {
+    color: var(--ink);
+  }
+}
+
+.app-main .tech-period button:active {
+  transform: scale(0.97);
+}
+
+.app-main .tech-period button:focus-visible,
+.app-main .tech-date:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 2px;
+}
+
+.app-main .tech-date {
+  padding: 6px 10px;
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.app-main .tech-date:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.app-main .tech-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.app-main .tech-check input {
+  accent-color: var(--cobalt);
+}
+
+.app-main .tech-dash .tech-dates {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.app-main .tech-dash .tech-issue {
+  min-width: 220px;
+}
+
+/* Phones: filters and search each take their own row, the two counter groups stack, and the
+   period control fills its row. */
+@media (max-width: 768px) {
+  .app-main .tech-toolbar {
+    flex-basis: 100%;
+  }
+
+  .app-main .tech-dash .tech-search {
+    flex-basis: 100%;
+    max-width: none;
+    margin-left: 0;
+  }
+
+  .app-main .tech-stats {
+    grid-template-columns: 1fr;
+    padding: 0;
+  }
+
+  .app-main .tech-stats-group {
+    padding: 12px 0;
+  }
+
+  .app-main .tech-stats-group + .tech-stats-group {
+    border-left: none;
+    border-top: 1px solid rgba(12, 31, 74, 0.1);
+  }
+
+  .app-main .tech-stat {
+    padding: 0 14px;
+  }
+
+  .app-main .tech-stat-num {
+    font-size: 22px;
+  }
+
+  .app-main .tech-stat-label {
+    font-size: 11.5px;
+    white-space: normal;
+  }
+
+  .app-main .tech-period {
+    flex: 1 1 100%;
+  }
+
+  .app-main .tech-period button {
+    flex: 1;
+  }
+
+  .app-main .tech-dash .tech-issue {
+    min-width: 0;
+  }
+}
