@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import { NotesList, RequestNote } from './RequestNotes';
+import Select from './Select';
 
 interface FinishTarget {
   _id: string;
@@ -115,10 +116,10 @@ function FinishRequestModal({ request, onClose, onFinished, onError }: {
 
         <div className="form-group">
           <label>Status *</label>
-          <select value={finished} onChange={(e) => setFinished(e.target.value)} required>
+          <Select value={finished} onChange={(e) => setFinished(e.target.value)} required>
             <option value="repaired">Repaired</option>
             <option value="beyond repair">Beyond Repair</option>
-          </select>
+          </Select>
         </div>
 
         <div className="form-group">

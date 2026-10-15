@@ -11,7 +11,9 @@ import Pagination from '../components/Pagination';
 import { useAuth } from '../contexts/AuthContext';
 import SearchBox from '../components/SearchBox';
 import PeriodDates from '../components/PeriodDates';
+import { DateField, DateRangeField } from '../components/DateField';
 import { usePeriodFilter } from '../lib/periods';
+import Select from '../components/Select';
 
 interface Column {
   key: string;
@@ -484,12 +486,12 @@ function Reports() {
         <div className="filters-row">
           <SearchBox placeholder="Search by code, description, name..." value={searchTerm} onSearch={setSearchTerm} />
 
-          <select value={period.period} aria-label="Period" onChange={(e) => period.choosePeriod(e.target.value)}>
+          <Select value={period.period} aria-label="Period" onChange={(e) => period.choosePeriod(e.target.value)}>
             <option value="all">All</option>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
-          </select>
+          </Select>
 
           <PeriodDates p={period} className="" />
 
@@ -550,7 +552,7 @@ function Reports() {
             <div className="modal-body">
               <div className="form-group">
                 <label>Filter range</label>
-                <select value={printFilterType} onChange={(e) => {
+                <Select value={printFilterType} onChange={(e) => {
                   const next = e.target.value as ReportPrintFilter;
                   if (next === 'weekly' || next === 'monthly') printPeriod.choosePeriod(next);
                   setPrintFilterType(next);
@@ -561,24 +563,18 @@ function Reports() {
                   <option value="weekly">Weekly</option>
                   <option value="monthly">Monthly</option>
                   <option value="calendar">Calendar</option>
-                </select>
+                </Select>
               </div>
 
               {printFilterType === 'range' && (
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <div className="form-group" style={{ flex: '1 1 180px' }}>
-                    <label>From</label>
-                    <input type="date" value={printFrom} max={printTo || undefined} onChange={(e) => setPrintFrom(e.target.value)} />
-                  </div>
-                  <div className="form-group" style={{ flex: '1 1 180px' }}>
-                    <label>To</label>
-                    <input type="date" value={printTo} min={printFrom || undefined} onChange={(e) => setPrintTo(e.target.value)} />
-                  </div>
-                  {printRangeInvalid && (
-                    <p style={{ color: '#dc2626', fontSize: 13, margin: 0, width: '100%' }}>
-                      Pick a From date that is on or before the To date.
-                    </p>
-                  )}
+                <div className="form-group">
+                  <label htmlFor="print-range">Dates</label>
+                  <DateRangeField
+                    id="print-range"
+                    aria-label="Dates"
+                    range={printFrom && printTo ? { from: printFrom, to: printTo } : null}
+                    onChange={(r) => { setPrintFrom(r.from); setPrintTo(r.to); }}
+                  />
                 </div>
               )}
 
@@ -591,18 +587,18 @@ function Reports() {
 
               {(printFilterType === 'daily' || printFilterType === 'calendar') && (
                 <div className="form-group">
-                  <label>Date</label>
-                  <input type="date" value={printDate} onChange={(e) => setPrintDate(e.target.value)} />
+                  <label htmlFor="print-date">Date</label>
+                  <DateField id="print-date" aria-label="Date" value={printDate} onChange={setPrintDate} />
                 </div>
               )}
 
               <div className="form-group">
                 <label>Status</label>
-                <select value={printStatusScope} onChange={(e) => setPrintStatusScope(e.target.value as ReportStatusScope)}>
+                <Select value={printStatusScope} onChange={(e) => setPrintStatusScope(e.target.value as ReportStatusScope)}>
                   <option value="all">Done and not done</option>
                   <option value="done">Done</option>
                   <option value="not-done">Not done</option>
-                </select>
+                </Select>
               </div>
             </div>
             <div className="modal-actions">

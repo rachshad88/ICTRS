@@ -10,6 +10,8 @@ import { RequestFlags, priorityLabel, formatDay } from '../components/Priority';
 import RequestProgress from '../components/RequestProgress';
 import MovPhotos from '../components/MovPhotos';
 import SearchBox from '../components/SearchBox';
+import { DateRangeField } from '../components/DateField';
+import Select from '../components/Select';
 
 interface OverviewRequest {
   _id: string;
@@ -259,32 +261,33 @@ function AllRequests() {
         {meta.types.length > 1 && (
           <label>
             Type
-            <select value={filters.type} onChange={(e) => setFilter('type', e.target.value)}>
+            <Select value={filters.type} onChange={(e) => setFilter('type', e.target.value)}>
               <option value="">All types</option>
               {meta.types.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-            </select>
+            </Select>
           </label>
         )}
         <label>
           Status
-          <select value={filters.status} onChange={(e) => setFilter('status', e.target.value)}>
+          <Select value={filters.status} onChange={(e) => setFilter('status', e.target.value)}>
             <option value="">Any status</option>
             {STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          </Select>
         </label>
         <label>
-          Created from
-          <input type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => setFilter('from', e.target.value)} />
-        </label>
-        <label>
-          Created to
-          <input type="date" value={filters.to} min={filters.from || undefined} onChange={(e) => setFilter('to', e.target.value)} />
+          Created
+          <DateRangeField
+            placeholder="Any date"
+            range={filters.from && filters.to ? { from: filters.from, to: filters.to } : null}
+            onChange={(r) => updateFilters((f) => ({ ...f, from: r.from, to: r.to }))}
+            onClear={filters.from || filters.to ? () => updateFilters((f) => ({ ...f, from: '', to: '' })) : undefined}
+          />
         </label>
         <label>
           Sort
-          <select value={filters.sort} onChange={(e) => setFilter('sort', e.target.value)}>
+          <Select value={filters.sort} onChange={(e) => setFilter('sort', e.target.value)}>
             {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          </Select>
         </label>
         {isFiltered && (
           <button type="button" className="hbtn overview-reset" onClick={resetFilters}>Clear filters</button>

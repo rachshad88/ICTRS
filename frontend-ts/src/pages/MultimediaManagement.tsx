@@ -9,6 +9,7 @@ import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
 import { RequestFlags, PriorityForm, ReassignForm, CompleteForm } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
+import Select from '../components/Select';
 
 interface MultimediaRequest {
   _id: string;
@@ -268,12 +269,12 @@ function MultimediaManagement() {
             {!declining && selectedRequest.status === 'UNASSIGNED' && (
               <div className="form-group">
                 <label>Select Multimedia Staff</label>
-                <select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)}>
+                <Select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)}>
                   <option value="">Choose a Multimedia Staff</option>
                   {technicians.map((tech) => (
                     <option key={tech._id} value={tech._id}>{tech.first_name} {tech.last_name} (@{tech.username})</option>
                   ))}
-                </select>
+                </Select>
               </div>
             )}
 

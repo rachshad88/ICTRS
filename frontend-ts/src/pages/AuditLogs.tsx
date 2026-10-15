@@ -3,6 +3,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
+import Select from '../components/Select';
 
 interface AuditEntry {
   _id: string;
@@ -69,14 +70,14 @@ function AuditLogs() {
       </div>
 
       <div className="filters-row audit-filters">
-        <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
+        <Select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
           <option value="">All Actions</option>
           {Object.entries(actionLabels).map(([key, label]) => (
             <option key={key} value={key}>{label}</option>
           ))}
-        </select>
+        </Select>
 
-        <select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
+        <Select value={entityFilter} onChange={(e) => setEntityFilter(e.target.value)}>
           <option value="">All Types</option>
           <option value="USER">User</option>
           <option value="IT_REQUEST">IT Request</option>
@@ -84,7 +85,7 @@ function AuditLogs() {
           <option value="DIGITAL_MEDIA">Digital Media</option>
           <option value="PRINT_MATERIALS">Print Materials</option>
           <option value="SETTINGS">Settings</option>
-        </select>
+        </Select>
       </div>
 
       {loading ? (

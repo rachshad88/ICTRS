@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { api } from '../services/api';
+import { DateField } from './DateField';
+import Select from './Select';
 
 export type Priority = 'LOW' | 'NORMAL' | 'URGENT';
 
@@ -60,9 +62,9 @@ export function PriorityField({ value, onChange }: { value: string; onChange: (v
   return (
     <div className="form-group">
       <label htmlFor="request-priority">Priority</label>
-      <select id="request-priority" value={value} onChange={(e) => onChange(e.target.value as Priority)}>
+      <Select id="request-priority" value={value} onChange={(e) => onChange(e.target.value as Priority)}>
         {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      </Select>
       <small>Choose Urgent only if work has stopped or the deadline is within two days.</small>
     </div>
   );
@@ -103,10 +105,10 @@ export function ReassignForm({ endpoint, requestId, currentId, staff, staffLabel
       <p className="admin-control-title">Reassign</p>
       <div className="form-group">
         <label htmlFor={`reassign-${requestId}`}>New {staffLabel}</label>
-        <select id={`reassign-${requestId}`} value={target} onChange={(e) => setTarget(e.target.value)}>
+        <Select id={`reassign-${requestId}`} value={target} onChange={(e) => setTarget(e.target.value)}>
           <option value="">Select {staffLabel}...</option>
           {others.map((s) => <option key={s._id} value={s._id}>{s.first_name} {s.last_name}</option>)}
-        </select>
+        </Select>
       </div>
       <div className="form-group">
         <label htmlFor={`reassign-reason-${requestId}`}>Reason (optional)</label>
@@ -163,14 +165,14 @@ export function PriorityForm({ endpoint, requestId, priority, dueDate, withDueDa
       <div className={withDueDate ? 'form-row' : undefined}>
         <div className="form-group">
           <label htmlFor={`prio-${requestId}`}>Priority</label>
-          <select id={`prio-${requestId}`} value={value} onChange={(e) => setValue(e.target.value as Priority)}>
+          <Select id={`prio-${requestId}`} value={value} onChange={(e) => setValue(e.target.value as Priority)}>
             {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
+          </Select>
         </div>
         {withDueDate && (
           <div className="form-group">
             <label htmlFor={`due-${requestId}`}>Due date</label>
-            <input id={`due-${requestId}`} type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            <DateField id={`due-${requestId}`} aria-label="Due date" placeholder="No due date" value={due} onChange={setDue} onClear={due ? () => setDue('') : undefined} />
           </div>
         )}
       </div>

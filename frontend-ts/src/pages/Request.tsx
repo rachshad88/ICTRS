@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { PriorityField, Priority } from '../components/Priority';
+import Select from '../components/Select';
 
 function Request() {
   const { user } = useAuth();
@@ -90,7 +91,7 @@ function Request() {
           
           <div className="form-group rf-unit">
             <label>Unit *</label>
-            <select
+            <Select
               value={unit}
               onChange={(e) => setUnit(e.target.value)}
               required
@@ -100,7 +101,7 @@ function Request() {
               <option value="laptop">Laptop</option>
               <option value="network">Network</option>
               <option value="others">Others</option>
-            </select>
+            </Select>
           </div>
 
           {unit === 'others' && (

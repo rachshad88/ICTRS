@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { PriorityField, Priority } from '../components/Priority';
+import { DateField } from '../components/DateField';
+import Select from '../components/Select';
 
 
 const FORM_OF_PRINTED_MEDIA = [
@@ -126,7 +128,7 @@ function PrintMaterialsRequest() {
         <form onSubmit={handleSubmit} className="request-form grid-ticket" data-ticket="Print Materials">
           <div className="form-group c6">
             <label>Form of Printed Media Being Requested *</label>
-            <select
+            <Select
               name="form_of_printed_media"
               value={formData.form_of_printed_media}
               onChange={handleInputChange}
@@ -136,7 +138,7 @@ function PrintMaterialsRequest() {
               {FORM_OF_PRINTED_MEDIA.map((type) => (
                 <option key={type} value={type}>{type}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="form-group c6">
@@ -168,12 +170,12 @@ function PrintMaterialsRequest() {
           <div className="form-row">
             <div className="form-group c3">
               <label>Target Date of Posting or Use *</label>
-              <input
-                type="date"
+              <DateField
+                aria-label="Target date"
                 min={new Date().toLocaleDateString('en-CA')}
                 name="target_date"
                 value={formData.target_date}
-                onChange={handleInputChange}
+                onChange={(day) => setFormData((prev) => ({ ...prev, target_date: day }))}
                 required
               />
             </div>

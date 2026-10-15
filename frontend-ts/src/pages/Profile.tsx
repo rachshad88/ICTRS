@@ -5,6 +5,7 @@ import { api } from '../services/api';
 
 import { OFFICES } from '../data/offices';
 import PasswordInput from '../components/PasswordInput';
+import Select from '../components/Select';
 
 function Profile() {
   const { user, updateUser, refreshUser } = useAuth();
@@ -282,7 +283,7 @@ function Profile() {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Office</label>
-                      <select
+                      <Select
                         value={office}
                         onChange={(e) => setOffice(e.target.value)}
                       >
@@ -290,7 +291,7 @@ function Profile() {
                         {OFFICES.map((off) => (
                           <option key={off} value={off}>{off}</option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div className="form-group">
                       <label>Position</label>

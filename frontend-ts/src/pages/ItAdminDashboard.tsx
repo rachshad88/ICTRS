@@ -13,6 +13,8 @@ import { RequestFlags, PriorityForm, ReassignForm, PRIORITY_OPTIONS, suggestedDu
 import SearchBox from '../components/SearchBox';
 import PeriodDates from '../components/PeriodDates';
 import { usePeriodFilter } from '../lib/periods';
+import { DateField } from '../components/DateField';
+import Select from '../components/Select';
 
 interface Request {
   _id: string;
@@ -410,26 +412,26 @@ function ItAdminDashboard() {
 
             <div className="form-group">
               <label>Technician *</label>
-              <select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)} required>
+              <Select value={selectedTechnician} onChange={(e) => setSelectedTechnician(e.target.value)} required>
                 <option value="">Select technician...</option>
                 {technicians.map((tech) => (
                   <option key={tech._id} value={tech._id}>
                     {tech.first_name} {tech.last_name}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="assign-priority">Priority</label>
-                <select id="assign-priority" value={assignPriority} onChange={(e) => changeAssignPriority(e.target.value)}>
+                <Select id="assign-priority" value={assignPriority} onChange={(e) => changeAssignPriority(e.target.value)}>
                   {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                </Select>
               </div>
               <div className="form-group">
                 <label htmlFor="assign-due">Due date</label>
-                <input id="assign-due" type="date" value={assignDue} onChange={(e) => setAssignDue(e.target.value)} />
+                <DateField id="assign-due" aria-label="Due date" placeholder="No due date" value={assignDue} onChange={setAssignDue} onClear={assignDue ? () => setAssignDue('') : undefined} />
               </div>
             </div>
 

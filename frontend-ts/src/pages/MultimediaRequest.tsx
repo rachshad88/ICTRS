@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { PriorityField, Priority } from '../components/Priority';
+import { DateField } from '../components/DateField';
+import Select from '../components/Select';
 
 
 const LOCATION_TYPES = [
@@ -139,12 +141,12 @@ function MultimediaRequest() {
           <div className="form-row three-cols">
             <div className="form-group c2">
               <label>Event Date *</label>
-              <input
-                type="date"
+              <DateField
+                aria-label="Event date"
                 min={new Date().toLocaleDateString('en-CA')}
                 name="event_date"
                 value={formData.event_date}
-                onChange={handleInputChange}
+                onChange={(day) => setFormData((prev) => ({ ...prev, event_date: day }))}
                 required
               />
             </div>
@@ -189,7 +191,7 @@ function MultimediaRequest() {
             
             <div className="form-group c4">
               <label>Location Type *</label>
-              <select
+              <Select
                 name="location_type"
                 value={formData.location_type}
                 onChange={handleInputChange}
@@ -199,7 +201,7 @@ function MultimediaRequest() {
                 {LOCATION_TYPES.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
           

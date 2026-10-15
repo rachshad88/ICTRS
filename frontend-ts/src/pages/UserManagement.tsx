@@ -7,6 +7,7 @@ import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import SearchBox from '../components/SearchBox';
 import { OFFICES } from '../data/offices';
+import Select from '../components/Select';
 
 interface User {
   _id: string;
@@ -306,11 +307,11 @@ function UserManagement() {
 
       <div className="filters-row um-filters">
         <SearchBox value={searchTerm} onSearch={setSearchTerm} placeholder="Search by name, username, position or office" />
-        <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)} aria-label="Office">
+        <Select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)} aria-label="Office">
           <option value="">All offices</option>
           {offices.map((o) => <option key={o} value={o}>{o}</option>)}
           {anyWithoutOffice && <option value={NO_OFFICE}>No office</option>}
-        </select>
+        </Select>
         {isFiltered && (
           <button type="button" className="hbtn" onClick={() => { setSearchTerm(''); setOfficeFilter(''); }}>Clear</button>
         )}
@@ -449,12 +450,12 @@ function UserManagement() {
               </fieldset>
               <div className="form-group">
                 <label>Office</label>
-                <select value={formData.office} onChange={(e) => setFormData({...formData, office: e.target.value})}>
+                <Select value={formData.office} onChange={(e) => setFormData({...formData, office: e.target.value})}>
                   <option value="">Select Office</option>
                   {OFFICES.map((office) => (
                     <option key={office} value={office}>{office}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="form-group">
                 <label>Position</label>

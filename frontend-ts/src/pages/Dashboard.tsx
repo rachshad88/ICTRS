@@ -12,6 +12,7 @@ import FinishRequestModal from '../components/FinishRequestModal';
 import { RequestFlags } from '../components/Priority';
 import { EASE_OUT, staggerContainer, staggerItem } from '../lib/motion';
 import SearchBox from '../components/SearchBox';
+import { DateField } from '../components/DateField';
 
 interface Request {
   _id: string;
@@ -200,14 +201,7 @@ function Dashboard() {
             ))}
           </div>
           {/* "All" ignores the date, so the picker is off rather than silently doing nothing. */}
-          <input
-            type="date"
-            className="tech-date"
-            aria-label="Date"
-            value={selectedDate}
-            disabled={filterType === 'all'}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
+          <DateField className="tech-date" aria-label="Date" value={selectedDate} disabled={filterType === 'all'} onChange={setSelectedDate} />
           <label className="tech-check">
             <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
             Show done

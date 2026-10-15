@@ -2259,7 +2259,7 @@
     display: flex;
   }
 
-  .filters-row > .tech-range > select,
+  .filters-row > .tech-range > .select-wrap,
   .filters-row > .tech-range > input {
     flex: 1 1 0;
     min-width: 0;
@@ -2431,4 +2431,554 @@
   to {
     transform: translateY(0);
   }
+}
+
+/* ========== DATE FIELDS (components/DateField.tsx, Calendar.tsx) ========== */
+/* The field: a button that reads like the inputs around it, with a calendar mark at the end. */
+.date-field {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.date-field-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  font: inherit;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+  transition: var(--tr-colors), var(--tr-shadow);
+}
+
+.date-field-button.is-empty .date-field-text {
+  color: var(--ink-soft);
+}
+
+.date-field-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.date-field-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.date-field-icon {
+  flex-shrink: 0;
+  color: var(--cobalt);
+}
+
+.date-field-validity {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* In a form: the size and look of the form's inputs */
+.form-group .date-field,
+.form-group .date-field-button {
+  width: 100%;
+}
+
+.form-group .date-field-button {
+  padding: 14px 16px;
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  font-size: 15px;
+}
+
+.form-group .date-field-button[aria-expanded='true'],
+.form-group .date-field-button:focus-visible {
+  outline: none;
+  border-color: var(--cobalt);
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(255, 217, 26, 0.45);
+}
+
+/* In a filter row: the size of the row's selects */
+.filters-row .date-field-button,
+.overview-filters .date-field-button {
+  padding: 6px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  font-size: 12px;
+}
+
+.overview-filters .date-field-button {
+  min-height: 38px;
+}
+
+/* On the dashboards the field takes .tech-date (pages.css) */
+.date-field-button.tech-date {
+  gap: 8px;
+}
+
+.date-field-button.tech-date[aria-expanded='true'],
+.filters-row .date-field-button[aria-expanded='true'] {
+  border-color: var(--cobalt);
+}
+
+/* The popover under a field (desktop), and the sheet on phones (components/Popup.tsx), shared by
+   the date fields and the dropdowns; above modals, below the banner. */
+.popup-popover {
+  position: fixed;
+  z-index: 2200;
+  padding: 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: var(--elevation-3);
+}
+
+.popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2199;
+  background: rgba(5, 8, 14, 0.45);
+}
+
+.popup-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2200;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--card);
+  box-shadow: var(--elevation-3);
+}
+
+.popup-grip {
+  width: 40px;
+  height: 4px;
+  margin: 0 auto 10px;
+  border-radius: var(--radius-full);
+  background: rgba(12, 31, 74, 0.18);
+}
+
+.popup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.popup-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink);
+}
+
+/* The calendar */
+.cal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.cal-title {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.cal-step {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.cal-title:hover,
+.cal-step:hover {
+  background: var(--paper-2);
+}
+
+.cal-days {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cal-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.cal-weekday {
+  padding-bottom: 4px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.cal-day {
+  position: relative;
+  height: 38px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* The number sits in a round chip, so the range band can run between chips */
+.cal-day span {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 auto;
+  border-radius: 50%;
+  transition: var(--tr-colors);
+}
+
+.cal-day:hover:not(:disabled) span {
+  background: var(--paper-2);
+}
+
+.cal-day.is-out {
+  color: rgba(12, 31, 74, 0.35);
+}
+
+.cal-day.is-today span {
+  box-shadow: inset 0 0 0 2px var(--seal-yellow);
+}
+
+.cal-day.is-selected span,
+.cal-day.is-selected:hover span {
+  background: var(--cobalt);
+  color: #fff;
+}
+
+.cal-day.is-selected.is-today span {
+  box-shadow: inset 0 0 0 2px var(--seal-yellow);
+}
+
+.cal-day:disabled {
+  color: rgba(12, 31, 74, 0.25);
+  cursor: not-allowed;
+}
+
+.cal-day:focus-visible {
+  outline: none;
+}
+
+.cal-day:focus-visible span {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+
+/* A range: a soft band behind the days, from the first chip's middle to the last's */
+.cal-day.in-band::before,
+.cal-day.band-start::before,
+.cal-day.band-end::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  left: 0;
+  right: 0;
+  background: rgba(20, 82, 201, 0.12);
+}
+
+.cal-day.band-start::before {
+  left: 50%;
+}
+
+.cal-day.band-end::before {
+  right: 50%;
+}
+
+.cal-picks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.cal-pick {
+  height: 46px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.cal-pick:hover {
+  background: var(--paper-2);
+}
+
+.cal-pick.is-selected {
+  background: var(--cobalt);
+  color: #fff;
+}
+
+.cal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(12, 31, 74, 0.16);
+}
+
+.cal-hint {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.cal-foot-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.cal-link {
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cobalt);
+  cursor: pointer;
+}
+
+.cal-link:hover {
+  background: var(--paper-2);
+}
+
+.cal-step:focus-visible,
+.cal-title:focus-visible,
+.cal-pick:focus-visible,
+.cal-link:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+
+/* In the phone sheet: bigger days, for fingers */
+.popup-sheet .cal-day {
+  height: 46px;
+  font-size: 15px;
+}
+
+.popup-sheet .cal-day span {
+  width: 42px;
+  height: 42px;
+}
+
+/* ========== DROPDOWNS (components/Select.tsx) ========== */
+/* The real select stays as the field; a clear button on top takes its clicks and opens our list. */
+.select-wrap {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+.select-wrap > select {
+  width: 100%;
+}
+
+.form-group .select-wrap {
+  display: flex;
+  width: 100%;
+}
+
+.select-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.select-hit:disabled {
+  cursor: not-allowed;
+}
+
+/* The list, in the shared popover / sheet (components/Popup.tsx) */
+.popup-popover.popup-list {
+  padding: 6px;
+}
+
+.opt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.opt-search {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid rgba(12, 31, 74, 0.14);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.opt-search:focus {
+  outline: none;
+  border-color: var(--cobalt);
+  background: #ffffff;
+}
+
+.opt-list {
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  outline: none;
+}
+
+.opt-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 550;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.opt-item.is-active {
+  background: var(--paper-2);
+}
+
+.opt-list:focus-visible .opt-item.is-active,
+.opt-search:focus ~ .opt-list .opt-item.is-active {
+  box-shadow: inset 0 0 0 2px rgba(20, 82, 201, 0.35);
+}
+
+.opt-item.is-selected {
+  color: var(--cobalt);
+  font-weight: 750;
+}
+
+.opt-item.is-placeholder {
+  color: var(--ink-soft);
+}
+
+.opt-item.is-disabled {
+  color: rgba(12, 31, 74, 0.3);
+  cursor: not-allowed;
+}
+
+.opt-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.opt-check {
+  flex-shrink: 0;
+  color: var(--cobalt);
+}
+
+.opt-empty {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+/* In the phone sheet: taller rows, for fingers, and room for long lists */
+.popup-sheet .opt-item {
+  min-height: 48px;
+  font-size: 15.5px;
+}
+
+.popup-sheet .opt-list {
+  max-height: 60vh;
+  max-height: 60dvh;
+}
+
+.popup-sheet .opt-search {
+  font-size: 16px;
+}
+
+/* The bent copy of a popover's content while its genie plays (components/Popup.tsx): thin slices,
+   each squeezed to the funnel's width. Never interactive. The range band's see-through colour is
+   flattened onto the card, so its slices meet without a visible line. */
+.popup-warp {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.popup-warp > div {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+}
+
+.popup-warp .cal-day.in-band::before,
+.popup-warp .cal-day.band-start::before,
+.popup-warp .cal-day.band-end::before {
+  background: #dfe8f8;
 }

@@ -10,6 +10,8 @@ import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../component
 import { RequestFlags, PriorityForm, ReassignForm, CompleteForm, PRIORITY_OPTIONS, priorityLabel, formatDay } from '../components/Priority';
 import RequestProgress from '../components/RequestProgress';
 import SearchBox from '../components/SearchBox';
+import { DateField } from '../components/DateField';
+import Select from '../components/Select';
 
 /**
  * The multimedia admin's home: the IT admin dashboard's layout for the three media request types
@@ -329,18 +331,11 @@ function MediaAdminDashboard() {
             ))}
           </div>
           {/* "All" ignores the date, so the picker is off rather than silently doing nothing. */}
-          <input
-            type="date"
-            className="tech-date"
-            aria-label="Date"
-            value={selectedDate}
-            disabled={filterType === 'all'}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
-          <select className="tech-date" aria-label="Request type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as '' | TypeKey)}>
+          <DateField className="tech-date" aria-label="Date" value={selectedDate} disabled={filterType === 'all'} onChange={setSelectedDate} />
+          <Select className="tech-date" aria-label="Request type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as '' | TypeKey)}>
             <option value="">All types</option>
             {(Object.keys(TYPES) as TypeKey[]).map((k) => <option key={k} value={k}>{TYPES[k].label}</option>)}
-          </select>
+          </Select>
           <label className="tech-check" title="Done, declined and cancelled requests">
             <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />
             Show closed
@@ -416,16 +411,16 @@ function MediaAdminDashboard() {
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="media-assign-staff">Multimedia staff *</label>
-                <select id="media-assign-staff" value={assignStaff} onChange={(e) => setAssignStaff(e.target.value)} required>
+                <Select id="media-assign-staff" value={assignStaff} onChange={(e) => setAssignStaff(e.target.value)} required>
                   <option value="">Select staff...</option>
                   {staff.map((s) => <option key={s._id} value={s._id}>{s.first_name} {s.last_name}</option>)}
-                </select>
+                </Select>
               </div>
               <div className="form-group">
                 <label htmlFor="media-assign-priority">Priority</label>
-                <select id="media-assign-priority" value={assignPriority} onChange={(e) => setAssignPriority(e.target.value)}>
+                <Select id="media-assign-priority" value={assignPriority} onChange={(e) => setAssignPriority(e.target.value)}>
                   {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                </Select>
               </div>
             </div>
             <div className="modal-actions">
