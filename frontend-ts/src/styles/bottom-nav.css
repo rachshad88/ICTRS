@@ -299,19 +299,6 @@
   gap: 4px;
 }
 
-/* While the genie plays, its neck stands in for the tail, and the rim stays off: the panel's edge
-   is cut flat where it meets the neck, and a rim there reads as a stray line. Both fade back in. */
-.nav-bubble-tail,
-.nav-bubble-glass::after {
-  transition: opacity 200ms ease;
-}
-
-.nav-bubble.genie .nav-bubble-tail,
-.nav-bubble.genie .nav-bubble-glass::after {
-  opacity: 0;
-  transition: none;
-}
-
 .nav-bubble-tail {
   position: absolute;
   bottom: -7px;
@@ -937,23 +924,6 @@
   z-index: -2;
 }
 
-/* Its drop shadow falls toward the genie's leading edge, where the outline would cut it straight
-   while the bubble grows; it stays off until the bubble settles, then fades in. */
-.nav-bubble.below .nav-bubble-glass {
-  transition: box-shadow 260ms ease;
-}
-
-.nav-bubble.below.genie .nav-bubble-glass {
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.95),
-    inset 0 -1px 2px rgba(255, 255, 255, 0.4),
-    inset 0 -10px 18px -10px rgba(20, 82, 201, 0.12),
-    inset 0 0 0 0.5px rgba(12, 31, 74, 0.08),
-    0 0 0 0 rgba(12, 31, 74, 0),
-    0 0 0 0 rgba(12, 31, 74, 0);
-  transition: none;
-}
-
 .nav-bubble.below .nav-bubble-tail {
   top: -7px;
   bottom: auto;
@@ -1020,4 +990,33 @@
   .top-nav-tabs .top-nav-item {
     padding: 0 15px;
   }
+}
+
+/* The warped copy of a bubble's content while its genie plays (BottomNav.tsx ChoiceBubble): thin
+   slices, each squeezed to the funnel's width at its height. Never interactive. */
+.nav-bubble-warp {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.nav-bubble-warp > div {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  transform-origin: 0 0;
+  /* Painted once, then only moved: re-painting every slice each frame is what made it lag. */
+  will-change: transform;
+}
+
+/* Where slices overlap by a hair to hide their seams, anything see-through would stack and show as
+   a stripe, so the copy uses the same colours, flattened onto the glass. */
+.nav-bubble-warp .nav-bubble-link.active {
+  background: #24355c;
+}
+
+.nav-bubble-warp .nav-bubble-icon {
+  background: linear-gradient(180deg, #fff, #f1f4f9);
 }

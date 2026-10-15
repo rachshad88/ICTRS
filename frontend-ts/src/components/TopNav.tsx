@@ -7,7 +7,7 @@ import { useLogoutTransition } from './LogoutTransition';
 import { BellIcon } from './NotificationPanel';
 import { homeFor } from '../routes';
 import { useNavItems, useNavBadge, NavIcon, LOGOUT_ICON, type NavEntry, type NavLink } from './navItems';
-import { ChoiceBubble, JellyIcon, Badge, useHideOnScroll, tick, JELLY, GENIE_WAIT, type Tab } from './BottomNav';
+import { ChoiceBubble, JellyIcon, Badge, useHideOnScroll, tick, JELLY, type Tab } from './BottomNav';
 
 /** More tabs than this and their labels give way to icons on narrower screens. */
 const ROOMY_TABS = 5;
@@ -79,8 +79,6 @@ function TopNav({ onOpenNotifications, notificationsOpen }: { onOpenNotification
   // The lens sits on the open bubble's tab, else the current page's (Profile included).
   const lensKey = openGroup ?? activeTab?.key ?? (pathname === '/profile' ? '__profile' : null);
   const lensOn = (key: string) => key === lensKey;
-  const lastLensKey = useRef(lensKey);
-  useEffect(() => { lastLensKey.current = lensKey; }, [lensKey]);
 
   // The lens is one element that springs its position and width to the tab under it. (A shared
   // layout animation would scale it between tabs of different widths, squashing its round ends.)
@@ -239,7 +237,6 @@ function TopNav({ onOpenNotifications, notificationsOpen }: { onOpenNotification
               pathname={pathname}
               badgeFor={badgeFor}
               reduce={!!reduce}
-              wait={lastLensKey.current !== openGroup ? GENIE_WAIT : 0}
               below
               lensClass="top-nav-lens"
               width={BUBBLE_W}

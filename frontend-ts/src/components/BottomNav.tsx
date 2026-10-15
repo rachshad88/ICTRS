@@ -5,8 +5,14 @@ import { AnimatePresence, animate, motion, useAnimate, useDragControls, useMotio
 import { useAuth } from '../contexts/AuthContext';
 import { useLogoutTransition } from './LogoutTransition';
 import { LITE_DEVICE } from '../lib/motion';
-import { genieFrame, genieFrameBelow, toClipPath } from '../lib/genie';
+import { genieFrame, genieFrameBelow, genieWarp, toClipPath } from '../lib/genie';
 import { useNavItems, useNavBadge, NavIcon, PROFILE_ICON, LOGOUT_ICON, type NavEntry, type NavLink } from './navItems';
+
+/** Warped copies of the choice bubbles' content (ChoiceBubble), kept so a tab's is built only once. */
+const warpCache = new Map<string, { html: string; bodyW: number; bodyH: number; layer: HTMLElement; slices: HTMLElement[] }>();
+
+/** When the last genie began. Taps coming faster than a genie plays skip its warp, to stay smooth. */
+let lastGenieStart = 0;
 
 /** Tabs shown in the bar itself, before More. */
 const BAR_SLOTS = 4;
@@ -20,12 +26,11 @@ const POPOVER_W = 212;
 /** Space between a bar and its choice bubble (.nav-bubble in bottom-nav.css). */
 const BUBBLE_GAP = 16;
 
-/** The choice bubble's genie: opening settles with a slight swell, closing drains straight back in. */
-// Open pours over ~360 ms and settles by ~800 ms with a ~2% swell; close drains in ~400 ms.
+/** The choice bubble's genie: it drains back as fast as it poured out (both reach 90% in ~0.3 s). */
 const GENIE_OPEN = { type: 'spring', stiffness: 80, damping: 13, mass: 1, restDelta: 0.0005, restSpeed: 0.005 } as const;
+/** Opening speed at the first frame, in progress per second (a full pour is 1). */
+const GENIE_KICK = 6;
 const GENIE_CLOSE = { type: 'spring', stiffness: 150, damping: 24, mass: 1, restDelta: 0.003, restSpeed: 0.01 } as const;
-/** The lens's jelly spring first reaches its new tab after ~120 ms; the bubble pours out of it then. */
-export const GENIE_WAIT = 0.13;
 /** How far into the lens's rounded top the genie's neck reaches, in px. */
 const GENIE_NECK_DEPTH = 8;
 
@@ -131,9 +136,6 @@ function BottomNav() {
   // The glass lens sits on the open bubble's tab first, then the More sheet, then the current page.
   const lensKey = openGroup ?? (moreOpen ? '__more' : activeTab?.key ?? '__more');
   const lensOn = (key: string) => key === lensKey;
-  // Where the lens sat before this render, so a bubble knows whether to wait for it to slide over.
-  const lastLensKey = useRef(lensKey);
-  useEffect(() => { lastLensKey.current = lensKey; }, [lensKey]);
 
   const lens = (
     <motion.span layoutId="bottom-nav-lens" className="bottom-nav-lens" transition={reduce ? STILL : JELLY}>
@@ -220,7 +222,6 @@ function BottomNav() {
               pathname={pathname}
               badgeFor={badgeFor}
               reduce={!!reduce}
-              wait={lastLensKey.current !== openGroup ? GENIE_WAIT : 0}
             />
           )}
         </AnimatePresence>
@@ -339,22 +340,19 @@ export function JellyIcon({ on, reduce, className = 'bottom-nav-icon', children 
  * The glass bubble of a service's pages, pouring out of its tab like the macOS genie: up out of the
  * phone's bottom bar, or down out of the desktop's top bar (below).
  */
-export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, wait, below = false, lensClass = 'bottom-nav-lens', width = POPOVER_W }: {
+export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, below = false, lensClass = 'bottom-nav-lens', width = POPOVER_W }: {
   tab: Tab;
   navRef: React.RefObject<HTMLElement>;
   anchor: HTMLElement | null;
   pathname: string;
   badgeFor: (path: string) => number | null;
   reduce: boolean;
-  /** Seconds to hold before pouring, while the lens slides over to this tab (read once). */
-  wait: number;
   /** Hangs under the bar instead of rising above it. */
   below?: boolean;
   /** The bar's glass lens, which the neck follows. */
   lensClass?: string;
   width?: number;
 }) {
-  const [delay] = useState(wait);
   const [pos, setPos] = useState<{ left: number; tail: number } | null>(null);
   const [isPresent, safeToRemove] = usePresence();
   const root = useRef<HTMLDivElement>(null);
@@ -362,6 +360,9 @@ export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, 
   const body = useRef<HTMLDivElement>(null);
   // A motion value, so a tap mid-animation reverses from where it is, keeping its speed.
   const progress = useMotionValue(0);
+  // The warped copy of the content, made on the first genie and kept until the bubble goes.
+  const warpRef = useRef<{ layer: HTMLElement; slices: HTMLElement[] } | null>(null);
+  useEffect(() => () => warpRef.current?.layer.remove(), []);
 
   // Centre over the tab, kept inside the bar; the tail still points at the tab.
   useLayoutEffect(() => {
@@ -389,9 +390,9 @@ export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, 
     const nav = navRef.current;
     const h = el.offsetHeight;
     // Below the bar, the geometry is measured upside down (lib/genie.ts genieFrameBelow). The
-    // margin keeps the panel's shadow inside the outline; hanging below, the shadow falls toward
-    // the leading edge and reaches ~52px, so it needs more room or the outline cuts it straight.
-    const margin = below ? 60 : 30;
+    // margin keeps the panel's shadow (~52px) inside the outline, or the outline would cut it
+    // straight while the bubble grows.
+    const margin = 60;
     const geometry = { width, height: h, neckY: h + margin, neckX: pos.tail, neckHalf: 26, margin };
     // The neck follows the glass lens wherever it is, read every frame: it lands on this tab before
     // the bubble opens, and slides back to the current page's tab while the bubble drains, pulling
@@ -423,15 +424,103 @@ export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, 
       node.style.clipPath = clip;
       node.style.setProperty('-webkit-clip-path', clip);
     };
+    // The content is warped row by row, like macOS bends a window into its icon: while the genie
+    // plays, the body is swapped for thin horizontal slices of a copy of it, each squeezed to the
+    // width of the funnel at its height (lib/genie.ts genieWarp). The real body is back (clipped to
+    // the outline) once the panel is full size, so only the copy ever looks bent.
+    // Built once per bubble and reused, so tapping back and forth never rebuilds it.
+    const bodyW = b.offsetWidth;
+    const bodyH = b.offsetHeight;
+    const sliceCount = LITE_DEVICE ? 6 : 10;
+    const sliceH = bodyH / sliceCount;
+    // Row centres as a fraction of the panel's height, measured from its far edge from the tab.
+    const fracs = Array.from({ length: sliceCount }, (_, i) => {
+      const r = (bodyY + (i + 0.5) * sliceH) / h;
+      return below ? 1 - r : r;
+    });
+    let warp: HTMLElement | null = null;
+    let slices: HTMLElement[] = [];
+    const ensureWarp = () => {
+      if (warp) return;
+      // The copy is kept per tab and reused while its content is the same, so tapping back and forth
+      // between tabs doesn't rebuild it each time.
+      const cacheKey = `${tab.key}|${below}|${width}`;
+      const html = b.innerHTML;
+      let made = warpCache.get(cacheKey);
+      if (!made || made.html !== html || made.bodyW !== bodyW || made.bodyH !== bodyH) {
+        const layer = document.createElement('div');
+        layer.className = 'nav-bubble-warp';
+        layer.setAttribute('aria-hidden', 'true');
+        layer.setAttribute('inert', '');
+        const slices = Array.from({ length: sliceCount }, (_, i) => {
+          const slice = document.createElement('div');
+          slice.style.width = `${bodyW}px`;
+          slice.style.height = `${sliceH + (i < sliceCount - 1 ? 1.5 : 0)}px`;
+          const copy = b.cloneNode(true) as HTMLElement;
+          copy.style.cssText = `position:absolute;left:0;top:${-i * sliceH}px;width:${bodyW}px;margin:0`;
+          slice.appendChild(copy);
+          layer.appendChild(slice);
+          return slice;
+        });
+        made = { html, bodyW, bodyH, layer, slices };
+        warpCache.set(cacheKey, made);
+      }
+      warp = made.layer;
+      slices = made.slices;
+      el.appendChild(warp);
+      warpRef.current = made;
+    };
+    // Someone playing with the tabs gets the light version; the warp is for a calm tap. Decided once
+    // per run, so the content never switches between bent and straight in the middle of a genie.
+    const started = performance.now();
+    const warpOff = started - lastGenieStart < 900;
+    lastGenieStart = started;
+    let reached = false;
     const apply = (p: number) => {
       followLens();
+      // While it drains, or before it has poured clear of the bar, the bubble's box lies over the
+      // tabs: it must not take their taps (on phones a tap on the tab just as the bubble came back
+      // landed on the bubble and was lost). On desktop it sits behind the bar and never did.
+      el.style.pointerEvents = !isPresent || (p < 0.9 && !reached) ? 'none' : '';
       const { a, c, d, e, f, points } = (below ? genieFrameBelow : genieFrame)(p, geometry, rows);
       el.style.transform = `matrix(${a.toFixed(4)}, 0, ${c.toFixed(4)}, ${d.toFixed(4)}, ${e.toFixed(2)}, ${f.toFixed(2)})`;
       setClip(g, toClipPath(points));
-      setClip(b, toClipPath(points, bodyX, bodyY));
+      // Once full size, the real content stays: the spring's settling wobble dips just under full
+      // and must not flick it back to the bent copy (that flickered, and swallowed taps on it).
+      if (isPresent && p >= 0.999) reached = true;
+      if (p < 0.999 && !warpOff && !reached) {
+        ensureWarp();
+        if (!warp) return;
+        const bend = genieWarp(p, geometry, fracs);
+        warp.style.display = '';
+        b.style.visibility = 'hidden';
+        // The warped copy is drawn stretched down into the bar; nothing of it shows past the bar's
+        // edge, or its text would lie across the tab it comes out of.
+        const edge = below ? -BUBBLE_GAP - f : h + BUBBLE_GAP - f;
+        warp.style.clipPath = below
+          ? `polygon(-999px ${edge.toFixed(1)}px, 999px ${edge.toFixed(1)}px, 999px 999px, -999px 999px)`
+          : `polygon(-999px -999px, 999px -999px, 999px ${edge.toFixed(1)}px, -999px ${edge.toFixed(1)}px)`;
+        slices.forEach((slice, i) => {
+          const { left, right } = bend.rows[i];
+          const sx = (right - left) / width;
+          const y = bodyY + i * sliceH;
+          const ty = below ? h * (1 - bend.d) + bend.d * y : bend.d * y;
+          slice.style.transform = `translate(${(left + bodyX * sx).toFixed(2)}px, ${ty.toFixed(2)}px) scale(${sx.toFixed(4)}, ${bend.d.toFixed(4)})`;
+        });
+      } else {
+        if (warp) warp.style.display = 'none';
+        b.style.visibility = '';
+        setClip(b, toClipPath(points, bodyX, bodyY));
+      }
+    };
+    const unwarp = () => {
+      if (warp) warp.style.display = 'none';
+      b.style.visibility = '';
     };
     const settle = () => {
+      unwarp();
       el.classList.remove('genie');
+      el.style.pointerEvents = '';
       el.style.transform = '';
       setClip(g, '');
       setClip(b, '');
@@ -442,12 +531,18 @@ export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, 
     apply(progress.get());
     const unsubscribe = progress.on('change', apply);
     const controls = animate(progress, isPresent ? 1 : 0, {
-      ...(isPresent ? { ...GENIE_OPEN, delay } : GENIE_CLOSE),
+      ...(isPresent ? GENIE_OPEN : GENIE_CLOSE),
+      // The genie starts moving at the first frame after a tap. A spring from rest, run through the
+      // genie's easing (lib/genie.ts), shows nothing for its first ~70 ms: a tap made just as the
+      // bubble came back to the lens, when it is nearly closed, looked like it hadn't registered.
+      // Closing starts from rest, so a tap during an opening turns it around at once.
+      velocity: isPresent ? GENIE_KICK : 0,
       onComplete: () => (isPresent ? settle() : safeToRemove?.()),
     });
     return () => {
       controls.stop();
       unsubscribe();
+      unwarp();
     };
   }, [pos, isPresent, reduce, safeToRemove, progress, navRef, below, lensClass, width]);
 

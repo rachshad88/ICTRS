@@ -49,7 +49,7 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
   const neckOpen = smoother(clamp01((q - 0.45) / 0.55));
   // The panel lets go of the tab last. Until then its near edge stretches down to the neck, so the
   // funnel is glass all the way (left empty, the neck showed only a sliver of the panel's shadow).
-  const release = smoother(clamp01((q - 0.7) / 0.3));
+  const release = smoother(clamp01((q - 0.5) / 0.25));
   // Where the outline ends at the neck side: the neck, then the panel's resting edge plus margin.
   const near = g.neckY + (g.height + g.margin - g.neckY) * release;
   // And the panel's own near edge: the neck, then its resting place.
@@ -71,22 +71,14 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
   }
   const outline = [...leftSide, ...rightSide.reverse()];
 
-  // The content: its top edge rides just inside the leading edge, and it is squeezed to the
-  // funnel's width up there, centred on it. It leans so its bottom follows the funnel toward the
-  // neck, which matters when the neck is far to one side (the tab is off under another part of the bar).
+  // The glass only slides up with the leading edge, revealed by the outline. The content is warped
+  // row by row instead (genieWarp), which one matrix can't do.
   let a: number, c = 0, d: number, e: number, f: number;
   if (p <= 1) {
-    const topHalf = g.neckHalf + (fullHalf - g.neckHalf) * tipWidth - g.margin * tipWidth;
-    a = Math.max(0.05, Math.min(1, (2 * topHalf) / g.width));
-    const topCentre = g.neckX + (fullCentre - g.neckX) * tipWidth;
-    e = topCentre - (a * g.width) / 2;
+    a = 1;
+    d = 1;
+    e = 0;
     f = lead + g.margin * front;
-    d = Math.max(1, (nearEdge - f) / g.height);
-    const bottomY = f + d * g.height;
-    const span = lead - near;
-    const tb = span < 0 ? clamp01((bottomY - near) / span) : 0;
-    const bottomCentre = g.neckX + (fullCentre - g.neckX) * widthAt(tb);
-    c = (bottomCentre - topCentre) / g.height;
   } else {
     const k = 1 + (p - 1) * 0.5;
     a = k;
@@ -124,4 +116,52 @@ export function genieFrameBelow(p: number, g: GenieGeometry, rows = 24): GenieFr
     f: h * (1 - d) - f,
     points: points.map(([x, y]) => [x, h - y] as [number, number]),
   };
+}
+
+/** One row of warped content: where the panel's left and right edges land on screen at that row. */
+export interface WarpRow {
+  left: number;
+  right: number;
+}
+
+export interface GenieWarp {
+  /** Vertical stretch of the content: its near edge is drawn out to the neck until the panel lets go. */
+  d: number;
+  /** One entry per requested row, top to bottom. */
+  rows: WarpRow[];
+}
+
+/**
+ * The content of the panel as the genie warps it, the way macOS bends a window: every row of the
+ * panel is squeezed to the width of the funnel at that height, so the text itself funnels into the
+ * neck and doesn't merely get uncovered. Valid while p < 1 (above that the panel swells as a whole,
+ * which genieFrame's matrix already does). fracs are row centres, 0 = the panel's far edge from the
+ * tab, 1 = its near edge. The panel's left and right edges are positions in the panel's own box
+ * (x = 0 .. width), relative to the matrix genieFrame returns, which only translates it.
+ */
+export function genieWarp(p: number, g: GenieGeometry, fracs: number[]): GenieWarp {
+  const q = clamp01(p) ** 1.5;
+  const fullCentre = g.width / 2;
+  const fullHalf = g.width / 2 + g.margin;
+  const front = smooth(clamp01(q / 0.5));
+  const tipWidth = smoother(clamp01(q / 0.62));
+  const neckOpen = smoother(clamp01((q - 0.45) / 0.55));
+  const release = smoother(clamp01((q - 0.5) / 0.25));
+  const near = g.neckY + (g.height + g.margin - g.neckY) * release;
+  const nearEdge = g.neckY + (g.height - g.neckY) * release;
+  const lead = g.neckY + (-g.margin - g.neckY) * front;
+  const widthAt = (t: number) => tipWidth * (neckOpen + (1 - neckOpen) * smooth(t));
+  const f = lead + g.margin * front;
+  const d = Math.max(1, (nearEdge - f) / g.height);
+  const rows = fracs.map((r) => {
+    // Where this row lands (screen y), and how far along the funnel that is.
+    const y = f + d * (r * g.height);
+    const t = near === lead ? 0 : clamp01((y - near) / (lead - near));
+    const u = widthAt(t);
+    const centre = g.neckX + (fullCentre - g.neckX) * u;
+    // The outline carries the margin around the panel; the content sits inside it.
+    const half = g.neckHalf + (fullHalf - g.neckHalf) * u - g.margin * u;
+    return { left: centre - half, right: centre + half };
+  });
+  return { d, rows };
 }
