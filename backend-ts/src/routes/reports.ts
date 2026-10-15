@@ -48,7 +48,21 @@ const TYPE_MAP: Record<string, () => TypeConfig> = {
 
 const TYPE_LIST = ['it', 'multimedia', 'digital-media', 'print-materials'];
 
-function getDateRange(filterType: string, selectedDate: string): { startDate: Date; endDate: Date } {
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+// filter=range: from/to calendar days (YYYY-MM-DD), both included; the Reports page sends these
+// for its Weekly and Monthly views. Undefined when they are missing or not dates.
+function parseRange(query: AuthenticatedRequest['query']): { from: string; to: string } | undefined {
+  const from = String(query.from || '');
+  const to = String(query.to || '');
+  if (!DAY.test(from) || !DAY.test(to)) return undefined;
+  return from <= to ? { from, to } : { from: to, to: from };
+}
+
+function getDateRange(filterType: string, selectedDate: string, range?: { from: string; to: string }): { startDate: Date; endDate: Date } {
+  if (filterType === 'range' && range) {
+    return { startDate: new Date(range.from + 'T00:00:00'), endDate: new Date(range.to + 'T23:59:59.999') };
+  }
   if (filterType === 'all') {
     return { startDate: new Date(0), endDate: new Date('2099-12-31T23:59:59') };
   }
@@ -127,11 +141,12 @@ async function queryType(
   search?: string,
   page?: number,
   limit?: number,
+  range?: { from: string; to: string },
 ): Promise<{ reports: Record<string, unknown>[]; total: number }> {
   const config = TYPE_MAP[typeKey]?.();
   if (!config) return { reports: [], total: 0 };
 
-  const { startDate, endDate } = getDateRange(filterType, selectedDate);
+  const { startDate, endDate } = getDateRange(filterType, selectedDate, range);
   const dateFilter = { $gte: startDate, $lte: endDate };
   const filter = buildFilter(dateFilter, showDone, search, typeKey);
 
@@ -187,7 +202,12 @@ router.get('/get_reports', isAuthenticated, async (req: AuthenticatedRequest, re
       return;
     }
 
-    const result = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search, page, limit);
+    const range = parseRange(req.query);
+    if (filterType === 'range' && !range) {
+      res.status(400).json({ error: 'from and to must be dates (YYYY-MM-DD)' });
+      return;
+    }
+    const result = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search, page, limit, range);
     // Not cached: the page refreshes live when a request changes, and a cached copy would lag.
     res.json({ ...result, page, limit, totalPages: Math.ceil(result.total / limit) });
   } catch (error) {
@@ -218,7 +238,12 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
       return;
     }
 
-    const { reports } = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search);
+    const range = parseRange(req.query);
+    if (filterType === 'range' && !range) {
+      res.status(400).json({ error: 'from and to must be dates (YYYY-MM-DD)' });
+      return;
+    }
+    const { reports } = await queryType(typeKey, roles, userId, filterType, selectedDate, showDone, search, undefined, undefined, range);
     if (reports.length === 0) {
       res.status(404).json({ error: 'No reports found' });
       return;
@@ -254,7 +279,7 @@ router.get('/export_excel', isAuthenticated, async (req: AuthenticatedRequest, r
     const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'buffer' });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename=${typeKey}_${filterType}_${selectedDate}.xlsx`);
+    res.setHeader('Content-Disposition', `attachment; filename=${typeKey}_${range ? `${range.from}_to_${range.to}` : `${filterType}_${selectedDate}`}.xlsx`);
     res.send(buffer);
   } catch (error) {
     console.error('Export Excel error:', error);

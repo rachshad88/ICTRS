@@ -839,6 +839,17 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
       const date = new Date(selectedDate);
       startDate = new Date(date.getFullYear(), date.getMonth(), 1);
       endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (filterType === 'range') {
+      // from/to: calendar days (YYYY-MM-DD), both included. The IT assign dashboard sends these for
+      // its Week and Month views, which start on that week or month and can then be widened.
+      const from = String(req.query.from || '');
+      const to = String(req.query.to || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+        return res.status(400).json({ error: 'from and to must be dates (YYYY-MM-DD)' });
+      }
+      const [a, b] = from <= to ? [from, to] : [to, from];
+      startDate = new Date(a + 'T00:00:00');
+      endDate = new Date(b + 'T23:59:59.999');
     } else {
       startDate = new Date(0);
       endDate = new Date('2099-12-31T23:59:59');

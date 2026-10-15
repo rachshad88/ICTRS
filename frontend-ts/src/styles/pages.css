@@ -1124,6 +1124,15 @@ yt-channel-avatar.pm { background: #047857; }
   color: var(--ink);
 }
 
+.app-main .tech-range {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
 .app-main .tech-date:disabled {
   opacity: 0.45;
   cursor: not-allowed;

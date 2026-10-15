@@ -10,6 +10,8 @@ import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { useAuth } from '../contexts/AuthContext';
 import SearchBox from '../components/SearchBox';
+import PeriodDates from '../components/PeriodDates';
+import { usePeriodFilter } from '../lib/periods';
 
 interface Column {
   key: string;
@@ -234,8 +236,10 @@ function Reports() {
     });
   })();
   const [activeTab, setActiveTab] = useState<TabKey>(tabs[0]?.key || 'it');
-  const [filterType, setFilterType] = useState('daily');
-  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
+  // Daily / Weekly / Monthly and their dates (lib/periods.ts); Weekly and Monthly are sent as filter=range.
+  const period = usePeriodFilter('daily');
+  // The print dialog's Weekly and Monthly pick their dates the same way.
+  const printPeriod = usePeriodFilter('weekly');
   const [showDone, setShowDone] = useState('1');
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
@@ -253,13 +257,13 @@ function Reports() {
 
   const columns = COLUMNS[activeTab];
 
-  useEffect(() => { setCurrentPage(1); }, [filterType, selectedDate, showDone, searchTerm, activeTab]);
+  useEffect(() => { setCurrentPage(1); }, [period.period, period.date, period.range, showDone, searchTerm, activeTab]);
 
   const ITEMS_PER_PAGE = 10;
 
   // Cached per tab, filter and page. Request changes in any service refresh it, batched per
   // burst (['overview'] in services/queryClient.ts).
-  const params = { type: activeTab, filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: ITEMS_PER_PAGE, ...(searchTerm && { search: searchTerm }) };
+  const params = { type: activeTab, ...period.query, show_done: showDone, page: currentPage, limit: ITEMS_PER_PAGE, ...(searchTerm && { search: searchTerm }) };
   const { data, isPending: loading } = useQuery({
     queryKey: ['overview', 'reports', params],
     queryFn: () => api.get<{ reports: Record<string, unknown>[]; total?: number }>('/reports/get_reports', { params }).then((r) => r.data),
@@ -271,7 +275,7 @@ function Reports() {
   const total = data?.total || 0;
 
   const exportToExcel = () => {
-    const params = new URLSearchParams({ type: activeTab, filter: filterType, date: selectedDate, show_done: showDone });
+    const params = new URLSearchParams({ type: activeTab, ...period.query, show_done: showDone });
     if (searchTerm.trim()) params.set('search', searchTerm.trim());
     window.location.href = `/api/reports/export_excel?${params}`;
   };
@@ -285,11 +289,17 @@ function Reports() {
   const downloadCombinedReport = async () => {
     try {
       setPrintLoading(true);
-      const isRange = printFilterType === 'range';
+      // Weekly and Monthly take their dates from printPeriod; a week moved or widened by hand is
+      // no longer a week, so it prints as a date range (From - To).
+      const picked = printFilterType === 'weekly' || printFilterType === 'monthly' ? printPeriod : null;
+      const kind: ReportPrintFilter = picked && !picked.rangeIsPeriod ? 'range' : printFilterType;
+      const rangeFrom = picked ? picked.range.from : printFrom;
+      const rangeTo = picked ? picked.range.to : printTo;
+      const isRange = kind === 'range';
       const activeFilter =
-        printFilterType === 'calendar' ? 'daily' : isRange ? 'all' : printFilterType;
+        kind === 'calendar' ? 'daily' : isRange ? 'all' : kind;
       const effectiveDate =
-        printFilterType === 'all' ? new Date().toLocaleDateString('en-CA') : isRange ? printFrom : printDate;
+        kind === 'all' ? new Date().toLocaleDateString('en-CA') : isRange ? rangeFrom : picked ? picked.range.from : printDate;
       const paramsBase = {
         filter: activeFilter,
         date: effectiveDate,
@@ -346,7 +356,7 @@ function Reports() {
             const parsed = new Date(dateValue);
             if (Number.isNaN(parsed.getTime())) return;
             const day = parsed.toLocaleDateString('en-CA');
-            if (day < printFrom || day > printTo) return;
+            if (day < rangeFrom || day > rangeTo) return;
           }
 
           const detailValue = (() => {
@@ -390,16 +400,16 @@ function Reports() {
         signatories,
         preparedBy,
         preparedByPosition: user?.position?.trim() || '',
-        filter: printFilterType,
+        filter: kind,
         status: printStatusScope,
         date: effectiveDate,
-        ...(isRange ? { from: printFrom, to: printTo } : {}),
+        ...(isRange ? { from: rangeFrom, to: rangeTo } : {}),
       });
 
       const objectUrl = URL.createObjectURL(docxBlob);
       const downloadLink = document.createElement('a');
       downloadLink.href = objectUrl;
-      const normalizedDate = isRange ? `${printFrom}_to_${printTo}` : effectiveDate.replace(/\//g, '-');
+      const normalizedDate = isRange ? `${rangeFrom}_to_${rangeTo}` : effectiveDate.replace(/\//g, '-');
       const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
       downloadLink.download = `DAR-${normalizedDate}-${stamp}.docx`;
       document.body.appendChild(downloadLink);
@@ -474,14 +484,14 @@ function Reports() {
         <div className="filters-row">
           <SearchBox placeholder="Search by code, description, name..." value={searchTerm} onSearch={setSearchTerm} />
 
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+          <select value={period.period} aria-label="Period" onChange={(e) => period.choosePeriod(e.target.value)}>
             <option value="all">All</option>
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
           </select>
 
-          <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+          <PeriodDates p={period} className="" />
 
           <label>
             <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
@@ -540,7 +550,11 @@ function Reports() {
             <div className="modal-body">
               <div className="form-group">
                 <label>Filter range</label>
-                <select value={printFilterType} onChange={(e) => setPrintFilterType(e.target.value as ReportPrintFilter)}>
+                <select value={printFilterType} onChange={(e) => {
+                  const next = e.target.value as ReportPrintFilter;
+                  if (next === 'weekly' || next === 'monthly') printPeriod.choosePeriod(next);
+                  setPrintFilterType(next);
+                }}>
                   <option value="range">Date range (From – To)</option>
                   <option value="all">All</option>
                   <option value="daily">Daily</option>
@@ -568,7 +582,14 @@ function Reports() {
                 </div>
               )}
 
-              {printFilterType !== 'all' && printFilterType !== 'range' && (
+              {(printFilterType === 'weekly' || printFilterType === 'monthly') && (
+                <div className="form-group">
+                  <label>{printFilterType === 'weekly' ? 'Week' : 'Month'}</label>
+                  <PeriodDates p={printPeriod} className="" />
+                </div>
+              )}
+
+              {(printFilterType === 'daily' || printFilterType === 'calendar') && (
                 <div className="form-group">
                   <label>Date</label>
                   <input type="date" value={printDate} onChange={(e) => setPrintDate(e.target.value)} />

@@ -2253,6 +2253,18 @@
     grid-column: 1 / -1;
   }
 
+  /* A week's From-To, or a month and year (PeriodDates), take a whole row and share it */
+  .filters-row > .tech-range {
+    grid-column: 1 / -1;
+    display: flex;
+  }
+
+  .filters-row > .tech-range > select,
+  .filters-row > .tech-range > input {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .filters-row select,
   .filters-row input[type="date"] {
     min-height: 44px;

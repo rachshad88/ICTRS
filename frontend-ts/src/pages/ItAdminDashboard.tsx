@@ -11,6 +11,8 @@ import VerifyMovModal from '../components/VerifyMovModal';
 import MovPhotos from '../components/MovPhotos';
 import { RequestFlags, PriorityForm, ReassignForm, PRIORITY_OPTIONS, suggestedDueDate, priorityLabel, formatDay } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
+import PeriodDates from '../components/PeriodDates';
+import { usePeriodFilter } from '../lib/periods';
 
 interface Request {
   _id: string;
@@ -115,8 +117,10 @@ const STAT_GROUPS: StatDef[][] = [
 
 function ItAdminDashboard() {
   const { user } = useAuth();
-  const [filterType, setFilterType] = useState('daily');
-  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
+  // Day / Week / Month and their dates (lib/periods.ts); Week and Month are sent as filter=range.
+  const period = usePeriodFilter('daily');
+  const { period: filterType, ranged, rangeIsPeriod } = period;
+  const periodFilter = period.query;
   const [showDone, setShowDone] = useState('1');
 
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -136,11 +140,11 @@ function ItAdminDashboard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
-  useEffect(() => { setCurrentPage(1); }, [filterType, selectedDate, showDone, searchTerm]);
+  useEffect(() => { setCurrentPage(1); }, [filterType, period.date, period.range, showDone, searchTerm]);
 
   // Cached per filter and page, shared with the technician dashboard's identical requests
   // (services/queryClient.ts); IT socket events refresh it.
-  const params = { filter: filterType, date: selectedDate, show_done: showDone, page: currentPage, limit: 10, ...(searchTerm && { search: searchTerm }) };
+  const params = { ...periodFilter, show_done: showDone, page: currentPage, limit: 10, ...(searchTerm && { search: searchTerm }) };
   const { data, isPending: loading } = useQuery({
     queryKey: ['it', 'dashboard', params],
     queryFn: () => api.get<DashboardData>('/requests/get_dashboard', { params }).then((r) => r.data),
@@ -153,7 +157,7 @@ function ItAdminDashboard() {
   const total = data?.total || 0;
   // Requests still open from before the selected period, oldest first (open_earlier=1). Shown on
   // page 1 above the period's own requests, so nothing older is forgotten behind the Daily filter.
-  const earlierParams = { filter: filterType, date: selectedDate, open_earlier: '1', limit: 100, ...(searchTerm && { search: searchTerm }) };
+  const earlierParams = { ...periodFilter, open_earlier: '1', limit: 100, ...(searchTerm && { search: searchTerm }) };
   const { data: earlierData } = useQuery({
     queryKey: ['it', 'dashboard-earlier', earlierParams],
     queryFn: () => api.get<DashboardData>('/requests/get_dashboard', { params: earlierParams }).then((r) => r.data),
@@ -331,21 +335,13 @@ function ItAdminDashboard() {
                 type="button"
                 className={filterType === p.value ? 'on' : ''}
                 aria-pressed={filterType === p.value}
-                onClick={() => setFilterType(p.value)}
+                onClick={() => period.choosePeriod(p.value)}
               >
                 {p.label}
               </button>
             ))}
           </div>
-          {/* "All" ignores the date, so the picker is off rather than silently doing nothing. */}
-          <input
-            type="date"
-            className="tech-date"
-            aria-label="Date"
-            value={selectedDate}
-            disabled={filterType === 'all'}
-            onChange={(e) => setSelectedDate(e.target.value)}
-          />
+          <PeriodDates p={period} />
           <label className="tech-check">
             <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
             Show done
@@ -390,11 +386,11 @@ function ItAdminDashboard() {
             </thead>
             <tbody>
               {earlier.length > 0 && (
-                <tr className="group-row"><td colSpan={7}>{EARLIER_LABEL[filterType]} ({earlier.length})</td></tr>
+                <tr className="group-row"><td colSpan={7}>{ranged && !rangeIsPeriod ? 'Still open from before these dates' : EARLIER_LABEL[filterType]} ({earlier.length})</td></tr>
               )}
               {earlier.map(renderRow)}
               {earlier.length > 0 && (
-                <tr className="group-row"><td colSpan={7}>{PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</td></tr>
+                <tr className="group-row"><td colSpan={7}>{ranged && !rangeIsPeriod ? 'Selected dates' : PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</td></tr>
               )}
               {requests.map(renderRow)}
             </tbody>
