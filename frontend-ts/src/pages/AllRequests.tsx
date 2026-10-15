@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, RequestNote } from '../components/RequestNotes';
-import { RequestFlags, PRIORITY_OPTIONS, priorityLabel, formatDay } from '../components/Priority';
+import { RequestFlags, priorityLabel, formatDay } from '../components/Priority';
 import RequestProgress from '../components/RequestProgress';
 import MovPhotos from '../components/MovPhotos';
 import SearchBox from '../components/SearchBox';
@@ -57,7 +57,6 @@ interface Filters {
   type: string;
   status: string;
   priority: string;
-  office: string;
   assigned_to: string;
   from: string;
   to: string;
@@ -66,7 +65,7 @@ interface Filters {
 }
 
 const DEFAULT_FILTERS: Filters = {
-  search: '', type: '', status: '', priority: '', office: '', assigned_to: '', from: '', to: '', overdue: false, sort: 'newest',
+  search: '', type: '', status: '', priority: '', assigned_to: '', from: '', to: '', overdue: false, sort: 'newest',
 };
 
 const STATUS_OPTIONS = [
@@ -114,7 +113,18 @@ const PAGE_SIZE = 15;
 function loadFilters(): Filters {
   try {
     const saved = sessionStorage.getItem(STORAGE_KEY);
-    return saved ? { ...DEFAULT_FILTERS, ...JSON.parse(saved) } : DEFAULT_FILTERS;
+    if (!saved) return DEFAULT_FILTERS;
+    // Priority, office and assignee have no dropdowns any more (search covers office and names,
+    // the tiles cover urgent and unassigned), so a choice saved from before must not stay applied
+    // where it can't be seen or cleared.
+    const parsed = JSON.parse(saved) as Partial<Filters>;
+    const f = { ...DEFAULT_FILTERS };
+    for (const k of Object.keys(DEFAULT_FILTERS) as Array<keyof Filters>) {
+      if (parsed[k] !== undefined) (f as Record<string, unknown>)[k] = parsed[k];
+    }
+    if (f.priority !== 'URGENT') f.priority = '';
+    if (f.assigned_to !== 'unassigned') f.assigned_to = '';
+    return f;
   } catch {
     return DEFAULT_FILTERS;
   }
@@ -166,7 +176,6 @@ function AllRequests() {
   if (filters.type) params.type = filters.type;
   if (filters.status) params.status = filters.status;
   if (filters.priority) params.priority = filters.priority;
-  if (filters.office) params.office = filters.office;
   if (filters.assigned_to) params.assigned_to = filters.assigned_to;
   if (filters.overdue) params.overdue = '1';
   if (filters.from) params.from = dayBoundary(filters.from, false);
@@ -264,30 +273,6 @@ function AllRequests() {
           </select>
         </label>
         <label>
-          Priority
-          <select value={filters.priority} onChange={(e) => setFilter('priority', e.target.value)}>
-            <option value="">Any priority</option>
-            {PRIORITY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </label>
-        <label>
-          Office
-          <select value={filters.office} onChange={(e) => setFilter('office', e.target.value)}>
-            <option value="">All offices</option>
-            {meta.offices.map((o) => <option key={o} value={o}>{o}</option>)}
-          </select>
-        </label>
-        <label>
-          Assigned to
-          <select value={filters.assigned_to} onChange={(e) => setFilter('assigned_to', e.target.value)}>
-            <option value="">Anyone</option>
-            <option value="unassigned">Not assigned yet</option>
-            {meta.staff.map((s) => (
-              <option key={s._id} value={s._id}>{s.name}{meta.types.length > 1 ? ` (${s.team})` : ''}</option>
-            ))}
-          </select>
-        </label>
-        <label>
           Created from
           <input type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => setFilter('from', e.target.value)} />
         </label>
@@ -300,10 +285,6 @@ function AllRequests() {
           <select value={filters.sort} onChange={(e) => setFilter('sort', e.target.value)}>
             {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-        </label>
-        <label className="overview-check">
-          <input type="checkbox" checked={filters.overdue} onChange={(e) => setFilter('overdue', e.target.checked)} />
-          Overdue only
         </label>
         {isFiltered && (
           <button type="button" className="hbtn overview-reset" onClick={resetFilters}>Clear filters</button>
