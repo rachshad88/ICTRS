@@ -31,6 +31,14 @@ const GENIE_OPEN = { type: 'spring', stiffness: 80, damping: 13, mass: 1, restDe
 /** Opening speed at the first frame, in progress per second (a full pour is 1). */
 const GENIE_KICK = 6;
 const GENIE_CLOSE = { type: 'spring', stiffness: 150, damping: 24, mass: 1, restDelta: 0.003, restSpeed: 0.01 } as const;
+/** The lens taking a draining bubble in (ChoiceBubble absorb): it starts to bulge once the bubble
+ *  is this far drained (progress), up to this much wider and taller, and relaxes back near the end. */
+const LENS_SWELL_FROM = 0.5;
+const LENS_SWELL_X = 0.05;
+const LENS_SWELL_Y = 0.14;
+const LENS_MERGE_AT = 0.03;
+const LENS_SETTLE_MS = 420;
+const smooth01 = (v: number) => { const t = Math.min(1, Math.max(0, v)); return t * t * (3 - 2 * t); };
 /** How far into the lens's rounded top the genie's neck reaches, in px. */
 const GENIE_NECK_DEPTH = 8;
 
@@ -400,7 +408,7 @@ export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, 
     // exactly as wide as the pill is there, so the bubble reads as drawn out of it.
     const followLens = () => {
       const lens = nav?.querySelector<HTMLElement>(`.${lensClass}`);
-      if (!nav || !lens) return;
+      if (!nav || !lens) return null;
       const n = nav.getBoundingClientRect();
       const r = lens.getBoundingClientRect();
       const radius = Math.min(r.width, r.height) / 2;
@@ -415,6 +423,43 @@ export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, 
         geometry.neckY = r.top + depth - restTop;
       }
       geometry.neckHalf = r.width / 2 - radius + Math.sqrt(radius * radius - (radius - depth) ** 2);
+      return lens;
+    };
+    // Draining, the lens takes the bubble back in like one blob of liquid merging into another: it
+    // bulges toward the bubble as the last of it pours in (its far edge stays put), then relaxes
+    // smoothly back to its own shape, without overshooting. Done on the CSS scale and translate
+    // properties, which stack with the transform the lens's own movement uses.
+    let swollen: HTMLElement | null = null;
+    let merged = false;
+    const bulge = (lens: HTMLElement, k: number) => {
+      const sy = 1 + LENS_SWELL_Y * k;
+      // Growing from the edge away from the bubble: up into a bubble above, down toward one below.
+      const shift = ((sy - 1) * lens.offsetHeight) / 2;
+      lens.style.scale = `${(1 + LENS_SWELL_X * k).toFixed(4)} ${sy.toFixed(4)}`;
+      lens.style.translate = `0 ${(below ? shift : -shift).toFixed(2)}px`;
+    };
+    const unbulge = (lens: HTMLElement) => {
+      lens.style.scale = '';
+      lens.style.translate = '';
+    };
+    const absorb = (lens: HTMLElement | null, p: number) => {
+      if (isPresent) {
+        // Opened again mid-drain: the lens lets go of what it had taken in.
+        if (swollen) unbulge(swollen);
+        swollen = null;
+        return;
+      }
+      if (!lens || merged) return;
+      if (swollen && swollen !== lens) unbulge(swollen);
+      swollen = lens;
+      if (p > LENS_MERGE_AT) {
+        bulge(lens, smooth01(1 - p / LENS_SWELL_FROM));
+        return;
+      }
+      merged = true;
+      const from = { scale: lens.style.scale || '1 1', translate: lens.style.translate || '0 0' };
+      unbulge(lens);
+      lens.animate([from, { scale: '1 1', translate: '0 0' }], { duration: LENS_SETTLE_MS, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' });
     };
     const rows = LITE_DEVICE ? 16 : 28;
     // Read once: reading layout right after writing a clip would force a style pass every frame.
@@ -477,7 +522,7 @@ export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, 
     lastGenieStart = started;
     let reached = false;
     const apply = (p: number) => {
-      followLens();
+      absorb(followLens(), p);
       // While it drains, or before it has poured clear of the bar, the bubble's box lies over the
       // tabs: it must not take their taps (on phones a tap on the tab just as the bubble came back
       // landed on the bubble and was lost). On desktop it sits behind the bar and never did.
@@ -543,6 +588,7 @@ export function ChoiceBubble({ tab, navRef, anchor, pathname, badgeFor, reduce, 
       controls.stop();
       unsubscribe();
       unwarp();
+      if (swollen && !merged) unbulge(swollen);
     };
   }, [pos, isPresent, reduce, safeToRemove, progress, navRef, below, lensClass, width]);
 
