@@ -26,6 +26,8 @@ const pick = (r: SignatoriesForm): SignatoriesForm => ({
 function Signatories() {
   const [form, setForm] = useState<SignatoriesForm>(EMPTY);
   const [saving, setSaving] = useState(false);
+  // The names are shown locked; Edit unlocks them, and Update or Cancel locks them again.
+  const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -65,13 +67,27 @@ function Signatories() {
       });
       setForm(pick(res.data));
       queryClient.setQueryData(['meta', 'signatories'], res.data);
-      setSuccess('Signatories saved. New DAR exports will use these names.');
+      setSuccess('Signatories updated. New DAR exports will use these names.');
+      setEditing(false);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { error?: string } } };
-      setError(e.response?.data?.error || 'Failed to save signatories');
+      setError(e.response?.data?.error || 'Failed to update signatories');
     } finally {
       setSaving(false);
     }
+  };
+
+  const startEditing = () => {
+    setSuccess('');
+    setError('');
+    setEditing(true);
+  };
+
+  // Drops unsaved changes and goes back to the saved names.
+  const cancelEditing = () => {
+    if (data) setForm(pick(data));
+    setError('');
+    setEditing(false);
   };
 
   return (
@@ -84,7 +100,7 @@ function Signatories() {
       {loading ? (
         <Skeleton variant="table" rows={3} />
       ) : (
-        <div className="card edit-form-card">
+        <div className="card edit-form-card signatories-card">
           {error && <div className="message error">{error}</div>}
           {success && <div className="message success">{success}</div>}
 
@@ -100,6 +116,7 @@ function Signatories() {
                   type="text"
                   value={form.supervisor_name}
                   onChange={setField('supervisor_name')}
+                  disabled={!editing}
                   placeholder="e.g. JUAN A. DELA CRUZ"
                   maxLength={120}
                 />
@@ -111,6 +128,7 @@ function Signatories() {
                   type="text"
                   value={form.supervisor_position}
                   onChange={setField('supervisor_position')}
+                  disabled={!editing}
                   placeholder="e.g. Executive Assistant II"
                   maxLength={120}
                 />
@@ -127,6 +145,7 @@ function Signatories() {
                 type="text"
                 value={form.mayor_name}
                 onChange={setField('mayor_name')}
+                disabled={!editing}
                 placeholder="e.g. ATTY. JUAN A. DELA CRUZ"
                 maxLength={120}
               />
@@ -140,9 +159,21 @@ function Signatories() {
             )}
 
             <div className="form-actions">
-              <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
-              </button>
+              {editing ? (
+                <>
+                  <button type="button" className="btn btn-secondary" onClick={cancelEditing} disabled={saving}>
+                    Cancel
+                  </button>
+                  {/* Keyed apart from Edit, so the browser never sees the Edit click land on a submit button. */}
+                  <button key="update" type="submit" className="btn btn-primary" disabled={saving}>
+                    {saving ? 'Updating...' : 'Update'}
+                  </button>
+                </>
+              ) : (
+                <button key="edit" type="button" className="btn btn-primary" onClick={startEditing}>
+                  Edit
+                </button>
+              )}
             </div>
           </form>
         </div>

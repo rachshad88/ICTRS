@@ -1959,3 +1959,14 @@ yt-channel-avatar.pm { background: #047857; }
     color: var(--ink-soft);
   }
 }
+
+/* Signatories: the names are locked until Edit is pressed. Locked fields read as plain text in a
+   dashed box, so it is clear they can't be typed into yet. */
+.app-main .signatories-card .form-group input:disabled {
+  background: transparent;
+  border-style: dashed;
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  opacity: 1;
+  cursor: default;
+}
