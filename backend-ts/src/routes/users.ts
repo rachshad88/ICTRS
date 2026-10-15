@@ -7,7 +7,7 @@ import { getUsersCollection, getCache, setCache, redisClient, logAudit } from '.
 import { notify } from '../utils/notify';
 import { AuthenticatedRequest, isAuthenticated, isAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
-import { createUserSchema, updateUserSchema, deleteUserSchema, objectIdSchema } from '../middleware/validation';
+import { createUserSchema, updateUserSchema, objectIdSchema } from '../middleware/validation';
 
 const router = Router();
 const DEFAULT_PASSWORD = '12345';
@@ -344,36 +344,30 @@ router.post('/set_user_active', isAuthenticated, isAdmin, validateBody(z.object(
   }
 });
 
-router.post('/delete_user', isAuthenticated, isAdmin, validateBody(deleteUserSchema), async (req: AuthenticatedRequest, res: Response) => {
+// Turns down a self sign-up that is still waiting for approval (spam, or a duplicate), removing it.
+// Only such accounts can be removed: an account that was ever approved or made by an admin is
+// deactivated instead (set_user_active), so its requests and history keep their owner.
+router.post('/reject_user', isAuthenticated, isAdmin, validateBody(z.object({ user_id: objectIdSchema })), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { user_id } = req.body;
-
-    if (user_id === req.user!.user_id) {
-      return res.status(400).json({ error: 'You cannot delete your own account' });
+    const result = await getUsersCollection().findOneAndDelete(
+      { _id: new ObjectId(user_id), approved: false },
+      { projection: { username: 1 } }
+    );
+    if (!result || !result.value) {
+      return res.status(404).json({ error: 'No account waiting for approval was found. Refresh the list.' });
     }
-
-    const usersCollection = getUsersCollection();
-    const target = await usersCollection.findOne({ _id: new ObjectId(user_id) }, { projection: { roles: 1, role: 1 } });
-    if (!target) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    if ((target.roles || [target.role]).includes('ADMIN') && await usersCollection.countDocuments({ roles: 'ADMIN' }) <= 1) {
-      return res.status(400).json({ error: 'You cannot delete the last admin account' });
-    }
-
-    const deletedUser = await usersCollection.findOneAndDelete({ _id: new ObjectId(user_id) });
-    const deletedUsername = deletedUser?.value?.username || 'unknown';
     disconnectUserSockets(req, user_id);
 
     if (redisClient) {
-      await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
+      await redisClient.del('users:all:non-admin').catch(() => {});
     }
 
-    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'DELETE_USER', 'USER', user_id, `Admin ${req.user!.username} deleted user ${deletedUsername}`);
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'REJECT_USER', 'USER', user_id, `Admin ${req.user!.username} rejected the sign-up of ${result.value.username}`);
     res.json({ status: 'success' });
   } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({ error: 'Failed to delete user' });
+    console.error('Reject user error:', error);
+    res.status(500).json({ error: 'Failed to reject the account' });
   }
 });
 

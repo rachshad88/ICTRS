@@ -204,10 +204,6 @@ export const sharedAccessSchema = z.object({
   user_id: objectIdSchema
 });
 
-export const deleteUserSchema = z.object({
-  user_id: objectIdSchema
-});
-
 export const assignMultimediaSchema = z.object({
   request_id: objectIdSchema,
   technician_id: objectIdSchema

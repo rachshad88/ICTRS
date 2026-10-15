@@ -154,11 +154,11 @@ function UserManagement() {
     }
   };
 
-  // Rejecting a sign-up removes the account, like Delete, but says so in sign-up terms.
+  // Rejecting a sign-up removes the account. Only sign-ups still waiting can be removed (reject_user).
   const handleReject = async (user: User) => {
     if (!(await confirm({ title: `Reject ${user.username}?`, message: 'The account will be deleted. If it belongs to a real person, they can sign up again.', confirmLabel: 'Reject and delete', danger: true }))) return;
     try {
-      await api.post('/users/delete_user', { user_id: user._id });
+      await api.post('/users/reject_user', { user_id: user._id });
       setNotice(`The sign-up from ${user.username} was rejected and deleted.`);
       refreshUsers();
     } catch (error: unknown) {
