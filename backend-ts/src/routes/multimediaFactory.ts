@@ -75,7 +75,7 @@ function clip(text: string, max = 80): string {
 function findAssignableStaff(staffId: string, actor: AuthenticatedRequest['user']) {
   const filter = staffId === actor!.user_id
     ? { _id: new ObjectId(staffId) }
-    : { _id: new ObjectId(staffId), roles: 'MULTIMEDIA' as const };
+    : { _id: new ObjectId(staffId), roles: 'MULTIMEDIA' as const, active: { $ne: false } };
   return getUsersCollection().findOne(filter);
 }
 
@@ -984,7 +984,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   router.get('/get_technicians', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const usersCollection = getUsersCollection();
-      const technicians = await usersCollection.find({ roles: 'MULTIMEDIA' }).project({ password: 0 }).toArray();
+      const technicians = await usersCollection.find({ roles: 'MULTIMEDIA', active: { $ne: false } }).project({ password: 0 }).toArray();
       res.json({ technicians });
     } catch (error) {
       console.error('Get technicians error:', error);

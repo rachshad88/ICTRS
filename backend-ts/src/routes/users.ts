@@ -47,7 +47,7 @@ router.get('/get_technicians', isAuthenticated, isAdmin, async (req: Authenticat
 
     const usersCollection = getUsersCollection();
     const technicians = await usersCollection
-      .find({ roles: 'TECHNICIAN' })
+      .find({ roles: 'TECHNICIAN', active: { $ne: false } })
       .project({ password: 0 })
       .limit(100)
       .toArray();
@@ -82,7 +82,8 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
         office: 1,
         position: 1,
         created_at: 1,
-        approved: 1
+        approved: 1,
+        active: 1
     };
     // Sign-ups waiting for approval always come first and are never cut off by the limit.
     const [pending, others] = await Promise.all([
@@ -96,7 +97,8 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
       return {
         ...safeUser,
         is_default_password: await passwordMatchesDefault(password),
-        approved: user.approved !== false
+        approved: user.approved !== false,
+        active: user.active !== false
       };
     }));
 
@@ -297,6 +299,48 @@ router.post('/approve_user', isAuthenticated, isAdmin, validateBody(z.object({ u
   } catch (error) {
     console.error('Approve user error:', error);
     res.status(500).json({ error: 'Failed to approve user' });
+  }
+});
+
+// Turns an account off or back on, instead of deleting it: its requests and history stay. An
+// inactive account cannot sign in, its session ends at once, and it is not offered for assignment.
+router.post('/set_user_active', isAuthenticated, isAdmin, validateBody(z.object({ user_id: objectIdSchema, active: z.boolean() })), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { user_id, active } = req.body as { user_id: string; active: boolean };
+
+    if (!active && user_id === req.user!.user_id) {
+      return res.status(400).json({ error: 'You cannot deactivate your own account' });
+    }
+
+    const usersCollection = getUsersCollection();
+    const target = await usersCollection.findOne({ _id: new ObjectId(user_id) }, { projection: { username: 1, roles: 1, role: 1, active: 1 } });
+    if (!target) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (!active && (target.roles || [target.role]).includes('ADMIN')
+      && await usersCollection.countDocuments({ roles: 'ADMIN', active: { $ne: false } }) <= 1) {
+      return res.status(400).json({ error: 'You cannot deactivate the last active admin account' });
+    }
+
+    if (active) {
+      await usersCollection.updateOne({ _id: target._id }, { $unset: { active: '' } });
+    } else {
+      await usersCollection.updateOne(
+        { _id: target._id },
+        { $set: { active: false }, $inc: { session_version: 1 }, $unset: { current_session: '' } }
+      );
+      disconnectUserSockets(req, user_id);
+    }
+
+    if (redisClient) {
+      await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
+    }
+
+    await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, active ? 'ACTIVATE_USER' : 'DEACTIVATE_USER', 'USER', user_id, `Admin ${req.user!.username} ${active ? 'activated' : 'deactivated'} ${target.username}`);
+    res.json({ status: 'success', message: `${target.username} is now ${active ? 'active' : 'inactive'}` });
+  } catch (error) {
+    console.error('Set user active error:', error);
+    res.status(500).json({ error: 'Failed to change the account status' });
   }
 });
 

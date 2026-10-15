@@ -2404,6 +2404,12 @@
   .stack-mobile td.col-actions::before {
     content: none;
   }
+
+  /* Rows with several buttons (a user's Edit, Reset password, Sign out, Deactivate) wrap
+     instead of running off the card's edge */
+  .stack-mobile td.col-actions .history-actions {
+    flex-wrap: wrap;
+  }
 }
 
 @keyframes modalSheetUp {

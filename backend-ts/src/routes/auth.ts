@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import { forgetUserLists, getUsersCollection, logAudit, redisClient, Role, User } from '../config/database';
 import { notify } from '../utils/notify';
 import { getIO } from '../config/socket';
-import { AuthenticatedRequest, isAuthenticated, AWAITING_APPROVAL } from '../middleware/auth';
+import { AuthenticatedRequest, isAuthenticated, AWAITING_APPROVAL, ACCOUNT_INACTIVE } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { loginSchema, changePasswordSchema, updateProfileSchema, signupSchema } from '../middleware/validation';
 import { loginRetryAfter, recordLoginFailure, recordLoginSuccess, recordSignup, signupRetryAfter } from '../middleware/loginThrottle';
@@ -102,6 +102,11 @@ router.post('/login', validateBody(loginSchema), async (req: Request, res: Respo
     // out, so it tells a guesser nothing.
     if (user.approved === false) {
       return res.status(403).json({ error: AWAITING_APPROVAL, code: 'AWAITING_APPROVAL' });
+    }
+
+    // Deactivated by an admin (see set_user_active). Also only said after the password checked out.
+    if (user.active === false) {
+      return res.status(403).json({ error: ACCOUNT_INACTIVE, code: 'ACCOUNT_INACTIVE' });
     }
 
     // One session per user: refused while the account is signed in on another device. Also only

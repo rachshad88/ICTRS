@@ -32,7 +32,7 @@ watchOverdue({
 function findAssignableStaff(staffId: string, actor: AuthenticatedRequest['user']) {
   const filter = staffId === actor!.user_id
     ? { _id: new ObjectId(staffId) }
-    : { _id: new ObjectId(staffId), roles: 'TECHNICIAN' as const };
+    : { _id: new ObjectId(staffId), roles: 'TECHNICIAN' as const, active: { $ne: false } };
   return getUsersCollection().findOne(filter);
 }
 
@@ -1160,7 +1160,7 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
 router.get('/get_technicians', isAuthenticated, isItAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const usersCollection = getUsersCollection();
-    const technicians = await usersCollection.find({ roles: 'TECHNICIAN' }).project({ password: 0 }).toArray();
+    const technicians = await usersCollection.find({ roles: 'TECHNICIAN', active: { $ne: false } }).project({ password: 0 }).toArray();
     res.json({ technicians });
   } catch (error) {
     console.error('Get technicians error:', error);

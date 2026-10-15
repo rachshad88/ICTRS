@@ -1773,6 +1773,20 @@
   font-family: var(--font-mono);
 }
 
+/* A deactivated account (UserManagement): greyed out, with its buttons still usable */
+.app-main tr.is-inactive td:not(.col-actions) {
+  opacity: 0.55;
+}
+
+.app-main .um-inactive {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--danger-red);
+}
+
 .app-main .um-roles {
   margin: 0 0 20px;
   padding: 0;

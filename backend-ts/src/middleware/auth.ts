@@ -77,6 +77,7 @@ export async function isAuthenticated(req: AuthenticatedRequest, res: Response, 
   next();
 }
 
+export const ACCOUNT_INACTIVE = 'This account has been deactivated. Ask the IT office to activate it again.';
 export const AWAITING_APPROVAL = 'Your account is waiting for approval by the IT office. You can sign in once it is approved.';
 
 function hasRole(req: AuthenticatedRequest, role: Role): boolean {

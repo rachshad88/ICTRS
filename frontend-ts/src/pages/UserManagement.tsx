@@ -21,6 +21,8 @@ interface User {
   is_default_password?: boolean;
   /** false for a self sign-up waiting for approval (it cannot sign in until approved). */
   approved?: boolean;
+  /** false when an admin has deactivated the account: it cannot sign in. */
+  active?: boolean;
   created_at?: string;
 }
 
@@ -165,14 +167,20 @@ function UserManagement() {
     }
   };
 
-  const handleDelete = async (userId: string) => {
-    if (!(await confirm({ title: 'Delete this user?', message: 'They will no longer be able to sign in. This cannot be undone.', confirmLabel: 'Delete user', danger: true }))) return;
+  // Deactivating keeps the account and its history, but it can no longer sign in (its session ends
+  // at once) and it is not offered for assignment. Activating gives it back.
+  const handleSetActive = async (user: User, active: boolean) => {
+    const ok = await confirm(active
+      ? { title: `Activate ${user.username}?`, message: 'They will be able to sign in and use their account again.', confirmLabel: 'Activate' }
+      : { title: `Deactivate ${user.username}?`, message: 'They will be signed out and will not be able to sign in until the account is activated again. Their requests and history stay.', confirmLabel: 'Deactivate', danger: true });
+    if (!ok) return;
     try {
-      await api.post('/users/delete_user', { user_id: userId });
-      refreshUsers();
+      const res = await api.post('/users/set_user_active', { user_id: user._id, active });
+      setNotice(res.data?.message || `${user.username} is now ${active ? 'active' : 'inactive'}.`);
+      await refreshUsers();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
-      setError(err.response?.data?.error || 'Failed to delete user');
+      setError(err.response?.data?.error || 'Failed to change the account status');
     }
   };
 
@@ -188,12 +196,11 @@ function UserManagement() {
     }
   };
 
-  const handleResetPassword = async () => {
-    if (!editingUser) return;
-    if (!(await confirm({ title: `Reset ${editingUser.username}'s password?`, message: <>It will be set to <strong>{DEFAULT_PASSWORD}</strong>. They will be signed out and must choose a new password when they next sign in.</>, confirmLabel: 'Reset password' }))) return;
+  const handleResetPassword = async (user: User) => {
+    if (!(await confirm({ title: `Reset ${user.username}'s password?`, message: <>It will be set to <strong>{DEFAULT_PASSWORD}</strong>. They will be signed out and must choose a new password when they next sign in.</>, confirmLabel: 'Reset password' }))) return;
     try {
-      await api.post('/users/reset_user_password', { user_id: editingUser._id });
-      setNotice(`${editingUser.username}'s password was reset to ${DEFAULT_PASSWORD}.`);
+      await api.post('/users/reset_user_password', { user_id: user._id });
+      setNotice(`${user.username}'s password was reset to ${DEFAULT_PASSWORD}.`);
       await refreshUsers();
     } catch (error: unknown) {
       const err = error as { response?: { data?: { error?: string } } };
@@ -293,13 +300,14 @@ function UserManagement() {
             </thead>
             <tbody>
               {paginatedUsers.map((user) => (
-                <tr key={user._id}>
+                <tr key={user._id} className={user.active === false ? 'is-inactive' : undefined}>
                   <td className="td-cell" data-label="Username">{user.username}</td>
                   <td data-label="Name">
                     <div>{user.first_name} {user.middle_name} {user.last_name}</div>
                     {user.position && (
                       <div style={{ marginTop: '2px', fontSize: '11px', opacity: 0.75 }}>{user.position}</div>
                     )}
+                    {user.active === false && <div className="um-inactive">Inactive</div>}
                     {user.is_default_password && (
                       <div style={{ marginTop: '4px', fontSize: '10px', color: '#8a4b00', fontWeight: 600 }}>
                         Default password
@@ -318,8 +326,11 @@ function UserManagement() {
                   <td className="col-actions">
                     <div className="history-actions">
                       <button className="hbtn hbtn-view" onClick={() => openModal(user)}>Edit</button>
+                      <button className="hbtn hbtn-view" onClick={() => handleResetPassword(user)}>Reset password</button>
                       <button className="hbtn hbtn-view" onClick={() => handleSignOut(user)}>Sign out</button>
-                      <button className="hbtn hbtn-cancel" onClick={() => handleDelete(user._id)}>Delete</button>
+                      {user.active === false
+                        ? <button className="hbtn hbtn-assign" onClick={() => handleSetActive(user, true)}>Activate</button>
+                        : <button className="hbtn hbtn-cancel" onClick={() => handleSetActive(user, false)}>Deactivate</button>}
                     </div>
                   </td>
                 </tr>
@@ -415,11 +426,6 @@ function UserManagement() {
                 <input autoComplete="off" type="text" value={formData.position} maxLength={120} placeholder="e.g. Computer Programmer I" onChange={(e) => setFormData({...formData, position: e.target.value})} />
               </div>
               <div className="modal-actions">
-                {editingUser && (
-                  <button type="button" onClick={handleResetPassword} className="btn-secondary">
-                    Reset Password
-                  </button>
-                )}
                 <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
                 <button data-modal-dismiss type="button" onClick={() => setShowModal(false)} className="btn-secondary">Cancel</button>
               </div>

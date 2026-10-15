@@ -24,6 +24,9 @@ export interface User {
   // false for a self sign-up an admin has not approved yet: it cannot sign in, and any session it
   // has is refused (sessionStatus). Missing means approved: older accounts, and ones admins made.
   approved?: boolean;
+  // false when an admin has deactivated the account: it cannot sign in, and any session it has is
+  // refused (sessionStatus). Missing means active.
+  active?: boolean;
   // Session id of the latest sign-in. Only one session per user: a sign-in elsewhere replaces it,
   // and any other session is refused (sessionStatus). Missing (signed in before this existed): any.
   current_session?: string;
@@ -445,7 +448,7 @@ export async function logAudit(
   }
 }
 
-// Whether a session may still be used: 'revoked' when the user is gone, unapproved, or their access or
+// Whether a session may still be used: 'revoked' when the user is gone, unapproved, deactivated, or their access or
 // password changed since it started; 'replaced' when the user has since signed in somewhere else.
 export type SessionStatus = 'ok' | 'revoked' | 'replaced';
 
@@ -453,9 +456,9 @@ export async function sessionStatus(userId: string | undefined, sessionVersion: 
   if (!userId || !isValidObjectId(userId)) return 'revoked';
   const user = await getUsersCollection().findOne(
     { _id: new ObjectId(userId) },
-    { projection: { session_version: 1, approved: 1, current_session: 1 } }
+    { projection: { session_version: 1, approved: 1, active: 1, current_session: 1 } }
   );
-  if (!user || user.approved === false || (user.session_version || 0) !== (sessionVersion || 0)) return 'revoked';
+  if (!user || user.approved === false || user.active === false || (user.session_version || 0) !== (sessionVersion || 0)) return 'revoked';
   if (user.current_session && user.current_session !== sessionId) return 'replaced';
   return 'ok';
 }
