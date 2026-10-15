@@ -85,10 +85,11 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
         approved: 1,
         active: 1
     };
-    // Sign-ups waiting for approval always come first and are never cut off by the limit.
+    // Sign-ups waiting for approval always come first and are never cut off by the limit. The rest
+    // are all sent (up to 2000) so the page's search and office filter see every account.
     const [pending, others] = await Promise.all([
       usersCollection.find({ roles: { $ne: 'ADMIN' }, approved: false }).project(projection).sort({ created_at: -1 }).toArray(),
-      usersCollection.find({ roles: { $ne: 'ADMIN' }, approved: { $ne: false } }).project(projection).limit(100).toArray()
+      usersCollection.find({ roles: { $ne: 'ADMIN' }, approved: { $ne: false } }).project(projection).sort({ username: 1 }).limit(2000).toArray()
     ]);
     const users = [...pending, ...others];
 

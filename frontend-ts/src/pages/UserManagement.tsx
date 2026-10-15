@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
 import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
+import SearchBox from '../components/SearchBox';
 import { OFFICES } from '../data/offices';
 
 interface User {
@@ -31,6 +32,9 @@ const NO_USERS: User[] = [];
 
 function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [officeFilter, setOfficeFilter] = useState('');
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, officeFilter]);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState('');
@@ -208,9 +212,24 @@ function UserManagement() {
     }
   };
 
+  // Search covers username, name, position and office; the office filter lists the offices people
+  // are actually in (and "No office" when someone has none). Both work on the list already loaded.
+  const NO_OFFICE = '__none';
+  const offices = [...new Set(users.map((u) => u.office?.trim() || ''))].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const anyWithoutOffice = users.some((u) => !u.office?.trim());
+  const term = searchTerm.toLowerCase();
+  const shownUsers = users.filter((u) => {
+    const office = u.office?.trim() || '';
+    if (officeFilter && (officeFilter === NO_OFFICE ? office !== '' : office !== officeFilter)) return false;
+    if (!term) return true;
+    return [u.username, `${u.first_name} ${u.middle_name || ''} ${u.last_name}`.replace(/\s+/g, ' '), u.position, office]
+      .some((v) => (v || '').toLowerCase().includes(term));
+  });
+  const isFiltered = !!searchTerm || !!officeFilter;
+
   const ITEMS_PER_PAGE = 10;
-  const totalPages = Math.ceil(users.length / ITEMS_PER_PAGE);
-  const paginatedUsers = users.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(shownUsers.length / ITEMS_PER_PAGE);
+  const paginatedUsers = shownUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   // In pairs, staff role then its admin, so the grid reads across: IT, multimedia, then the rest.
   const ROLES = [
@@ -285,8 +304,22 @@ function UserManagement() {
         </section>
       )}
 
+      <div className="filters-row um-filters">
+        <SearchBox value={searchTerm} onSearch={setSearchTerm} placeholder="Search by name, username, position or office" />
+        <select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)} aria-label="Office">
+          <option value="">All offices</option>
+          {offices.map((o) => <option key={o} value={o}>{o}</option>)}
+          {anyWithoutOffice && <option value={NO_OFFICE}>No office</option>}
+        </select>
+        {isFiltered && (
+          <button type="button" className="hbtn" onClick={() => { setSearchTerm(''); setOfficeFilter(''); }}>Clear</button>
+        )}
+      </div>
+
       {loading ? (
         <Skeleton variant="table" rows={5} />
+      ) : shownUsers.length === 0 ? (
+        <div className="history-empty">{isFiltered ? 'No users match this search.' : 'No users yet.'}</div>
       ) : (
         <div className="history-table-wrap">
           <table className="history-table stack-mobile">
@@ -294,6 +327,7 @@ function UserManagement() {
               <tr>
                 <th>Username</th>
                 <th>Name</th>
+                <th>Office</th>
                 <th>Role</th>
                 <th className="col-actions">Actions</th>
               </tr>
@@ -314,6 +348,7 @@ function UserManagement() {
                       </div>
                     )}
                   </td>
+                  <td className="td-cell" data-label="Office">{user.office?.trim() || '-'}</td>
                   <td data-label="Role">
                     <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                       {(user.roles || [user.role]).map(r => (
