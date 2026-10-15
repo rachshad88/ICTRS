@@ -592,8 +592,9 @@
 .lp-ticker-track {
   display: flex;
   width: max-content;
-  /* 48s per copy of the list, times TICKER_REPEAT (3) in Landing.tsx */
-  animation: lpMarquee 144s linear infinite;
+  /* 96s per copy of the list, times TICKER_REPEAT (3) in Landing.tsx. Slow enough to read as it
+     passes (about 25 to 40px a second); at twice this speed people couldn't keep up. */
+  animation: lpMarquee 288s linear infinite;
 }
 
 .lp-ticker-set {
@@ -619,7 +620,7 @@
 /* Bottom row: the promises, set in mono so it reads apart from the services above it */
 .lp-ticker-track-reverse {
   animation-direction: reverse;
-  animation-duration: 180s;
+  animation-duration: 360s;
 }
 
 .lp-ticker-set .lp-ticker-promise {
