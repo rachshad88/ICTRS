@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { PriorityField, Priority } from '../components/Priority';
 import { DateField } from '../components/DateField';
 import { TimeField } from '../components/TimeField';
+import FileDrop from '../components/FileDrop';
 import Select from '../components/Select';
 
 
@@ -18,7 +19,7 @@ function PrintMaterialsRequest() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [priority, setPriority] = useState<Priority>('NORMAL');
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   
   const [formData, setFormData] = useState({
     form_of_printed_media: '',
@@ -39,28 +40,6 @@ function PrintMaterialsRequest() {
       return;
     }
     setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      if (e.target.files.length > 10) {
-        setMessage('Maximum 10 files allowed');
-        return;
-      }
-      
-      let totalSize = 0;
-      for (let i = 0; i < e.target.files.length; i++) {
-        totalSize += e.target.files[i].size;
-      }
-      
-      if (totalSize > 10 * 1024 * 1024 * 10) {
-        setMessage('Total file size exceeds 100MB limit');
-        return;
-      }
-      
-      setFiles(e.target.files);
-      setMessage('');
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -239,23 +218,14 @@ function PrintMaterialsRequest() {
           <div className="c3"><PriorityField value={priority} onChange={setPriority} /></div>
 
           <div className="form-group c3">
-            <label>Upload relevant files and materials (Optional)</label>
-            <input
-              type="file"
-              onChange={handleFileChange}
-              multiple
+            <FileDrop
+              label="Upload relevant files and materials (Optional)"
+              files={files}
+              onChange={setFiles}
               accept=".pdf,.doc,.docx,.pptx,.jpg,.jpeg,.png,.eps,.ps,.psd,.tif,.tiff"
+              multiple
+              hint="Allowed: PDF, JPG, PNG, Word, PowerPoint (.pptx) (max 10MB each). Save Illustrator files as PDF."
             />
-            {files && files.length > 0 && (
-              <div className="file-list">
-                {Array.from(files).map((file, index) => (
-                  <p key={index} className="file-selected">
-                    ✓ {file.name} ({(file.size / 1024).toFixed(1)} KB)
-                  </p>
-                ))}
-              </div>
-            )}
-            <small>Max 10 files. Allowed: PDF, JPG, PNG, Word, PowerPoint (.pptx), EPS, Photoshop, TIFF (max 10MB each). Save Illustrator files as PDF or EPS.</small>
           </div>
 
           <div className="ticket-tear" aria-hidden="true" />

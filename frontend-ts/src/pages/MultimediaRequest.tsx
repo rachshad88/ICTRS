@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { PriorityField, Priority } from '../components/Priority';
 import { DateField } from '../components/DateField';
 import { TimeField } from '../components/TimeField';
+import FileDrop from '../components/FileDrop';
 import Select from '../components/Select';
 
 
@@ -19,7 +20,7 @@ function MultimediaRequest() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [priority, setPriority] = useState<Priority>('NORMAL');
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   
   const [formData, setFormData] = useState({
     event_title: '',
@@ -38,30 +39,6 @@ function MultimediaRequest() {
       setFormData(prev => ({ ...prev, [name]: numericValue }));
     } else {
       setFormData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedFile = e.target.files[0];
-      
-      // Check file size (10MB limit)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        setMessage('File size exceeds 10MB limit');
-        return;
-      }
-      
-      // Check file type
-      // Checked by extension, as the server does; browsers report inconsistent MIME types.
-      const allowedExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'];
-      const extension = selectedFile.name.split('.').pop()?.toLowerCase() || '';
-      if (!allowedExtensions.includes(extension)) {
-        setMessage('Only PDF, images, and Word documents are allowed');
-        return;
-      }
-      
-      setFile(selectedFile);
-      setMessage('');
     }
   };
 
@@ -91,8 +68,8 @@ function MultimediaRequest() {
       submitData.append('contact_number', formData.contact_number);
       submitData.append('priority', priority);
       
-      if (file) {
-        submitData.append('program_file', file);
+      if (files[0]) {
+        submitData.append('program_file', files[0]);
       }
 
       const response = await api.post('/multimedia/create_request', submitData, {
@@ -222,14 +199,13 @@ function MultimediaRequest() {
           <div className="c6"><PriorityField value={priority} onChange={setPriority} /></div>
 
           <div className="form-group c6">
-            <label>Program/Schedule of Event (Optional)</label>
-            <input
-              type="file"
-              onChange={handleFileChange}
+            <FileDrop
+              label="Program/Schedule of Event (Optional)"
+              files={files}
+              onChange={setFiles}
               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              hint="One file, max 10MB. Allowed: PDF, images, Word documents"
             />
-            {file && <p className="file-selected">✓ {file.name}</p>}
-            <small>Max 10MB. Allowed: PDF, images, Word documents</small>
           </div>
           
           <div className="ticket-tear" aria-hidden="true" />

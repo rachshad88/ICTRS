@@ -2047,12 +2047,179 @@
   color: var(--cobalt);
 }
 
+/* The request forms' file field (components/FileDrop.tsx): a dashed drop zone like the MOV's
+   "Choose photo" tile, then a card per attached file. */
+.app-main .form-group .file-drop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  padding: 16px 18px;
+  border: 1.5px dashed rgba(12, 31, 74, 0.3);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink-soft);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+  transition: var(--tr-colors), var(--tr-shadow);
+}
+
+.app-main .form-group .file-drop:hover,
+.app-main .form-group .file-drop.is-over {
+  border-color: var(--cobalt);
+  color: var(--cobalt);
+}
+
+.app-main .form-group .file-drop.is-over {
+  background: rgba(20, 82, 201, 0.06);
+}
+
+.app-main .file-drop-input:focus-visible + .file-drop {
+  border-color: var(--cobalt);
+  box-shadow: 0 0 0 4px rgba(255, 217, 26, 0.6);
+}
+
+.app-main .file-drop-icon {
+  flex-shrink: 0;
+  color: var(--cobalt);
+}
+
+.app-main .file-drop-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-main .file-drop-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.app-main .file-drop-sub u {
+  color: var(--cobalt);
+  font-weight: 700;
+  text-underline-offset: 2px;
+}
+
+/* Dragging needs a mouse; on touch screens the zone just says to tap it. */
+.app-main .file-drop-sub-touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .app-main .file-drop-sub-pointer {
+    display: none;
+  }
+
+  .app-main .file-drop-sub-touch {
+    display: inline;
+  }
+}
+
+.app-main .file-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-main .file-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+
+.app-main .file-card-ext {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: rgba(20, 82, 201, 0.1);
+  color: var(--cobalt);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-main .file-card-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-main .file-card-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.app-main .file-card-size {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.app-main .file-card-remove {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.app-main .file-card-remove:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.app-main .file-card-remove:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+
 /* The real file input stays for keyboards and screen readers; the "Add photo" tile opens it. */
 .app-main .mov-input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
+}
+
+/* The file field's real input, likewise: the drop zone opens it. */
+.app-main .form-group .file-drop-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .app-main .mov-input-camera:focus-visible ~ .mov-picker .mov-add-camera,
