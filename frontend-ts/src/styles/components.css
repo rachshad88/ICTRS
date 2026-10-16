@@ -703,7 +703,8 @@
   color: var(--purple);
 }
 
-.badge-done {
+.badge-done,
+.badge-rated {
   background: rgba(0, 184, 148, 0.12);
   color: var(--green);
 }
@@ -750,7 +751,8 @@
   color: var(--purple);
 }
 
-.hstatus.done {
+.hstatus.done,
+.hstatus.rated {
   background: rgba(0, 184, 148, 0.12);
   color: var(--green);
 }
@@ -781,7 +783,8 @@
   background: var(--purple);
 }
 
-.hstatus-dot.done {
+.hstatus-dot.done,
+.hstatus-dot.rated {
   background: var(--green);
 }
 

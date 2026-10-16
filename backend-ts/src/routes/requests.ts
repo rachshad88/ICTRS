@@ -7,11 +7,11 @@ import { validateBody } from '../middleware/validate';
 import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema, reopenRequestSchema, verifyMovSchema, returnMovSchema } from '../middleware/validation';
 import { receiveMovPhotos, uploadedMovPhotos, discardMovPhotos, invalidMovPhoto, keepMovPhotos, removeKeptMovPhotos, UnreadableMovPhoto, MOV_MIN_FILES } from '../utils/movUpload';
 import { formatDateTime, todayString, semesterFor } from '../utils/dates';
-import { normalizePriority, parseDueDate, isOverdue, overdueExpr, toDay, OPEN_STATUSES } from '../utils/priority';
+import { normalizePriority, parseDueDate, isOverdue, overdueExpr, toDay, OPEN_STATUSES, COMPLETED_STATUSES } from '../utils/priority';
 import { watchOverdue } from '../utils/overdueAlerts';
 import { liveRequestAdded, liveRequestChanged, liveRequestRemoved } from './live';
 import { notify } from '../utils/notify';
-import { syncRatingStatus, ratingTypeFor } from '../utils/ratingSync';
+import { copyCompleted, removeCopy, ratingTypeFor } from '../utils/ratingSync';
 
 // Where each kind of recipient follows up on an IT request.
 const OWNER_PAGE = '/requested';
@@ -116,7 +116,6 @@ router.post('/send_request', isAuthenticated, validateBody(createRequestSchema),
       return res.status(500).json({ status: 'error', message: 'Failed to generate unique request code' });
     }
 
-    void syncRatingStatus('requests', result.insertedId);
 
     await logAudit(new ObjectId(created_by), req.user!.username, req.user!.primary_role, 'CREATE_REQUEST', 'IT_REQUEST', result.insertedId.toString(), `User ${req.user!.username} created IT request ${request_code}`, { office, issue: sanitizeInput(issue) });
 
@@ -174,7 +173,6 @@ router.post('/accept_request', isAuthenticated, isItAdmin, validateBody(acceptRe
       return res.status(404).json({ status: 'error', message: 'Request not found or already accepted' });
     }
 
-    void syncRatingStatus('requests', result.value._id);
 
     const assignedTo = `${technician.first_name} ${technician.last_name}`;
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'ACCEPT_REQUEST', 'IT_REQUEST', request_id, technician_id === req.user!.user_id
@@ -392,7 +390,6 @@ router.post('/request_finish', isAuthenticated, isItAdminOrTechnician, receiveMo
       return res.status(404).json({ status: 'error', message: 'Request not found or not assigned to you' });
     }
 
-    void syncRatingStatus('requests', result.value._id);
 
     const requestCode = result.value.request_code || 'unknown';
     await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'SUBMIT_MOV', 'IT_REQUEST', request_id, `${req.user!.roles.includes('ADMIN') ? 'Admin' : req.user!.roles.includes('TECHNICIAN') ? 'Technician' : 'IT Admin'} ${req.user!.username} finished request ${requestCode} as ${finished} and sent ${files.length} MOV photo(s) for verification`, { finished, remarks: remarks || null, recommendation: recommendation || null, photos: files.length });
@@ -443,7 +440,7 @@ router.post('/verify_mov', isAuthenticated, validateBody(verifyMovSchema), async
       return res.status(404).json({ status: 'error', message: 'This request is not waiting for verification' });
     }
 
-    void syncRatingStatus('requests', result.value._id);
+    void copyCompleted('requests', result.value._id);
 
     const doc = result.value;
     const requestCode = doc.request_code || 'unknown';
@@ -518,7 +515,6 @@ router.post('/return_mov', isAuthenticated, validateBody(returnMovSchema), async
       return res.status(404).json({ status: 'error', message: 'This request is not waiting for verification' });
     }
 
-    void syncRatingStatus('requests', result.value._id);
 
     const requestCode = result.value.request_code || 'unknown';
     await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'RETURN_MOV', 'IT_REQUEST', request_id, `${req.user!.username} returned the MOV for ${requestCode}: ${reason}`);
@@ -604,8 +600,8 @@ router.post('/reopen_request', isAuthenticated, validateBody(reopenRequestSchema
       return res.status(409).json({ status: 'error', message: 'This request changed in the meantime. Refresh and try again.' });
     }
 
-    void syncRatingStatus('requests', result.value._id);
     const requestCode = result.value.request_code || 'unknown';
+    void removeCopy(result.value.request_code);
     await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'REOPEN_REQUEST', 'IT_REQUEST', request_id,
       `User ${req.user!.username} reopened request ${requestCode} (still not fixed)`, { reason: note.text });
 
@@ -653,7 +649,7 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
     const uid = new ObjectId(user_id);
     const filter: Record<string, unknown> = { _id: new ObjectId(request_id) };
     if (roles.includes('ADMIN') || roles.includes('IT_ADMIN')) {
-      filter.status = { $nin: ['DONE', 'CANCELLED', 'DECLINED'] };
+      filter.status = { $nin: [...COMPLETED_STATUSES, 'CANCELLED', 'DECLINED'] };
     } else {
       filter.$or = [
         { created_by: uid, status: 'PENDING' },
@@ -672,7 +668,6 @@ router.post('/cancel_request', isAuthenticated, validateBody(cancelRequestSchema
       return res.status(404).json({ status: 'error', message: 'Request not found or cannot be cancelled' });
     }
 
-    void syncRatingStatus('requests', result.value._id);
 
     const cancelledCode = result.value.request_code || 'unknown';
     await logAudit(new ObjectId(user_id), req.user!.username, req.user!.primary_role, 'CANCEL_REQUEST', 'IT_REQUEST', request_id, `${req.user!.primary_role} ${req.user!.username} cancelled request ${cancelledCode}`);
@@ -717,7 +712,6 @@ router.post('/decline_request', isAuthenticated, isItAdmin, validateBody(decline
       return res.status(404).json({ status: 'error', message: 'Request not found or already assigned' });
     }
 
-    void syncRatingStatus('requests', result.value._id);
 
     const requestCode = result.value.request_code || 'unknown';
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'DECLINE_REQUEST', 'IT_REQUEST', request_id, `${adminTitle(req)} ${req.user!.username} declined request ${requestCode}: ${reason}`, { reason });
@@ -869,7 +863,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
     }
 
     if (!showDone && !openEarlier) {
-      matchFilter.status = { $ne: 'DONE' };
+      matchFilter.status = { $nin: COMPLETED_STATUSES };
     }
 
     const search = req.query.search as string | undefined;
@@ -926,10 +920,10 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
                   pending_count: { $sum: { $cond: [{ $eq: ['$status', 'PENDING'] }, 1, 0] } },
                   progress_count: { $sum: { $cond: [{ $eq: ['$status', 'IN_PROGRESS'] }, 1, 0] } },
                   verification_count: { $sum: { $cond: [{ $eq: ['$status', 'FOR_VERIFICATION'] }, 1, 0] } },
-                  done_count: { $sum: { $cond: [{ $eq: ['$status', 'DONE'] }, 1, 0] } },
+                  done_count: { $sum: { $cond: [{ $in: ['$status', COMPLETED_STATUSES] }, 1, 0] } },
                   declined_count: { $sum: { $cond: [{ $eq: ['$status', 'DECLINED'] }, 1, 0] } },
-                  repaired_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'repaired'] }] }, 1, 0] } },
-                  beyond_repair_count: { $sum: { $cond: [{ $and: [{ $eq: ['$status', 'DONE'] }, { $eq: ['$finished', 'beyond repair'] }] }, 1, 0] } },
+                  repaired_count: { $sum: { $cond: [{ $and: [{ $in: ['$status', COMPLETED_STATUSES] }, { $eq: ['$finished', 'repaired'] }] }, 1, 0] } },
+                  beyond_repair_count: { $sum: { $cond: [{ $and: [{ $in: ['$status', COMPLETED_STATUSES] }, { $eq: ['$finished', 'beyond repair'] }] }, 1, 0] } },
                   urgent_count: { $sum: { $cond: [{ $and: [{ $in: ['$status', OPEN_STATUSES] }, { $eq: ['$priority', 'URGENT'] }] }, 1, 0] } },
                   overdue_count: { $sum: { $cond: [overdueExpr('$due_date'), 1, 0] } }
                 }
@@ -1149,7 +1143,7 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
       pending_count: countsResult.find(c => c._id === 'PENDING')?.count || 0,
       progress_count: countsResult.find(c => c._id === 'IN_PROGRESS')?.count || 0,
       verification_count: countsResult.find(c => c._id === 'FOR_VERIFICATION')?.count || 0,
-      done_count: countsResult.find(c => c._id === 'DONE')?.count || 0,
+      done_count: countsResult.filter(c => COMPLETED_STATUSES.includes(c._id)).reduce((n, c) => n + c.count, 0),
       declined_count: countsResult.find(c => c._id === 'DECLINED')?.count || 0
     };
     

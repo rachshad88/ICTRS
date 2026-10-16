@@ -15,6 +15,7 @@ import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
 import { NotesList, DeclineReason, AddNoteForm, RequestNote, StaffReport } from './RequestNotes';
 import SearchBox from './SearchBox';
+import { isCompleted } from '../lib/status';
 
 export interface ColumnDef {
   key: string;
@@ -261,7 +262,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
               request={selectedRequest}
               assigneeName={selectedRequest.assignedTechnician?.[0] ? `${selectedRequest.assignedTechnician[0].first_name} ${selectedRequest.assignedTechnician[0].last_name}` : null}
             />
-            {selectedRequest.status === 'DONE' && (
+            {isCompleted(selectedRequest.status) && (
               <StaffReport
                 title="Staff report"
                 remarks={selectedRequest.remarks}

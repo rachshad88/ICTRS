@@ -80,6 +80,7 @@ const STATUSES = [
   { status: 'UNASSIGNED', meaning: 'Same as Pending. Multimedia requests use this label before someone is assigned.' },
   { status: 'IN_PROGRESS', meaning: 'Someone has been assigned and is working on it. The Assigned To column shows who; if the team moves it to another staff member, the name updates on its own.' },
   { status: 'DONE', meaning: 'Finished. On IT History this shows as Completed, along with whether the unit was Repaired or is Beyond Repair.' },
+  { status: 'RATED', meaning: 'Done, and you have rated it. Thank you for your feedback. A rated request cannot be rated again or reopened.' },
   { status: 'DECLINED', meaning: 'The team could not take this request, for example because of a schedule conflict or because it is outside what they handle. Open the request to read the reason.' },
   { status: 'CANCELLED', meaning: 'You cancelled the request. No further action will be taken.' },
 ];
@@ -417,7 +418,7 @@ function ClientGuide() {
               </div>
               <div>
                 <h3>Rate</h3>
-                <p>When a request is Done, select <strong>Rate</strong> to open the client satisfaction feedback form in a new tab. Your rating helps the team improve its service.</p>
+                <p>When a request is Done, select <strong>Rate</strong> to open the client satisfaction feedback form in a new tab. Your rating helps the team improve its service. Once you have rated it, the request shows as Rated and the button goes away.</p>
               </div>
             </div>
           </Section>

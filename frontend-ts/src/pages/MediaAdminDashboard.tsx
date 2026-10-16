@@ -253,6 +253,9 @@ function MediaAdminDashboard() {
     if (r.status === 'DONE') {
       return <span className="hstatus done"><span className="hstatus-dot done" />Done</span>;
     }
+    if (r.status === 'RATED') {
+      return <span className="hstatus rated"><span className="hstatus-dot rated" />Rated</span>;
+    }
     if (r.status === 'DECLINED') {
       return <button className="hbtn hbtn-view" onClick={() => setDetailTarget(r)}>View reason</button>;
     }
@@ -279,7 +282,7 @@ function MediaAdminDashboard() {
         <button type="button" className="code-link" onClick={(e) => { e.stopPropagation(); setDetailTarget(r); }}>
           {r.request_code}
         </button>
-        <RequestFlags priority={r.priority} overdue={r.overdue} due={r.due} reopened={!!r.reopened_at && !['DONE', 'CANCELLED', 'DECLINED'].includes(r.status)} />
+        <RequestFlags priority={r.priority} overdue={r.overdue} due={r.due} reopened={!!r.reopened_at && !['DONE', 'RATED', 'CANCELLED', 'DECLINED'].includes(r.status)} />
       </td>
       <td className="td-cell" data-label="Type">{TYPES[r.type]?.label ?? r.type}</td>
       <td className="it-issue" data-label="Request" title={[r.title, r.detail].filter(Boolean).join(', ')}>

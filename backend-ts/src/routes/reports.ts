@@ -11,6 +11,7 @@ import { formatDateTime, todayString } from '../utils/dates';
 const router = Router();
 
 import { Role } from '../config/database';
+import { COMPLETED_STATUSES } from '../utils/priority';
 
 interface TypeConfig {
   getCollection: () => Collection<Document>;
@@ -98,7 +99,7 @@ function buildFilter(
   const filter: Record<string, unknown> = { created_at: dateFilter };
 
   if (!showDone) {
-    filter.status = { $ne: 'DONE' };
+    filter.status = { $nin: COMPLETED_STATUSES };
   }
 
   if (search && typeKey) {

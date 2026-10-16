@@ -7,8 +7,8 @@
 // missing, and running it again resets the rating_app password to the one you type.
 //
 // Afterwards:
-//   itrs_app   (ITRS backend)    readWrite on itrs_rating: keeps request_status current, backs up the database.
-//   rating_app (rating system)   read request_status; read and write ratings. Cannot change statuses.
+//   itrs_app   (ITRS backend)    readWrite on itrs_rating: copies completed requests into `requests`, backs up the database.
+//   rating_app (rating system)   read `requests` and mark them RATED; read and write ratings. Cannot add or delete requests.
 
 var RATING_DB = 'itrs_rating';
 var ratingDb = db.getSiblingDB(RATING_DB);
@@ -28,9 +28,10 @@ if (hasRating) {
   print('Granted itrs_app readWrite on ' + RATING_DB);
 }
 
-// 2. A role for the rating system: read statuses, own the ratings collection.
+// 2. A role for the rating system: read the completed requests ITRS copies into `requests` and mark them
+//    RATED (update), and own the ratings collection.
 var privileges = [
-  { resource: { db: RATING_DB, collection: 'request_status' }, actions: ['find'] },
+  { resource: { db: RATING_DB, collection: 'requests' }, actions: ['find', 'update'] },
   {
     resource: { db: RATING_DB, collection: 'ratings' },
     actions: ['find', 'insert', 'update', 'remove', 'createCollection', 'createIndex', 'listIndexes'],
@@ -61,6 +62,6 @@ if (ratingDb.getUser('rating_app')) {
 }
 
 print('');
-print('Done. Restart the ITRS backend (sudo pm2 restart backend); it fills request_status within a minute.');
+print('Done. Restart the ITRS backend (sudo pm2 restart backend); it copies the completed requests within a minute.');
 print('Give the rating system this connection string (URL-encode the password if it has symbols):');
 print('mongodb://rating_app:<password>@192.168.110.28:27017/' + RATING_DB + '?authSource=' + RATING_DB);

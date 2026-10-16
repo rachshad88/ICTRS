@@ -130,6 +130,9 @@ function Dashboard() {
     if (req.status === 'DONE') {
       return <span className="hstatus done"><span className="hstatus-dot done" />Done</span>;
     }
+    if (req.status === 'RATED') {
+      return <span className="hstatus rated"><span className="hstatus-dot rated" />Rated</span>;
+    }
     if (req.status === 'DECLINED') {
       return <span className="hstatus declined"><span className="hstatus-dot declined" />Declined</span>;
     }

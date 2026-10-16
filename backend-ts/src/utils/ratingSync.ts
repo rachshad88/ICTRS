@@ -1,21 +1,26 @@
 import { AnyBulkWriteOperation, Db, ObjectId } from 'mongodb';
-import { client, db } from '../config/database';
+import { client, db, logAudit } from '../config/database';
+import { getIO } from '../config/socket';
 
 /**
- * Keeps the shared rating database (RATING_DB, default "itrs_rating") in step with request statuses.
- * The client satisfaction (rating) system reads `request_status` to see which requests exist and are DONE,
- * and stores its own ratings in `ratings`; ITRS never touches that collection. See deploy/RATING_DB.md.
+ * The link with the client satisfaction (CSF) rating system, through the shared database RATING_DB
+ * (default "itrs_rating"). See deploy/RATING_DB.md.
  *
- * ITRS writes here in two ways:
- *  - syncRatingStatus() right after a request's status changes, so a just-finished request can be rated at once;
- *  - reconcileRatingStatus() at startup and every RECONCILE_MS, which re-copies every request. That fills the
- *    database the first time and repairs anything a failed or missed write left behind.
- * Failures are logged and swallowed: rating sync must never break submitting or finishing a request.
+ *  1. When a request is completed, ITRS copies it into `requests` there as { request_code, status: 'DONE' }
+ *     (copyCompleted, right after finishing; backfillCompleted at startup and every BACKFILL_MS, which also
+ *     copies requests finished before this existed and repairs a missed write).
+ *  2. After the client rates it, the CSF sets that row's status to 'RATED'.
+ *  3. ITRS checks for rated rows every PULL_MS (pullRatings) and marks its own request RATED.
+ *
+ * ITRS only ever inserts rows ($setOnInsert), so it never undoes the CSF's 'RATED'. And it only takes a
+ * request from DONE to RATED, whatever else the CSF might write. Failures are logged and swallowed: the
+ * link must never break finishing a request.
  */
 
 const RATING_DB = process.env.RATING_DB || 'itrs_rating';
-const STATUS_COLLECTION = 'request_status';
-const RECONCILE_MS = 10 * 60 * 1000;
+const COPIES = 'requests';
+const BACKFILL_MS = 10 * 60 * 1000;
+const PULL_MS = 15 * 1000;
 
 // ITRS collection -> the `type` the Rate button sends to the rating system.
 const REQUEST_TYPES: Record<string, string> = {
@@ -25,18 +30,29 @@ const REQUEST_TYPES: Record<string, string> = {
   print_materials_requests: 'print_materials',
 };
 
+// Where to tell the screens that a request was rated: IT requests use request_update, the media
+// services their own `<prefix>_request_*` events (frontend services/queryClient.ts).
+const SOCKET_PREFIX: Record<string, string> = {
+  multimedia_requests: 'multimedia',
+  digital_media_requests: 'digital_media',
+  print_materials_requests: 'print_materials',
+};
+const AUDIT_ENTITY: Record<string, string> = {
+  requests: 'IT_REQUEST',
+  multimedia_requests: 'MULTIMEDIA',
+  digital_media_requests: 'DIGITAL_MEDIA',
+  print_materials_requests: 'PRINT_MATERIALS',
+};
+
 // The rating system's `type` for a request stored in the given ITRS collection.
 export function ratingTypeFor(collectionName: string): string | undefined {
   return REQUEST_TYPES[collectionName];
 }
 
-export interface RequestStatusDoc {
-  _id: string; // the request's ObjectId as hex, same as request_id
-  request_id: string;
+/** A request's row in the rating database: its code and status, nothing else. */
+export interface RatingCopy {
   request_code: string;
-  type: string;
-  status: string;
-  updated_at: Date;
+  status: 'DONE' | 'RATED' | string;
 }
 
 let disabledLogged = false;
@@ -61,76 +77,126 @@ function logFailure(action: string, error: unknown) {
   console.error(`Rating sync: ${action} failed:`, error);
 }
 
-function toStatusDoc(collectionName: string, request: { _id: ObjectId; request_code: string; status: string }): RequestStatusDoc {
-  const id = request._id.toHexString();
-  return {
-    _id: id,
-    request_id: id,
-    request_code: request.request_code,
-    type: REQUEST_TYPES[collectionName],
-    status: request.status,
-    updated_at: new Date(),
-  };
-}
+const insertOnly = (request_code: string): AnyBulkWriteOperation<RatingCopy> => ({
+  updateOne: {
+    filter: { request_code },
+    update: { $setOnInsert: { request_code, status: 'DONE' } },
+    upsert: true,
+  },
+});
 
-/**
- * Copies one request's current status into the rating database. Call after any write that changes status
- * (create, assign, finish, cancel, decline). Fire and forget: `void syncRatingStatus(...)`.
- */
-export async function syncRatingStatus(collectionName: string, requestId: string | ObjectId | null | undefined): Promise<void> {
+/** Copies a just-completed request into the rating database. Fire and forget: `void copyCompleted(...)`. */
+export async function copyCompleted(collectionName: string, requestId: string | ObjectId | null | undefined): Promise<void> {
   const target = ratingDb();
   if (!target || !requestId || !REQUEST_TYPES[collectionName]) return;
   try {
     const _id = typeof requestId === 'string' ? new ObjectId(requestId) : requestId;
-    const request = await db.collection(collectionName).findOne(
-      { _id },
-      { projection: { request_code: 1, status: 1 } }
-    );
-    if (!request) return;
-    const { _id: statusId, ...fields } = toStatusDoc(collectionName, request as never);
-    await target.collection<RequestStatusDoc>(STATUS_COLLECTION).updateOne({ _id: statusId }, { $set: fields }, { upsert: true });
+    const request = await db.collection(collectionName).findOne({ _id, status: 'DONE' }, { projection: { request_code: 1 } });
+    if (!request?.request_code) return;
+    await target.collection<RatingCopy>(COPIES).bulkWrite([insertOnly(request.request_code)]);
     disabledLogged = false;
   } catch (error) {
-    logFailure(`syncing ${collectionName} ${String(requestId)}`, error);
+    logFailure(`copying ${collectionName} ${String(requestId)}`, error);
   }
 }
 
-/** Re-copies every request's status. Only writes rows whose status or code changed. */
-export async function reconcileRatingStatus(): Promise<void> {
+/**
+ * Takes a reopened request back out of the rating database, so it can't be rated while being worked on
+ * again; finishing it copies it back. A row the CSF already marked RATED stays.
+ */
+export async function removeCopy(requestCode: string | null | undefined): Promise<void> {
+  const target = ratingDb();
+  if (!target || !requestCode) return;
+  try {
+    await target.collection<RatingCopy>(COPIES).deleteOne({ request_code: requestCode, status: 'DONE' });
+  } catch (error) {
+    logFailure(`removing ${requestCode}`, error);
+  }
+}
+
+/** Copies every completed request that isn't in the rating database yet. Never changes a row there. */
+export async function backfillCompleted(): Promise<void> {
   const target = ratingDb();
   if (!target) return;
   try {
-    const statuses = target.collection<RequestStatusDoc>(STATUS_COLLECTION);
-    await statuses.createIndex({ request_code: 1 });
+    const copies = target.collection<RatingCopy>(COPIES);
+    await copies.createIndex({ request_code: 1 }, { unique: true });
+    const have = new Set<string>();
+    for await (const row of copies.find({}, { projection: { _id: 0, request_code: 1 } })) have.add(row.request_code);
 
-    const existing = new Map<string, { status: string; request_code: string }>();
-    for await (const row of statuses.find({}, { projection: { status: 1, request_code: 1 } })) {
-      existing.set(row._id, row);
-    }
-
-    const ops: AnyBulkWriteOperation<RequestStatusDoc>[] = [];
+    const ops: AnyBulkWriteOperation<RatingCopy>[] = [];
     for (const collectionName of Object.keys(REQUEST_TYPES)) {
-      const cursor = db.collection(collectionName).find({}, { projection: { request_code: 1, status: 1 } });
-      for await (const request of cursor) {
-        const { _id: statusId, ...fields } = toStatusDoc(collectionName, request as never);
-        const current = existing.get(statusId);
-        if (current && current.status === fields.status && current.request_code === fields.request_code) continue;
-        ops.push({ updateOne: { filter: { _id: statusId }, update: { $set: fields }, upsert: true } });
+      for await (const r of db.collection(collectionName).find({ status: 'DONE' }, { projection: { request_code: 1 } })) {
+        if (r.request_code && !have.has(r.request_code)) ops.push(insertOnly(r.request_code));
       }
     }
     if (ops.length > 0) {
-      await statuses.bulkWrite(ops, { ordered: false });
-      console.log(`Rating sync: updated ${ops.length} request status record(s) in "${RATING_DB}"`);
+      await copies.bulkWrite(ops, { ordered: false });
+      console.log(`Rating sync: copied ${ops.length} completed request(s) into "${RATING_DB}"`);
     }
     disabledLogged = false;
   } catch (error) {
-    logFailure('reconcile', error);
+    logFailure('backfill', error);
   }
 }
 
-/** Starts the startup copy and the periodic repair. Call once after connectDB(). */
+// Codes already marked RATED in ITRS, so each check only looks at new ones.
+const applied = new Set<string>();
+
+/** Marks requests RATED in ITRS once the CSF has set their row to RATED. */
+export async function pullRatings(): Promise<void> {
+  const target = ratingDb();
+  if (!target) return;
+  try {
+    const rated: string[] = [];
+    for await (const row of target.collection<RatingCopy>(COPIES).find({ status: 'RATED' }, { projection: { _id: 0, request_code: 1 } })) {
+      if (typeof row.request_code === 'string' && !applied.has(row.request_code)) rated.push(row.request_code);
+    }
+    if (rated.length === 0) return;
+
+    for (const collectionName of Object.keys(REQUEST_TYPES)) {
+      const collection = db.collection(collectionName);
+      // Already RATED (e.g. marked before a restart): nothing to do, just remember them.
+      for await (const r of collection.find({ request_code: { $in: rated }, status: 'RATED' }, { projection: { request_code: 1 } })) {
+        applied.add(r.request_code);
+      }
+      for await (const r of collection.find({ request_code: { $in: rated }, status: 'DONE' }, { projection: { request_code: 1, created_by: 1 } })) {
+        const now = new Date();
+        const res = await collection.updateOne({ _id: r._id, status: 'DONE' }, { $set: { status: 'RATED', rated_at: now } });
+        applied.add(r.request_code);
+        if (res.modifiedCount === 0) continue;
+        await logAudit(
+          r.created_by instanceof ObjectId ? r.created_by : new ObjectId(),
+          'Rating system', 'SYSTEM', 'RATE_REQUEST', AUDIT_ENTITY[collectionName], r._id.toHexString(),
+          `${r.request_code} was rated by its requester`,
+        );
+        tellScreens(collectionName, r._id.toHexString(), r.request_code, r.created_by?.toString());
+      }
+    }
+    disabledLogged = false;
+  } catch (error) {
+    logFailure('checking ratings', error);
+  }
+}
+
+function tellScreens(collectionName: string, requestId: string, requestCode: string, ownerId?: string) {
+  let io;
+  try { io = getIO(); } catch { return; }
+  if (!io) return;
+  const owner = ownerId ? [`user_${ownerId}`] : [];
+  const payload = { request_id: requestId, request_code: requestCode, status: 'RATED' };
+  const prefix = SOCKET_PREFIX[collectionName];
+  if (prefix) {
+    io.to(['admins', 'multimedia_staff', ...owner]).emit(`${prefix}_request_rated`, payload);
+  } else {
+    io.to(['technicians', 'super_admins', ...owner]).emit('request_update', { event: 'rated', ...payload, timestamp: new Date() });
+  }
+}
+
+/** Starts the startup copy, the periodic repair and the rating check. Call once after connectDB(). */
 export function startRatingSync(): void {
   if (process.env.RATING_SYNC === 'off') return;
-  void reconcileRatingStatus();
-  setInterval(() => { void reconcileRatingStatus(); }, RECONCILE_MS).unref();
+  void backfillCompleted().then(pullRatings);
+  setInterval(() => { void backfillCompleted(); }, BACKFILL_MS).unref();
+  setInterval(() => { void pullRatings(); }, PULL_MS).unref();
 }

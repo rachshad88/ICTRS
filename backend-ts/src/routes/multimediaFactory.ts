@@ -6,7 +6,7 @@ import fs from 'fs';
 import { AuthenticatedRequest, isAuthenticated, isMultimediaAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { assignMultimediaSchema, assignWithPrioritySchema, completeMultimediaSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema } from '../middleware/validation';
-import { normalizePriority, priorityExpr, overdueExpr, toDay } from '../utils/priority';
+import { normalizePriority, priorityExpr, overdueExpr, toDay, COMPLETED_STATUSES } from '../utils/priority';
 import { watchOverdue } from '../utils/overdueAlerts';
 import { formatDateTime } from '../utils/dates';
 import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId } from '../config/database';
@@ -16,7 +16,7 @@ import { ZodIssue, ZodTypeAny } from 'zod';
 import { validateFileMagicBytes, mimeTypeForFilename, extensionsForMimeTypes } from '../utils/fileValidation';
 import { LiveLane, liveRequestAdded, liveRequestChanged, liveRequestRemoved } from './live';
 import { notify } from '../utils/notify';
-import { syncRatingStatus, ratingTypeFor } from '../utils/ratingSync';
+import { copyCompleted, ratingTypeFor } from '../utils/ratingSync';
 
 interface ColumnDef {
   header: string;
@@ -288,7 +288,6 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(500).json({ status: 'error', message: 'Failed to generate unique request code' });
       }
 
-      void syncRatingStatus(config.collectionName, result.insertedId);
 
       await logAudit(
         new ObjectId(userId), req.user!.username, req.user!.primary_role,
@@ -442,7 +441,6 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(400).json({ error: 'This request is no longer waiting to be assigned. Refresh the list.' });
       }
 
-      void syncRatingStatus(config.collectionName, result.value._id);
 
       const requestCode = result.value.request_code || 'unknown';
       const assignedTo = `${technician.first_name} ${technician.last_name}`;
@@ -683,7 +681,7 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(404).json({ error: 'Request not found or not assigned to you' });
       }
 
-      void syncRatingStatus(config.collectionName, result.value._id);
+      void copyCompleted(config.collectionName, result.value._id);
 
       const requestCode = result.value.request_code || 'unknown';
       await logAudit(
@@ -827,7 +825,7 @@ export function createRequestRouter(config: RouteConfig): Router {
 
       const filter: Record<string, any> = { _id: new ObjectId(request_id) };
       if (isAdmin) {
-        filter.status = { $nin: ['DONE', 'CANCELLED', 'DECLINED'] };
+        filter.status = { $nin: [...COMPLETED_STATUSES, 'CANCELLED', 'DECLINED'] };
       } else {
         filter.$or = [
           ...(isOwner ? [{ created_by: uid, status: ownerStatus }] : []),
@@ -845,7 +843,6 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(400).json({ error: 'Request cannot be cancelled' });
       }
 
-      void syncRatingStatus(config.collectionName, result.value._id);
 
       const requestCode = result.value.request_code || 'unknown';
       await logAudit(
@@ -892,7 +889,6 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(404).json({ error: 'Request not found or already assigned' });
       }
 
-      void syncRatingStatus(config.collectionName, result.value._id);
 
       const requestCode = result.value.request_code || 'unknown';
       await logAudit(

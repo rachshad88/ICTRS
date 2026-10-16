@@ -75,7 +75,8 @@ const STATUS_OPTIONS = [
   { value: 'PENDING', label: 'Pending / Unassigned' },
   { value: 'IN_PROGRESS', label: 'In progress' },
   { value: 'FOR_VERIFICATION', label: 'For verification (IT)' },
-  { value: 'DONE', label: 'Done' },
+  { value: 'DONE', label: 'Done (rated or not)' },
+  { value: 'RATED', label: 'Rated' },
   { value: 'DECLINED', label: 'Declined' },
   { value: 'CANCELLED', label: 'Cancelled' },
 ];

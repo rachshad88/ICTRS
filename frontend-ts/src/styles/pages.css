@@ -378,7 +378,7 @@ yt-card-header.pm {
 
 .yt-status-dot.pending { background: #f59e0b; box-shadow: 0 0 4px #f59e0b; }
 .yt-status-dot.in-progress { background: var(--purple); box-shadow: 0 0 4px var(--purple); }
-.yt-status-dot.done { background: #10b981; box-shadow: 0 0 4px #10b981; }
+.yt-status-dot.done, .yt-status-dot.rated { background: #10b981; box-shadow: 0 0 4px #10b981; }
 .yt-status-dot.cancelled { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
 
 .yt-card-body {
@@ -733,6 +733,7 @@ yt-channel-avatar.pm { background: #047857; }
 }
 
 .mobile-request-status.done,
+.mobile-request-status.rated,
 .mobile-request-status.completed {
   background: rgba(16, 185, 129, 0.22);
 }

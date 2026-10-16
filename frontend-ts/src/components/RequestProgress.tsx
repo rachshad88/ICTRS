@@ -5,6 +5,8 @@
 // accepted_at and cancelled_at exist since 2026-10-09; older requests had them copied from the
 // audit log, and where the log had nothing the step is still shown as reached, just without a time.
 
+import { isCompleted } from '../lib/status';
+
 export interface ProgressTimes {
   status: string;
   created_at?: string | null;
@@ -15,6 +17,8 @@ export interface ProgressTimes {
   /** "Still not fixed": when the client sent it back, and when it had been marked done before. */
   reopened_at?: string | null;
   previously_completed_at?: string | null;
+  /** When the requester rated it in the rating system (status RATED). */
+  rated_at?: string | null;
 }
 
 type StepState = 'done' | 'current' | 'upcoming' | 'declined' | 'cancelled' | 'reopened';
@@ -48,7 +52,7 @@ function formatGap(from: string, to: string): string | null {
 function buildSteps(r: ProgressTimes, assigneeName?: string | null): Step[] {
   const steps: Step[] = [{ label: 'Submitted', at: r.created_at, state: 'done' }];
   const waiting = WAITING.includes(r.status);
-  const accepted = !!r.accepted_at || r.status === 'IN_PROGRESS' || r.status === 'FOR_VERIFICATION' || r.status === 'DONE';
+  const accepted = !!r.accepted_at || r.status === 'IN_PROGRESS' || r.status === 'FOR_VERIFICATION' || isCompleted(r.status);
 
   if (accepted) {
     steps.push({ label: 'Accepted', at: r.accepted_at, state: 'done', note: assigneeName ? `Handled by ${assigneeName}` : undefined });
@@ -61,8 +65,9 @@ function buildSteps(r: ProgressTimes, assigneeName?: string | null): Step[] {
     steps.push({ label: 'Reopened', at: r.reopened_at, state: 'reopened', note: 'Sent back as still not fixed' });
   }
 
-  if (r.status === 'DONE') {
+  if (isCompleted(r.status)) {
     steps.push({ label: 'Done', at: r.completed_at, state: 'done' });
+    if (r.status === 'RATED') steps.push({ label: 'Rated', at: r.rated_at, state: 'done', note: 'Thank you for your feedback' });
   } else if (r.status === 'DECLINED') {
     steps.push({ label: 'Declined', at: r.declined_at, state: 'declined' });
   } else if (r.status === 'CANCELLED') {

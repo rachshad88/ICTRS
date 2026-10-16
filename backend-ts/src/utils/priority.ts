@@ -5,6 +5,10 @@ export type Priority = typeof PRIORITIES[number];
 // FOR_VERIFICATION (IT only): finished by the technician, waiting for an IT admin to check the MOV.
 export const OPEN_STATUSES = ['PENDING', 'UNASSIGNED', 'IN_PROGRESS', 'FOR_VERIFICATION'];
 
+// Statuses of a finished request. RATED: done, and the requester has rated it in the rating system
+// (utils/ratingSync.ts). Wherever "done" is counted or filtered, both count.
+export const COMPLETED_STATUSES = ['DONE', 'RATED'];
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // Requests created before priorities existed have no field; they count as NORMAL.

@@ -13,6 +13,7 @@ import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
 import { NotesList, DeclineReason, StaffReport, AddNoteForm, ReopenForm, canReopen, RequestNote } from '../components/RequestNotes';
 import SearchBox from '../components/SearchBox';
+import { isCompleted } from '../lib/status';
 
 
 interface MyRequest {
@@ -63,6 +64,7 @@ const STATUS_LABELS: Record<string, string> = {
   IN_PROGRESS: 'In Progress',
   FOR_VERIFICATION: 'For Verification',
   DONE: 'Completed',
+  RATED: 'Rated',
   CANCELLED: 'Cancelled',
   DECLINED: 'Declined',
 };
@@ -213,17 +215,20 @@ function Requested() {
                             Cancel
                           </button>
                         )}
-                        {req.status === 'DONE' && (
+                        {isCompleted(req.status) && (
                           <span className="req-actions">
                             <span className={`status-badge ${req.finished === 'repaired' ? 'badge-repaired' : 'badge-beyond-repair'}`}>
                               {req.finished === 'repaired' ? 'Repaired' : 'Beyond Repair'}
                             </span>
-                            <button 
-                              className="btn-rate"
-                              onClick={() => openRating(req._id, req.request_code, 'it_request')}
-                            >
-                              Rate
-                            </button>
+                            {/* Once rated, the rating system won't take another, so the button goes. */}
+                            {req.status === 'DONE' && (
+                              <button 
+                                className="btn-rate"
+                                onClick={() => openRating(req._id, req.request_code, 'it_request')}
+                              >
+                                Rate
+                              </button>
+                            )}
                           </span>
                         )}
                         </span>
@@ -248,7 +253,7 @@ function Requested() {
                 <p><strong>Issue:</strong> {selectedRequest.issue}</p>
               </div>
               <RequestProgress request={selectedRequest} />
-              {(selectedRequest.status === 'DONE' || selectedRequest.status === 'FOR_VERIFICATION') && (
+              {(isCompleted(selectedRequest.status) || selectedRequest.status === 'FOR_VERIFICATION') && (
                 <StaffReport
                   title="Technician's report"
                   result={selectedRequest.finished === 'repaired' ? 'Repaired' : 'Beyond Repair'}

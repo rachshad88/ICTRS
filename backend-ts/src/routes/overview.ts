@@ -6,7 +6,7 @@ import {
   getPrintMaterialsRequestsCollection, isValidObjectId, Role
 } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
-import { PRIORITIES, OPEN_STATUSES, priorityExpr, priorityRankExpr, overdueExpr, toDay } from '../utils/priority';
+import { PRIORITIES, OPEN_STATUSES, COMPLETED_STATUSES, priorityExpr, priorityRankExpr, overdueExpr, toDay } from '../utils/priority';
 
 // One combined, filterable list of every request type an admin is responsible for.
 // IT admins see IT requests, multimedia admins see the three media types, and ADMIN sees all.
@@ -52,7 +52,8 @@ const STATUS_FILTERS: Record<string, unknown> = {
   PENDING: { $in: ['PENDING', 'UNASSIGNED'] },
   IN_PROGRESS: 'IN_PROGRESS',
   FOR_VERIFICATION: 'FOR_VERIFICATION',
-  DONE: 'DONE',
+  DONE: { $in: COMPLETED_STATUSES },
+  RATED: 'RATED',
   DECLINED: 'DECLINED',
   CANCELLED: 'CANCELLED'
 };
@@ -228,7 +229,7 @@ router.get('/requests', isAuthenticated, isOverviewAdmin, async (req: Authentica
                 unassigned: { $sum: { $cond: [{ $and: [{ $in: ['$status', OPEN_STATUSES] }, { $eq: ['$assigned_to', null] }] }, 1, 0] } },
                 urgent_open: { $sum: { $cond: [{ $and: [{ $in: ['$status', OPEN_STATUSES] }, { $eq: ['$priority', 'URGENT'] }] }, 1, 0] } },
                 overdue: { $sum: { $cond: ['$overdue', 1, 0] } },
-                done: { $sum: { $cond: [{ $eq: ['$status', 'DONE'] }, 1, 0] } },
+                done: { $sum: { $cond: [{ $in: ['$status', COMPLETED_STATUSES] }, 1, 0] } },
                 // Per-status counts for the media assign dashboard's counter strip.
                 waiting: { $sum: { $cond: [{ $in: ['$status', ['PENDING', 'UNASSIGNED']] }, 1, 0] } },
                 in_progress: { $sum: { $cond: [{ $eq: ['$status', 'IN_PROGRESS'] }, 1, 0] } },

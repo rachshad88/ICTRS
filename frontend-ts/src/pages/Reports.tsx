@@ -14,6 +14,7 @@ import PeriodDates from '../components/PeriodDates';
 import { DateField, DateRangeField } from '../components/DateField';
 import { usePeriodFilter } from '../lib/periods';
 import Select from '../components/Select';
+import { isCompleted } from '../lib/status';
 
 interface Column {
   key: string;
@@ -342,8 +343,8 @@ function Reports() {
             printStatusScope === 'all'
               ? true
               : printStatusScope === 'done'
-                ? status === 'DONE'
-                : status !== 'DONE';
+                ? isCompleted(status)
+                : !isCompleted(status);
 
           if (!matchesStatus) return;
 
@@ -428,7 +429,7 @@ function Reports() {
 
   const renderStatus = (status: unknown) => {
     const s = String(status || '');
-    const cls = s === 'DONE' ? 'done' : s === 'CANCELLED' ? 'cancelled' : s === 'DECLINED' ? 'declined' : 'pending';
+    const cls = s === 'DONE' ? 'done' : s === 'RATED' ? 'rated' : s === 'CANCELLED' ? 'cancelled' : s === 'DECLINED' ? 'declined' : 'pending';
     return (
       <span className={`hstatus ${cls}`}>
         <span className={`hstatus-dot ${cls}`} />

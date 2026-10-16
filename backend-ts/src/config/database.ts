@@ -75,7 +75,8 @@ export interface Request extends DeclineAndNotes, PriorityAndDue {
   issue: string;
   // FOR_VERIFICATION: the technician finished and sent their MOV photos; an IT admin approves it (DONE)
   // or returns it (back to IN_PROGRESS). See routes/requests.ts request_finish, verify_mov, return_mov.
-  status: 'PENDING' | 'IN_PROGRESS' | 'FOR_VERIFICATION' | 'DONE' | 'CANCELLED' | 'DECLINED';
+  // RATED: done and rated by the requester (utils/ratingSync.ts).
+  status: 'PENDING' | 'IN_PROGRESS' | 'FOR_VERIFICATION' | 'DONE' | 'RATED' | 'CANCELLED' | 'DECLINED';
   assigned_to: ObjectId | null;
   finished: 'repaired' | 'beyond repair' | null;
   remarks: string | null;
@@ -111,7 +112,7 @@ export interface MultimediaRequest extends DeclineAndNotes, PriorityAndDue {
   location_type: 'Within the LGU Solano Compound' | 'Within Solano, but outside the LGU Solano Compound' | 'Within Nueva Vizcaya, but outside Solano' | 'Outside of Nueva Vizcaya';
   contact_number: string;
   program_file: string | null;
-  status: 'UNASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'DECLINED';
+  status: 'UNASSIGNED' | 'IN_PROGRESS' | 'DONE' | 'RATED' | 'CANCELLED' | 'DECLINED';
   remarks: string | null;
   recommendation: string | null;
   created_at: Date;
@@ -132,7 +133,7 @@ export interface DigitalMediaRequest extends DeclineAndNotes, PriorityAndDue {
   requestor_name: string;
   requestor_contact: string;
   supporting_files: string[];
-  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'DECLINED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'RATED' | 'CANCELLED' | 'DECLINED';
   remarks: string | null;
   created_at: Date;
   completed_at: Date | null;
@@ -188,7 +189,7 @@ export interface PrintMaterialsRequest extends DeclineAndNotes, PriorityAndDue {
   requestor_name: string;
   requestor_contact: string;
   supporting_files: string[];
-  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | 'DECLINED';
+  status: 'PENDING' | 'IN_PROGRESS' | 'DONE' | 'RATED' | 'CANCELLED' | 'DECLINED';
   remarks: string | null;
   created_at: Date;
   completed_at: Date | null;

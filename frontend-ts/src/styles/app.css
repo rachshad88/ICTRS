@@ -696,7 +696,9 @@
 }
 
 .app-main .hstatus.done,
+.app-main .hstatus.rated,
 .app-main .badge-done,
+.app-main .badge-rated,
 .app-main .badge-repaired {
   background: transparent;
   color: #12825d;

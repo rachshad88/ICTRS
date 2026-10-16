@@ -32,6 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
   IN_PROGRESS: 'In Progress',
   FOR_VERIFICATION: 'For Verification',
   DONE: 'Completed',
+  RATED: 'Rated',
   NOT_APPROVED: 'Not Approved',
   CANCELLED: 'Cancelled',
   DECLINED: 'Declined',
@@ -44,7 +45,7 @@ const COLUMNS: Array<{ key: string; label: string; statuses: string[] }> = [
   { key: 'waiting', label: 'Waiting', statuses: ['PENDING', 'UNASSIGNED'] },
   { key: 'active', label: 'In progress', statuses: ['ASSIGNED', 'IN_PROGRESS'] },
   { key: 'verify', label: 'For verification', statuses: ['FOR_VERIFICATION'] },
-  { key: 'done', label: 'Done', statuses: ['DONE'] },
+  { key: 'done', label: 'Done', statuses: ['DONE', 'RATED'] },
   { key: 'closed', label: 'Closed', statuses: ['CANCELLED', 'DECLINED', 'NOT_APPROVED'] },
 ];
 
@@ -128,7 +129,7 @@ function AdminDashboard() {
   const getStatusClass = (s: string) => {
     const map: Record<string, string> = {
       PENDING: 'pending', ASSIGNED: 'pending', UNASSIGNED: 'pending',
-      IN_PROGRESS: 'in-progress', FOR_VERIFICATION: 'for-verification', DONE: 'done',
+      IN_PROGRESS: 'in-progress', FOR_VERIFICATION: 'for-verification', DONE: 'done', RATED: 'rated',
       NOT_APPROVED: 'cancelled', CANCELLED: 'cancelled', DECLINED: 'declined',
     };
     return map[s] || 'pending';
