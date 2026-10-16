@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { PriorityField, Priority } from '../components/Priority';
 import { DateField } from '../components/DateField';
+import { TimeField } from '../components/TimeField';
 import Select from '../components/Select';
 
 
@@ -153,22 +154,22 @@ function MultimediaRequest() {
             
             <div className="form-group c2">
               <label>Start Time *</label>
-              <input
-                type="time"
+              <TimeField
+                aria-label="Start time"
                 name="event_start_time"
                 value={formData.event_start_time}
-                onChange={handleInputChange}
+                onChange={(time) => setFormData((prev) => ({ ...prev, event_start_time: time }))}
                 required
               />
             </div>
             
             <div className="form-group c2">
               <label>Estimated End Time *</label>
-              <input
-                type="time"
+              <TimeField
+                aria-label="End time"
                 name="event_end_time"
                 value={formData.event_end_time}
-                onChange={handleInputChange}
+                onChange={(time) => setFormData((prev) => ({ ...prev, event_end_time: time }))}
                 required
               />
             </div>

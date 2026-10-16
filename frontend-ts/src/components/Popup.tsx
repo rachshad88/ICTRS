@@ -17,7 +17,7 @@ const GENIE_MARGIN = 72;
 /** How far into the field's edge the neck reaches, in px. */
 const GENIE_NECK_DEPTH = 4;
 /** The content is bent in horizontal slices cut along these rows, and no taller than this. */
-const GENIE_ROWS = '.cal-head, .cal-row, .cal-foot, .cal-pick, .opt-search, .opt-item, .opt-empty';
+const GENIE_ROWS = '.cal-head, .cal-row, .cal-foot, .cal-pick, .opt-search, .opt-item, .opt-empty, .time-head, .time-label, .time-opt';
 const GENIE_MAX_SLICE = 48;
 /** The field taking the panel back in, like the nav's lens (BottomNav.tsx absorb): it starts to
  *  bulge toward the panel once it is this far drained, up to this much wider and taller, and
@@ -42,7 +42,7 @@ export function usePhone() {
 
 /**
  * A panel that opens from a field: a popover under it on desktop (above it when there's no room
- * below), a bottom sheet with a Done button on phones. Used by the date fields and the dropdowns.
+ * below), a bottom sheet with a Done button on phones. Used by the date and time fields and the dropdowns.
  * Put it inside AnimatePresence so it can animate out.
  */
 function Popup({ anchor, title, onClose, width, matchWidth = false, className = '', children }: {
@@ -137,6 +137,10 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
     // horizontal slices of a copy of it, each squeezed to the funnel's width at its height
     // (lib/genie.ts genieWarp). The real content is back once the panel is full size.
     const b = body.current;
+    // The card's white, as its own layer (see stretchFill below). The bent copy is drawn inside it,
+    // and it cuts off what lies past its edges, so no part of the content can ever show off the white.
+    const fill = el.querySelector<HTMLElement>('.popup-fill');
+    let fillTop = 0;
     let warp: HTMLDivElement | null = null;
     let slices: HTMLDivElement[] = [];
     let fracs: number[] = [];
@@ -155,7 +159,7 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
       // panel, and the part of each that shows (an option scrolled half out of its list, half).
       const rows = Array.from(b.querySelectorAll<HTMLElement>(GENIE_ROWS), (n) => {
         const r = n.getBoundingClientRect();
-        const list = n.closest('.opt-list')?.getBoundingClientRect();
+        const list = n.closest('.opt-list, .time-col')?.getBoundingClientRect();
         return {
           n,
           x: r.left - box.left,
@@ -216,7 +220,9 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
         warp!.appendChild(slice);
         return slice;
       });
-      el.appendChild(warp);
+      // Placed in the panel's own px: the white layer moves its top as it stretches.
+      warp.style.top = `${-fillTop}px`;
+      (fill ?? el).appendChild(warp);
       bend(progress.get());
     };
     // Until then the content is see-through, so the first frame shows the funnel only, never
@@ -281,7 +287,18 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
       anchor.animate([from, { scale: '1 1', translate: '0 0' }], { duration: FIELD_SETTLE_MS, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' });
     };
 
+    // The white stretches toward the field with the content: until the panel lets go of the field
+    // its content is drawn out to the neck, past the panel's own box.
+    const stretchFill = (p: number) => {
+      if (!fill) return;
+      const sh = h * genieWarp(Math.min(p, 1), geometry, []).d;
+      fillTop = below ? h - sh : 0;
+      fill.style.height = `${sh.toFixed(2)}px`;
+      fill.style.top = `${fillTop.toFixed(2)}px`;
+      if (warp) warp.style.top = `${(-fillTop).toFixed(2)}px`;
+    };
     const apply = (p: number) => {
+      stretchFill(p);
       const { a, c, d, e, f, points } = frameAt(p, geometry, 24);
       el.style.transform = `matrix(${a.toFixed(4)}, 0, ${c.toFixed(4)}, ${d.toFixed(4)}, ${e.toFixed(2)}, ${f.toFixed(2)})`;
       const clip = toClipPath(points);
@@ -300,6 +317,8 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
       el.style.transform = '';
       el.style.clipPath = '';
       el.style.removeProperty('-webkit-clip-path');
+      fill?.style.removeProperty('height');
+      fill?.style.removeProperty('top');
       if (warp) warp.style.display = 'none';
       if (b) b.style.opacity = '';
     };
@@ -372,6 +391,7 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
       aria-label={title}
       style={pos ? { left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width } : { visibility: 'hidden' }}
     >
+      <span className="popup-fill" aria-hidden="true" />
       <div className="popup-body" ref={body}>{children}</div>
     </div>,
     document.body,

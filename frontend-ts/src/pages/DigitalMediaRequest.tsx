@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { PriorityField, Priority } from '../components/Priority';
 import { DateField } from '../components/DateField';
+import { TimeField } from '../components/TimeField';
 import Select from '../components/Select';
 
 
@@ -183,11 +184,11 @@ function DigitalMediaRequest() {
 
             <div className="form-group c3">
               <label>Target Time of Posting or Use *</label>
-              <input
-                type="time"
+              <TimeField
+                aria-label="Target time"
                 name="target_time"
                 value={formData.target_time}
-                onChange={handleInputChange}
+                onChange={(time) => setFormData((prev) => ({ ...prev, target_time: time }))}
                 required
               />
             </div>

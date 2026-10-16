@@ -35,7 +35,8 @@ interface FieldBase {
   'aria-label'?: string;
 }
 
-function useOpen() {
+/** Open state for a field's popup, shared with TimeField. */
+export function useOpen() {
   const [open, setOpenState] = useState(false);
   // Each open is a new calendar: one reopened while the last still drains gets its own.
   const [openCount, setOpenCount] = useState(0);

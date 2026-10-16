@@ -2544,6 +2544,21 @@
   box-shadow: var(--elevation-3);
 }
 
+/* The popover's white as its own layer, so its genie can stretch it toward the field with the
+   content (Popup.tsx); at rest it is just the card. */
+.popup-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  background: var(--card);
+  pointer-events: none;
+}
+
 .popup-backdrop {
   position: fixed;
   inset: 0;
@@ -2818,6 +2833,116 @@
 .popup-sheet .cal-day span {
   width: 42px;
   height: 42px;
+}
+
+/* ========== TIME FIELDS (components/TimeField.tsx) ========== */
+/* The field is a date-field button with a clock; the picker is hour, minute and AM/PM columns. */
+.time {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--ink);
+}
+
+.time-head {
+  padding: 2px 0 4px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-head.is-empty {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.time-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+}
+
+.time-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.time-label {
+  padding-bottom: 4px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.time-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  height: 196px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.time-col::-webkit-scrollbar {
+  display: none;
+}
+
+.time-opt {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  cursor: pointer;
+  transition: var(--tr-colors);
+}
+
+@media (hover: hover) {
+  .time-opt:hover {
+    background: var(--paper-2);
+  }
+}
+
+.time-opt.is-selected,
+.time-opt.is-selected:hover {
+  background: var(--cobalt);
+  color: #fff;
+}
+
+.time-opt:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: -2px;
+}
+
+/* In the phone sheet: taller rows, for fingers; the sheet has its own Done */
+.popup-sheet .time-col {
+  height: 236px;
+}
+
+.popup-sheet .time-opt {
+  height: 44px;
+  font-size: 16px;
+}
+
+.popup-sheet .time-done {
+  display: none;
 }
 
 /* ========== DROPDOWNS (components/Select.tsx) ========== */
