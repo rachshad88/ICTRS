@@ -222,7 +222,7 @@ function PrintMaterialsRequest() {
               label="Upload relevant files and materials (Optional)"
               files={files}
               onChange={setFiles}
-              accept=".pdf,.doc,.docx,.pptx,.jpg,.jpeg,.png,.eps,.ps,.psd,.tif,.tiff"
+              accept=".pdf,.doc,.docx,.pptx,.jpg,.jpeg,.png"
               multiple
               hint="Allowed: PDF, JPG, PNG, Word, PowerPoint (.pptx) (max 10MB each). Save Illustrator files as PDF."
             />

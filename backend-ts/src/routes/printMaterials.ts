@@ -17,10 +17,7 @@ export default createRequestRouter({
     'image/png',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/postscript',
-    'image/vnd.adobe.photoshop',
-    'image/tiff'
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation'
   ],
   initialStatus: 'PENDING',
   cancelCheckStatusNot: 'PENDING',
