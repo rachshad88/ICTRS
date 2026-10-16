@@ -314,6 +314,12 @@
   -webkit-backdrop-filter: blur(12px) saturate(180%);
 }
 
+/* While the genie plays the neck is the tail, following the lens; the tail itself would stay where
+   the bubble opened and be squashed down into the bar. It comes back once the bubble is full size. */
+.nav-bubble.genie .nav-bubble-tail {
+  visibility: hidden;
+}
+
 .nav-bubble-title {
   padding: 2px 10px 6px;
   font-size: 10.5px;
