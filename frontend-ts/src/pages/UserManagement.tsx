@@ -150,6 +150,15 @@ function UserManagement() {
     }
   };
 
+  // The sign-up is no longer waiting: another admin approved or rejected it, or it was removed.
+  // Reload the list so its row goes away instead of leaving buttons that can't work.
+  const alreadyHandled = async (error: unknown, user: User) => {
+    if ((error as { response?: { status?: number } }).response?.status !== 404) return false;
+    await refreshUsers();
+    setNotice(`The sign-up from ${user.username} was already approved, rejected or removed. The list is now up to date.`);
+    return true;
+  };
+
   const handleApprove = async (user: User) => {
     if (approvingId) return;
     setApprovingId(user._id);
@@ -158,6 +167,7 @@ function UserManagement() {
       setNotice(`${user.first_name} ${user.last_name} (${user.username}) was approved and can now sign in.`);
       await refreshUsers();
     } catch (error: unknown) {
+      if (await alreadyHandled(error, user)) return;
       const err = error as { response?: { data?: { error?: string } } };
       setError(err.response?.data?.error || 'Failed to approve the account');
     } finally {
@@ -173,6 +183,7 @@ function UserManagement() {
       setNotice(`The sign-up from ${user.username} was rejected and deleted.`);
       refreshUsers();
     } catch (error: unknown) {
+      if (await alreadyHandled(error, user)) return;
       const err = error as { response?: { data?: { error?: string } } };
       setError(err.response?.data?.error || 'Failed to reject the account');
     }

@@ -23,3 +23,9 @@ export function getIO(): Server {
     }
     return io;
 }
+
+// Tells open User Management pages to reload the account list: a sign-up waiting for approval,
+// or someone changing their own profile or password.
+export function tellUsersChanged(): void {
+    io?.to('super_admins').emit('users_changed');
+}

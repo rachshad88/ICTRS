@@ -52,6 +52,13 @@ export function startLiveUpdates(): () => void {
       queryClient.invalidateQueries();
       return;
     }
+    // Accounts changed (a sign-up waiting for approval, an edit): the user list and the staff
+    // pickers built from it.
+    if (event === 'users_changed') {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['meta'] });
+      return;
+    }
     const service = serviceForEvent(event);
     if (service) refreshService(service);
   });

@@ -4,7 +4,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { forgetUserLists, getUsersCollection, logAudit, redisClient, Role, User } from '../config/database';
 import { notify } from '../utils/notify';
-import { getIO } from '../config/socket';
+import { getIO, tellUsersChanged } from '../config/socket';
 import { AuthenticatedRequest, isAuthenticated, AWAITING_APPROVAL, ACCOUNT_INACTIVE } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { loginSchema, changePasswordSchema, updateProfileSchema, signupSchema } from '../middleware/validation';
@@ -284,6 +284,7 @@ router.post('/signup', validateBody(signupSchema), async (req: Request, res: Res
     if (redisClient) {
       await redisClient.del('users:all:non-admin').catch(() => {});
     }
+    tellUsersChanged();
 
     await logAudit(newUser._id!, username, 'CLIENT', 'SIGNUP', 'USER', newUser._id!.toString(), `User ${username} signed up (${office})`);
     notify({ roles: ['ADMIN'] }, {
@@ -385,6 +386,7 @@ router.post('/change_password', isAuthenticated, validateBody(changePasswordSche
     req.session.session_version = updated.value?.session_version || 0;
     // The admin's user list shows who is still on the default password.
     await forgetUserLists();
+    tellUsersChanged();
 
     await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'CHANGE_PASSWORD', 'USER', userId, `User ${req.user!.username} changed their password`);
     res.json({ status: 'success', message: 'Password changed successfully' });
@@ -442,6 +444,7 @@ router.put('/update_profile', isAuthenticated, validateBody(updateProfileSchema)
       { $set: updateData }
     );
     await forgetUserLists();
+    tellUsersChanged();
 
     req.session.first_name = first_name;
     req.session.middle_name = middle_name || '';

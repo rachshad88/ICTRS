@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import { getUsersCollection, getCache, setCache, redisClient, logAudit, STAFF_LIST_FIELDS } from '../config/database';
 import { notify } from '../utils/notify';
+import { tellUsersChanged } from '../config/socket';
 import { AuthenticatedRequest, isAuthenticated, isAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createUserSchema, updateUserSchema, objectIdSchema } from '../middleware/validation';
@@ -151,6 +152,7 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
     }
+    tellUsersChanged();
 
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'CREATE_USER', 'USER', '', `Admin ${req.user!.username} created user ${username} (${primary_role})`);
     res.json({ status: 'success', message: `User created successfully. Default password is ${DEFAULT_PASSWORD}` });
@@ -222,6 +224,7 @@ router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSch
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
     }
+    tellUsersChanged();
 
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'UPDATE_USER', 'USER', user_id, `Admin ${req.user!.username} updated user ${username}`);
     res.json({ status: 'success' });
@@ -255,6 +258,7 @@ router.post('/reset_user_password', isAuthenticated, isAdmin, validateBody(z.obj
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
     }
+    tellUsersChanged();
 
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'RESET_USER_PASSWORD', 'USER', user_id, `Admin ${req.user!.username} reset the password for ${targetUser.username} (${roleLabel})`);
     res.json({ status: 'success', message: `Password reset to ${DEFAULT_PASSWORD}` });
@@ -300,12 +304,15 @@ router.post('/approve_user', isAuthenticated, isAdmin, validateBody(z.object({ u
       { returnDocument: 'after', projection: { username: 1 } }
     );
     if (!result || !result.value) {
+      // Already handled elsewhere: drop the cached list so the page's refresh no longer shows it.
+      await redisClient?.del('users:all:non-admin').catch(() => {});
       return res.status(404).json({ error: 'No account waiting for approval was found. Refresh the list.' });
     }
 
     if (redisClient) {
       await redisClient.del('users:all:non-admin').catch(() => {});
     }
+    tellUsersChanged();
 
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'APPROVE_USER', 'USER', user_id, `Admin ${req.user!.username} approved the sign-up of ${result.value.username}`);
     notify(user_id, {
@@ -352,6 +359,7 @@ router.post('/set_user_active', isAuthenticated, isAdmin, validateBody(z.object(
     if (redisClient) {
       await redisClient.del(['users:technicians', 'users:all:non-admin']).catch(() => {});
     }
+    tellUsersChanged();
 
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, active ? 'ACTIVATE_USER' : 'DEACTIVATE_USER', 'USER', user_id, `Admin ${req.user!.username} ${active ? 'activated' : 'deactivated'} ${target.username}`);
     res.json({ status: 'success', message: `${target.username} is now ${active ? 'active' : 'inactive'}` });
@@ -372,6 +380,8 @@ router.post('/reject_user', isAuthenticated, isAdmin, validateBody(z.object({ us
       { projection: { username: 1 } }
     );
     if (!result || !result.value) {
+      // Already handled elsewhere: drop the cached list so the page's refresh no longer shows it.
+      await redisClient?.del('users:all:non-admin').catch(() => {});
       return res.status(404).json({ error: 'No account waiting for approval was found. Refresh the list.' });
     }
     disconnectUserSockets(req, user_id);
@@ -379,6 +389,7 @@ router.post('/reject_user', isAuthenticated, isAdmin, validateBody(z.object({ us
     if (redisClient) {
       await redisClient.del('users:all:non-admin').catch(() => {});
     }
+    tellUsersChanged();
 
     await logAudit(new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'REJECT_USER', 'USER', user_id, `Admin ${req.user!.username} rejected the sign-up of ${result.value.username}`);
     res.json({ status: 'success' });
