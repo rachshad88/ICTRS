@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { PriorityField, Priority } from '../components/Priority';
 import { DateField } from '../components/DateField';
 import { TimeField } from '../components/TimeField';
@@ -17,6 +18,9 @@ const FORM_OF_DIGITAL_MEDIA = [
 
 function DigitalMediaRequest() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // The backend files the request under the signed-in account's name (first and last).
+  const requestorName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.username;
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [priority, setPriority] = useState<Priority>('NORMAL');
@@ -28,25 +32,18 @@ function DigitalMediaRequest() {
     digital_media_description: '',
     event_ppa_name: '',
     target_date: '',
-    target_time: '',
-    requestor_name: '',
-    requestor_contact: ''
+    target_time: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name === 'requestor_contact') {
-      const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
-      setFormData(prev => ({ ...prev, [name]: digitsOnly }));
-      return;
-    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    if (!formData.digital_media_description.trim() || !formData.event_ppa_name.trim() || !formData.requestor_name.trim()) {
+    if (!formData.digital_media_description.trim() || !formData.event_ppa_name.trim()) {
       setMessage('Please fill in all required fields');
       setLoading(false);
       return;
@@ -62,8 +59,6 @@ function DigitalMediaRequest() {
       submitData.append('event_ppa_name', formData.event_ppa_name);
       submitData.append('target_date', formData.target_date);
       submitData.append('target_time', formData.target_time);
-      submitData.append('requestor_name', formData.requestor_name);
-      submitData.append('requestor_contact', formData.requestor_contact);
       submitData.append('priority', priority);
       
       if (files) {
@@ -107,7 +102,7 @@ function DigitalMediaRequest() {
         )}
         
         <form onSubmit={handleSubmit} className="request-form grid-ticket" data-ticket="Digital Media">
-          <div className="form-group c6">
+          <div className="form-group">
             <label>Title *</label>
             <input
               type="text"
@@ -120,7 +115,53 @@ function DigitalMediaRequest() {
             />
           </div>
 
-          <div className="form-group c6">
+          <div className="form-row">
+            <div className="form-group c6">
+              <label>Name of Requestor</label>
+              <div className="form-control-static">{requestorName}</div>
+              <small>Taken from your account. The name shown shall serve as the official requestor.</small>
+            </div>
+
+            <div className="form-group c6">
+              <label>Contact Number of the Requestor</label>
+              <div className="form-control-static">{user?.contact_number || 'None yet'}</div>
+              {user?.contact_number ? (
+                <small>Taken from your account. Change it on your Profile page.</small>
+              ) : (
+                <small className="field-error">
+                  Your account has no contact number yet. <Link to="/profile">Add it in your profile</Link> before submitting.
+                </small>
+              )}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Name of Event or PPA Related to the Digital Media Being Requested *</label>
+            <input
+              type="text"
+              name="event_ppa_name"
+              value={formData.event_ppa_name}
+              onChange={handleInputChange}
+              required
+              maxLength={100}
+              placeholder="Enter the official name of the event or Program, Project, or Activity (PPA)"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Description of the Digital Media Being Requested *</label>
+            <textarea
+              name="digital_media_description"
+              value={formData.digital_media_description}
+              onChange={handleInputChange}
+              required
+              rows={4}
+              maxLength={100}
+              placeholder="Briefly describe the type of digital media you are requesting (e.g., social media post, infographic, poster, teaser video, etc.). Include specific details or key messages if available."
+            />
+          </div>
+
+          <div className="form-group">
             <label>Form of Digital Media *</label>
             <Select
               name="form_of_digital_media"
@@ -135,21 +176,8 @@ function DigitalMediaRequest() {
             </Select>
           </div>
 
-          <div className="form-group c6">
-            <label>Name of Event or PPA Related to the Digital Media Being Requested *</label>
-            <input
-              type="text"
-              name="event_ppa_name"
-              value={formData.event_ppa_name}
-              onChange={handleInputChange}
-              required
-              maxLength={100}
-              placeholder="Enter the official name of the event or Program, Project, or Activity (PPA)"
-            />
-          </div>
-
           <div className="form-row">
-            <div className="form-group c3">
+            <div className="form-group c6">
               <label>Target Date of Posting or Use *</label>
               <DateField
                 aria-label="Target date"
@@ -161,7 +189,7 @@ function DigitalMediaRequest() {
               />
             </div>
 
-            <div className="form-group c3">
+            <div className="form-group c6">
               <label>Target Time of Posting or Use *</label>
               <TimeField
                 aria-label="Target time"
@@ -173,52 +201,9 @@ function DigitalMediaRequest() {
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group c6">
-              <label>Name of Requestor *</label>
-            <input
-              autoComplete="name"
-              type="text"
-              name="requestor_name"
-              value={formData.requestor_name}
-              onChange={handleInputChange}
-              required
-              maxLength={30}
-              placeholder="The name provided shall serve as the official requestor"
-            />
-            </div>
-
-            <div className="form-group c6">
-              <label>Contact Number of the Requestor *</label>
-            <input
-              autoComplete="tel"
-              type="tel"
-              name="requestor_contact"
-              value={formData.requestor_contact}
-              onChange={handleInputChange}
-              required
-              maxLength={11}
-              placeholder="Mangyaring magbigay ng mobile o landline number"
-            />
-            </div>
-          </div>
+          <div className="c6"><PriorityField value={priority} onChange={setPriority} /></div>
 
           <div className="form-group c6">
-            <label>Description of the Digital Media Being Requested *</label>
-            <textarea
-              name="digital_media_description"
-              value={formData.digital_media_description}
-              onChange={handleInputChange}
-              required
-              rows={4}
-              maxLength={100}
-              placeholder="Briefly describe the type of digital media you are requesting (e.g., social media post, infographic, poster, teaser video, etc.). Include specific details or key messages if available."
-            />
-          </div>
-
-          <div className="c3"><PriorityField value={priority} onChange={setPriority} /></div>
-
-          <div className="form-group c3">
             <FileDrop
               label="Supporting Files (Optional)"
               files={files}
@@ -231,7 +216,7 @@ function DigitalMediaRequest() {
 
           <div className="ticket-tear" aria-hidden="true" />
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="btn-primary" disabled={loading || !user?.contact_number}>
             {loading ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>

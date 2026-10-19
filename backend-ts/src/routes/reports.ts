@@ -29,7 +29,7 @@ const TYPE_MAP: Record<string, () => TypeConfig> = {
   }),
   'multimedia': () => ({
     getCollection: () => getMultimediaRequestsCollection() as unknown as Collection<Document>,
-    typeLabel: 'Multimedia',
+    typeLabel: 'Event Documentation',
     roleAccess: ['ADMIN', 'MULTIMEDIA', 'MULTIMEDIA_ADMIN'],
     filterAssigned: true,
   }),

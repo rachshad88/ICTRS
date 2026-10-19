@@ -17,6 +17,7 @@ export interface User {
   primary_role: Role;
   office?: string;
   position?: string;
+  contact_number?: string;
   created_at?: Date;
   // Bumped when an admin changes the user's access or password; sessions started under an
   // older version are rejected (see isAuthenticated).

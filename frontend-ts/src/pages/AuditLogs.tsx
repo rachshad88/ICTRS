@@ -82,7 +82,7 @@ function AuditLogs() {
           <option value="">All Types</option>
           <option value="USER">User</option>
           <option value="IT_REQUEST">IT Request</option>
-          <option value="MULTIMEDIA">Multimedia</option>
+          <option value="MULTIMEDIA">Event Documentation</option>
           <option value="DIGITAL_MEDIA">Digital Media</option>
           <option value="PRINT_MATERIALS">Print Materials</option>
           <option value="SETTINGS">Settings</option>

@@ -32,7 +32,7 @@ const TYPES: TypeDef[] = [
     title: '$issue', detail: '$unit', office: '$office', due: '$due_date'
   },
   {
-    key: 'multimedia', label: 'Multimedia', collection: 'multimedia_requests', getCollection: getMultimediaRequestsCollection, adminRole: 'MULTIMEDIA_ADMIN', staffRole: 'MULTIMEDIA',
+    key: 'multimedia', label: 'Event Documentation', collection: 'multimedia_requests', getCollection: getMultimediaRequestsCollection, adminRole: 'MULTIMEDIA_ADMIN', staffRole: 'MULTIMEDIA',
     title: '$event_title', detail: '$location_type', office: null, due: '$event_date'
   },
   {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 import { PriorityField, Priority } from '../components/Priority';
 import { DateField } from '../components/DateField';
 import { TimeField } from '../components/TimeField';
@@ -16,6 +17,9 @@ const FORM_OF_PRINTED_MEDIA = [
 
 function PrintMaterialsRequest() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  // The backend files the request under the signed-in account's name (first and last).
+  const requestorName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.username;
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [priority, setPriority] = useState<Priority>('NORMAL');
@@ -27,25 +31,18 @@ function PrintMaterialsRequest() {
     printed_media_description: '',
     event_ppa_name: '',
     target_date: '',
-    target_time: '',
-    requestor_name: '',
-    requestor_contact: ''
+    target_time: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name === 'requestor_contact') {
-      const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
-      setFormData(prev => ({ ...prev, [name]: digitsOnly }));
-      return;
-    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    if (!formData.size_of_printed_media.trim() || !formData.printed_media_description.trim() || !formData.event_ppa_name.trim() || !formData.requestor_name.trim()) {
+    if (!formData.size_of_printed_media.trim() || !formData.printed_media_description.trim() || !formData.event_ppa_name.trim()) {
       setMessage('Please fill in all required fields');
       setLoading(false);
       return;
@@ -61,8 +58,6 @@ function PrintMaterialsRequest() {
       submitData.append('event_ppa_name', formData.event_ppa_name);
       submitData.append('target_date', formData.target_date);
       submitData.append('target_time', formData.target_time);
-      submitData.append('requestor_name', formData.requestor_name);
-      submitData.append('requestor_contact', formData.requestor_contact);
       submitData.append('priority', priority);
       
       if (files) {
@@ -106,6 +101,52 @@ function PrintMaterialsRequest() {
         )}
         
         <form onSubmit={handleSubmit} className="request-form grid-ticket" data-ticket="Print Materials">
+          <div className="form-row">
+            <div className="form-group c6">
+              <label>Name of Requestor</label>
+              <div className="form-control-static">{requestorName}</div>
+              <small>Taken from your account. The name shown shall serve as the official requestor.</small>
+            </div>
+
+            <div className="form-group c6">
+              <label>Contact Number of Requestor</label>
+              <div className="form-control-static">{user?.contact_number || 'None yet'}</div>
+              {user?.contact_number ? (
+                <small>Taken from your account. Change it on your Profile page.</small>
+              ) : (
+                <small className="field-error">
+                  Your account has no contact number yet. <Link to="/profile">Add it in your profile</Link> before submitting.
+                </small>
+              )}
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Name of Event or PPA Related to the Printed Media Being Requested *</label>
+            <input
+              type="text"
+              name="event_ppa_name"
+              value={formData.event_ppa_name}
+              onChange={handleInputChange}
+              required
+              maxLength={100}
+              placeholder="State the official name of the event or Program, Project, or Activity (PPA)"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Description of the Printed Media Being Requested *</label>
+            <textarea
+              name="printed_media_description"
+              value={formData.printed_media_description}
+              onChange={handleInputChange}
+              required
+              rows={4}
+              maxLength={100}
+              placeholder="Provide a short description of the content, purpose, or layout of the material (e.g., for event backdrop, with official logos, program title, etc.)"
+            />
+          </div>
+
           <div className="form-group c6">
             <label>Form of Printed Media Being Requested *</label>
             <Select
@@ -134,21 +175,8 @@ function PrintMaterialsRequest() {
             />
           </div>
 
-          <div className="form-group c6">
-            <label>Name of Event or PPA Related to the Printed Media Being Requested *</label>
-            <input
-              type="text"
-              name="event_ppa_name"
-              value={formData.event_ppa_name}
-              onChange={handleInputChange}
-              required
-              maxLength={100}
-              placeholder="State the official name of the event or Program, Project, or Activity (PPA)"
-            />
-          </div>
-
           <div className="form-row">
-            <div className="form-group c3">
+            <div className="form-group c6">
               <label>Target Date of Posting or Use *</label>
               <DateField
                 aria-label="Target date"
@@ -160,7 +188,7 @@ function PrintMaterialsRequest() {
               />
             </div>
 
-            <div className="form-group c3">
+            <div className="form-group c6">
               <label>Target Time of Posting or Use *</label>
               <TimeField
                 aria-label="Target time"
@@ -172,52 +200,9 @@ function PrintMaterialsRequest() {
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group c6">
-              <label>Name of Requestor *</label>
-            <input
-              autoComplete="name"
-              type="text"
-              name="requestor_name"
-              value={formData.requestor_name}
-              onChange={handleInputChange}
-              required
-              maxLength={20}
-              placeholder="The name provided shall serve as the official requestor"
-            />
-            </div>
-
-            <div className="form-group c6">
-              <label>Contact Number of Requestor *</label>
-            <input
-              autoComplete="tel"
-              type="tel"
-              name="requestor_contact"
-              value={formData.requestor_contact}
-              onChange={handleInputChange}
-              required
-              maxLength={11}
-              placeholder="Please provide a mobile or landline number"
-            />
-            </div>
-          </div>
+          <div className="c6"><PriorityField value={priority} onChange={setPriority} /></div>
 
           <div className="form-group c6">
-            <label>Description of the Printed Media Being Requested *</label>
-            <textarea
-              name="printed_media_description"
-              value={formData.printed_media_description}
-              onChange={handleInputChange}
-              required
-              rows={4}
-              maxLength={100}
-              placeholder="Provide a short description of the content, purpose, or layout of the material (e.g., for event backdrop, with official logos, program title, etc.)"
-            />
-          </div>
-
-          <div className="c3"><PriorityField value={priority} onChange={setPriority} /></div>
-
-          <div className="form-group c3">
             <FileDrop
               label="Upload relevant files and materials (Optional)"
               files={files}
@@ -230,7 +215,7 @@ function PrintMaterialsRequest() {
 
           <div className="ticket-tear" aria-hidden="true" />
 
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="btn-primary" disabled={loading || !user?.contact_number}>
             {loading ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>

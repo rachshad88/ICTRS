@@ -1,5 +1,5 @@
 import { sanitizeInput, getDigitalMediaRequestsCollection } from '../config/database';
-import { createRequestRouter } from './multimediaFactory';
+import { createRequestRouter, displayName } from './multimediaFactory';
 import { createDigitalMediaSchema } from '../middleware/validation';
 
 export default createRequestRouter({
@@ -38,7 +38,7 @@ export default createRequestRouter({
     myHistory: ['request_code', 'description', 'digital_media_description', 'event_ppa_name', 'requestor_name']
   },
   createSchema: createDigitalMediaSchema,
-  buildCreateDoc: (body, userId, requestCode, fileData) => ({
+  buildCreateDoc: (body, userId, requestCode, fileData, user) => ({
     request_code: requestCode,
     created_by: userId,
     assigned_to: null,
@@ -48,8 +48,9 @@ export default createRequestRouter({
     event_ppa_name: sanitizeInput(body.event_ppa_name),
     target_date: new Date(body.target_date),
     target_time: body.target_time,
-    requestor_name: sanitizeInput(body.requestor_name),
-    requestor_contact: sanitizeInput(body.requestor_contact),
+    // The requestor is the signed-in account; a name or number sent with the form is ignored.
+    requestor_name: sanitizeInput(displayName(user)),
+    requestor_contact: user.contact_number,
     supporting_files: fileData,
     status: 'PENDING',
     remarks: null,

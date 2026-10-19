@@ -51,7 +51,7 @@ const COLUMNS: Array<{ key: string; label: string; statuses: string[] }> = [
 
 const SERVICES: Array<{ key: keyof StatsData; label: string; manage: string }> = [
   { key: 'it_counts', label: 'IT', manage: '/it-dashboard' },
-  { key: 'multimedia_counts', label: 'Multimedia', manage: '/multimedia-management' },
+  { key: 'multimedia_counts', label: 'Event Documentation', manage: '/multimedia-management' },
   { key: 'digital_counts', label: 'Digital Media', manage: '/digitalmedia-management' },
   { key: 'print_counts', label: 'Print Materials', manage: '/print-materials-management' },
 ];

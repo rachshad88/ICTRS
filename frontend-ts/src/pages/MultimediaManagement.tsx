@@ -127,7 +127,7 @@ function MultimediaManagement() {
   return (
     <div className="history-page">
       <div className="page-header">
-        <h2>Multimedia Management</h2>
+        <h2>Event Documentation Management</h2>
       </div>
 
       <div className="mgmt-tabs">
@@ -152,7 +152,7 @@ function MultimediaManagement() {
       {loading ? (
         <Skeleton variant="table" rows={5} />
       ) : displayRequests.length === 0 ? (
-        <div className="history-empty">No {activeTab === 'unassigned' ? 'unassigned ' : ''}multimedia requests</div>
+        <div className="history-empty">No {activeTab === 'unassigned' ? 'unassigned ' : ''}event documentation requests</div>
       ) : (
         <div className="history-table-wrap">
           <table className="history-table stack-mobile">
@@ -218,7 +218,7 @@ function MultimediaManagement() {
       {selectedRequest && (
         <div className="modal">
           <div className="modal-content">
-            <h3>{selectedRequest.status === 'UNASSIGNED' ? 'Assign Multimedia Request' : 'Multimedia Request'}</h3>
+            <h3>{selectedRequest.status === 'UNASSIGNED' ? 'Assign Event Documentation Request' : 'Event Documentation Request'}</h3>
             <p><strong>Event:</strong> {selectedRequest.event_title}</p>
             <p><strong>Request Code:</strong> {selectedRequest.request_code}</p>
             <p><strong>Requested By:</strong> {selectedRequest.requester?.[0] ? `${selectedRequest.requester[0].first_name} ${selectedRequest.requester[0].last_name}` : 'Unknown'}</p>

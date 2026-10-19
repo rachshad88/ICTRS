@@ -1242,6 +1242,17 @@ yt-channel-avatar.pm { background: #047857; }
   }
 }
 
+/* IT request: quick picks under "What is the unit?" (the period toggle's look) */
+.app-main .unit-picks {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.app-main .unit-picks button {
+  flex: 1;
+}
+
 /* ========== ADMIN DASHBOARD (pages/AdminDashboard.tsx) ==========
    Four panels in two rows: request counts by service beside users by role, then recent requests
    beside recent activity. Each panel links to the page that holds the full list. */
@@ -1877,9 +1888,21 @@ yt-channel-avatar.pm { background: #047857; }
     grid-row: 3;
   }
 
+  /* The box sits under Unit and its quick picks beside it, under Priority. */
   .app-main .it-request-form .rf-unit-other {
-    grid-column: 1 / 4;
+    grid-column: 1 / -1;
     grid-row: 4;
+  }
+
+  .app-main .it-request-form .unit-other-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 20px;
+    align-items: center;
+  }
+
+  .app-main .it-request-form .unit-other-row .unit-picks {
+    margin-top: 0;
   }
 
   .app-main .it-request-form .rf-issue textarea {

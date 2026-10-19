@@ -58,7 +58,7 @@ function Icon({ d, size = 18 }: { d: string; size?: number }) {
 }
 
 function Signup() {
-  const [form, setForm] = useState({ username: '', first_name: '', middle_name: '', last_name: '', office: '', position: '' });
+  const [form, setForm] = useState({ username: '', first_name: '', middle_name: '', last_name: '', office: '', position: '', contact_number: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [granted, setGranted] = useState(false);
@@ -152,7 +152,7 @@ function Signup() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: direct ? 0.15 : d + 0.55, ease: EASE_OUT }}
           >
-            Client accounts are for LGU offices filing IT, multimedia, digital media and print requests.
+            Client accounts are for LGU offices filing IT, event documentation, digital media and print requests.
           </motion.p>
 
           {/* Each step is written in, left to right, after its number drops in */}
@@ -289,6 +289,21 @@ function Signup() {
                     required
                     maxLength={120}
                     autoComplete="organization-title"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="su-contact">Contact number</label>
+                  <input
+                    id="su-contact"
+                    type="tel"
+                    inputMode="numeric"
+                    value={form.contact_number}
+                    onChange={(e) => setForm((f) => ({ ...f, contact_number: e.target.value.replace(/\D/g, '').slice(0, 11) }))}
+                    placeholder="e.g. 09XXXXXXXXX"
+                    required
+                    minLength={7}
+                    autoComplete="tel"
                   />
                 </div>
 

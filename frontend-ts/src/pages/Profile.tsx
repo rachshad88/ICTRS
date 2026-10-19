@@ -21,6 +21,7 @@ function Profile() {
   const [lastName, setLastName] = useState(user?.last_name || '');
   const [office, setOffice] = useState(user?.office || '');
   const [position, setPosition] = useState(user?.position || '');
+  const [contactNumber, setContactNumber] = useState(user?.contact_number || '');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,7 +86,8 @@ function Profile() {
         middle_name: middleName, 
         last_name: lastName,
         office: office,
-        position: position
+        position: position,
+        contact_number: contactNumber
       });
       setSuccess('Profile updated successfully');
       setActiveSection(null);
@@ -104,6 +106,7 @@ function Profile() {
     setLastName(user?.last_name || '');
     setOffice(user?.office || '');
     setPosition(user?.position || '');
+    setContactNumber(user?.contact_number || '');
     setError('');
     setSuccess('');
     setActiveSection('profile');
@@ -302,6 +305,20 @@ function Profile() {
                         maxLength={120}
                         placeholder="e.g. Computer Programmer I"
                         onChange={(e) => setPosition(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Contact Number</label>
+                      <input
+                        autoComplete="tel"
+                        type="tel"
+                        inputMode="numeric"
+                        value={contactNumber}
+                        minLength={7}
+                        placeholder="e.g. 09XXXXXXXXX"
+                        onChange={(e) => setContactNumber(e.target.value.replace(/\D/g, '').slice(0, 11))}
                       />
                     </div>
                   </div>

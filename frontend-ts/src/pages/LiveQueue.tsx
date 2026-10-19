@@ -30,7 +30,7 @@ interface BoardCard extends LiveCard {
 
 const LANES: { key: Lane; label: string; dueLabel: string }[] = [
   { key: 'it', label: 'IT Repair', dueLabel: 'Due' },
-  { key: 'multimedia', label: 'Multimedia', dueLabel: 'Event' },
+  { key: 'multimedia', label: 'Event Documentation', dueLabel: 'Event' },
   { key: 'digital_media', label: 'Digital Media', dueLabel: 'Target' },
   { key: 'print_materials', label: 'Print Materials', dueLabel: 'Target' }
 ];

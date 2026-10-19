@@ -100,7 +100,7 @@ const TILES: Array<{ key: keyof Counts; label: string; filter: Partial<Filters>;
 // Where an admin goes to act on a request, and the role that page needs.
 const MANAGE_PAGES: Record<string, { to: string; role: string; label: string }> = {
   it: { to: '/it-dashboard', role: 'IT_ADMIN', label: 'IT Assign Dashboard' },
-  multimedia: { to: '/multimedia-management', role: 'MULTIMEDIA_ADMIN', label: 'Multimedia Management' },
+  multimedia: { to: '/multimedia-management', role: 'MULTIMEDIA_ADMIN', label: 'Event Documentation Management' },
   digital_media: { to: '/digitalmedia-management', role: 'MULTIMEDIA_ADMIN', label: 'Digital Media Management' },
   print_materials: { to: '/print-materials-management', role: 'MULTIMEDIA_ADMIN', label: 'Print Materials Management' },
 };

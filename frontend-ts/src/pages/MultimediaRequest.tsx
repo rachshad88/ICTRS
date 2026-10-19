@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { PriorityField, Priority } from '../components/Priority';
+import { useAuth } from '../contexts/AuthContext';
 import { DateField } from '../components/DateField';
 import { TimeField } from '../components/TimeField';
 import FileDrop from '../components/FileDrop';
@@ -17,9 +17,9 @@ const LOCATION_TYPES = [
 
 function MultimediaRequest() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [priority, setPriority] = useState<Priority>('NORMAL');
   const [files, setFiles] = useState<File[]>([]);
   
   const [formData, setFormData] = useState({
@@ -28,18 +28,12 @@ function MultimediaRequest() {
     event_start_time: '',
     event_end_time: '',
     specific_location: '',
-    location_type: '',
-    contact_number: ''
+    location_type: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name === 'contact_number') {
-      const numericValue = value.replace(/\D/g, '').slice(0, 11);
-      setFormData(prev => ({ ...prev, [name]: numericValue }));
-    } else {
-      setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -65,8 +59,6 @@ function MultimediaRequest() {
       submitData.append('event_end_time', formData.event_end_time);
       submitData.append('specific_location', formData.specific_location);
       submitData.append('location_type', formData.location_type);
-      submitData.append('contact_number', formData.contact_number);
-      submitData.append('priority', priority);
       
       if (files[0]) {
         submitData.append('program_file', files[0]);
@@ -77,7 +69,7 @@ function MultimediaRequest() {
       });
 
       if (response.data.status === 'success') {
-        setMessage(`Multimedia request submitted successfully! Your code is: ${response.data.request_code}`);
+        setMessage(`Event documentation request submitted successfully! Your code is: ${response.data.request_code}`);
         setTimeout(() => {
           navigate('/multimedia-history');
         }, 1500);
@@ -94,7 +86,7 @@ function MultimediaRequest() {
     <div className="request-page fit-request">
 
       <div className="container">
-        <h2>Multimedia Request</h2>
+        <h2>Event Documentation Request</h2>
         
         {message && (
           <div className={`message ${message.includes('success') ? 'success' : 'error'}`}>
@@ -102,7 +94,7 @@ function MultimediaRequest() {
           </div>
         )}
         
-        <form onSubmit={handleSubmit} className="request-form grid-ticket" data-ticket="Multimedia">
+        <form onSubmit={handleSubmit} className="request-form grid-ticket" data-ticket="Event Documentation">
           <div className="form-group c6">
             <label>Event Title *</label>
             <input
@@ -154,17 +146,15 @@ function MultimediaRequest() {
           
           <div className="form-row">
             <div className="form-group c4">
-              <label>Contact Number *</label>
-              <input
-                autoComplete="tel"
-                type="tel"
-                name="contact_number"
-                value={formData.contact_number}
-                onChange={handleInputChange}
-                required
-                maxLength={11}
-                placeholder="e.g., 09XXXXXXXXX"
-              />
+              <label>Contact Number</label>
+              <div className="form-control-static">{user?.contact_number || 'None yet'}</div>
+              {user?.contact_number ? (
+                <small>Taken from your account. Change it on your Profile page.</small>
+              ) : (
+                <small className="field-error">
+                  Your account has no contact number yet. <Link to="/profile">Add it in your profile</Link> before submitting.
+                </small>
+              )}
             </div>
             
             <div className="form-group c4">
@@ -196,9 +186,7 @@ function MultimediaRequest() {
             />
           </div>
           
-          <div className="c6"><PriorityField value={priority} onChange={setPriority} /></div>
-
-          <div className="form-group c6">
+          <div className="form-group">
             <FileDrop
               label="Program/Schedule of Event (Optional)"
               files={files}
@@ -210,7 +198,7 @@ function MultimediaRequest() {
           
           <div className="ticket-tear" aria-hidden="true" />
           
-          <button type="submit" className="btn-primary" disabled={loading}>
+          <button type="submit" className="btn-primary" disabled={loading || !user?.contact_number}>
             {loading ? 'Submitting...' : 'Submit Request'}
           </button>
         </form>

@@ -45,6 +45,8 @@ interface RouteConfig {
   // Where each kind of recipient follows up on a request of this type.
   pages: { owner: string; staff: string; admin: string };
   hasRecommendation: boolean;
+  // false when the form has no priority choice: new requests start Normal and only admins change it.
+  clientPriority?: boolean;
   summaryField: string;
   // Event or target date; a request past it and still open is flagged overdue.
   dueField: string;
@@ -56,7 +58,8 @@ interface RouteConfig {
   };
   // Validates the submitted form fields (multipart body) before anything is saved.
   createSchema: ZodTypeAny;
-  buildCreateDoc: (body: any, userId: ObjectId, requestCode: string, fileData: any) => Record<string, any>;
+  // user is the signed-in requester; the requestor's name and contact number come from the account.
+  buildCreateDoc: (body: any, userId: ObjectId, requestCode: string, fileData: any, user: { first_name: string; last_name: string; username: string; contact_number: string }) => Record<string, any>;
   excelSheetName: string;
   excelFileName: string;
   excelColumns: ColumnDef[];
@@ -82,7 +85,7 @@ function findAssignableStaff(staffId: string, actor: AuthenticatedRequest['user'
 // The super admin is told about every media request as it is added, assigned, taken and completed.
 const SUPER_ADMINS = { roles: ['ADMIN' as const] };
 
-function displayName(user: { first_name: string; last_name: string; username: string }): string {
+export function displayName(user: { first_name: string; last_name: string; username: string }): string {
   return `${user.first_name} ${user.last_name}`.trim() || user.username;
 }
 
@@ -235,6 +238,14 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(400).json({ status: 'error', error: details[0].message, details });
       }
 
+      // The contact number is the account's (set at sign-up or on the Profile page), not typed per request.
+      const account = await getUsersCollection().findOne({ _id: new ObjectId(userId) }, { projection: { contact_number: 1 } });
+      const contactNumber = account?.contact_number || '';
+      if (!contactNumber) {
+        removeTempUploads(req);
+        return res.status(400).json({ status: 'error', error: 'Add your contact number on your Profile page before submitting a request.' });
+      }
+
       let request_code = '';
       let result: any;
       for (let i = 0; i < 100; i++) {
@@ -266,8 +277,8 @@ export function createRequestRouter(config: RouteConfig): Router {
           const storedFile = config.uploadMethod === 'single'
             ? (fileData ? fileData.filename : null)
             : ((fileData as Express.Multer.File[]).length > 0 ? (fileData as Express.Multer.File[]).map(f => f.filename) : []);
-          const doc = config.buildCreateDoc(req.body, new ObjectId(userId), request_code, storedFile);
-          doc.priority = normalizePriority(req.body.priority);
+          const doc = config.buildCreateDoc(req.body, new ObjectId(userId), request_code, storedFile, { ...req.user!, contact_number: contactNumber });
+          doc.priority = normalizePriority(config.clientPriority === false ? undefined : req.body.priority);
           doc.created_at = new Date();
           doc.completed_at = null;
           result = await collection.insertOne(doc);

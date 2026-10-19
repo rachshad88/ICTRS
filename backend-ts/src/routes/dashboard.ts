@@ -66,7 +66,7 @@ router.get('/admin-stats', isAuthenticated, async (req: AuthenticatedRequest, re
         ]);
         const all: Document[] = [
           ...it.map(r => Object.assign(r, { type: 'IT' })),
-          ...multimedia.map(r => Object.assign(r, { type: 'Multimedia' })),
+          ...multimedia.map(r => Object.assign(r, { type: 'Event Documentation' })),
           ...digital.map(r => Object.assign(r, { type: 'Digital Media' })),
           ...print.map(r => Object.assign(r, { type: 'Print Materials' })),
         ];

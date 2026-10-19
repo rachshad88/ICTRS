@@ -64,7 +64,7 @@ interface PrintableRow {
 
 const ALL_TABS: TabConfig[] = [
   { key: 'it', label: 'IT Requests' },
-  { key: 'multimedia', label: 'Multimedia' },
+  { key: 'multimedia', label: 'Event Documentation' },
   { key: 'digital-media', label: 'Digital Media' },
   { key: 'print-materials', label: 'Print Materials' },
 ];
@@ -79,7 +79,7 @@ const ROLE_TABS: Record<string, TabConfig[]> = {
 
 const REPORT_TYPE_LABELS: Record<TabKey, string> = {
   it: 'IT Requests',
-  multimedia: 'Multimedia',
+  multimedia: 'Event Documentation',
   'digital-media': 'Digital Media',
   'print-materials': 'Print Materials',
 };

@@ -22,9 +22,10 @@ export default createRequestRouter({
   auditEntityType: 'MULTIMEDIA',
   socketPrefix: 'multimedia',
   liveLane: 'multimedia',
-  label: 'Multimedia',
+  label: 'Event Documentation',
   pages: { owner: '/multimedia-history', staff: '/multimedia-dashboard', admin: '/multimedia-management' },
   hasRecommendation: true,
+  clientPriority: false,
   summaryField: 'event_title',
   dueField: 'event_date',
   searchFields: {
@@ -34,7 +35,7 @@ export default createRequestRouter({
     myHistory: ['request_code', 'event_title', 'specific_location', 'contact_number']
   },
   createSchema: createMultimediaSchema,
-  buildCreateDoc: (body, userId, requestCode, fileData) => ({
+  buildCreateDoc: (body, userId, requestCode, fileData, user) => ({
     request_code: requestCode,
     created_by: userId,
     assigned_to: null,
@@ -44,7 +45,8 @@ export default createRequestRouter({
     event_end_time: body.event_end_time,
     specific_location: sanitizeInput(body.specific_location),
     location_type: body.location_type,
-    contact_number: sanitizeInput(body.contact_number),
+    // From the account; a number sent with the form is ignored.
+    contact_number: user.contact_number,
     program_file: fileData || null,
     status: 'UNASSIGNED',
     remarks: null,
@@ -52,7 +54,7 @@ export default createRequestRouter({
     created_at: new Date(),
     completed_at: null
   }),
-  excelSheetName: 'Multimedia History',
+  excelSheetName: 'Event Documentation History',
   excelFileName: 'multimedia_history.xlsx',
   excelColumns: [
     { header: 'Request Code', field: 'request_code', width: 15 },

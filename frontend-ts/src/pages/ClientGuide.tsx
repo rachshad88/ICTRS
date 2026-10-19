@@ -34,16 +34,16 @@ const REQUEST_TYPES = [
     history: 'IT History',
   },
   {
-    name: 'Multimedia Request',
+    name: 'Event Documentation Request',
     icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z',
     use: 'Photo and video coverage of an event.',
     fields: [
       'Event title, date, start time and estimated end time',
-      'Contact number',
       'Location type (inside the LGU Solano compound, elsewhere in Solano, elsewhere in Nueva Vizcaya, or outside Nueva Vizcaya) and the specific location',
       'Program or schedule of the event (optional): one PDF, Word or image file, up to 10MB',
     ],
-    history: 'Multimedia History',
+    note: 'Your contact number is filled in automatically from your account. Change it on your Profile page.',
+    history: 'Event Documentation History',
   },
   {
     name: 'Digital Media Request',
@@ -54,9 +54,9 @@ const REQUEST_TYPES = [
       'Description of what you need',
       'Name of the related event or PPA',
       'Target date and time of posting or use',
-      'Requestor name and contact number',
       'Supporting files (optional): up to 10 files, 100MB total (PDF, Word, images, PowerPoint, MP4, WebM)',
     ],
+    note: 'Your name and contact number are filled in automatically from your account. Change them on your Profile page.',
     history: 'Digital Media History',
   },
   {
@@ -68,16 +68,16 @@ const REQUEST_TYPES = [
       'Description of what you need',
       'Name of the related event or PPA',
       'Target date and time of posting or use',
-      'Requestor name and contact number',
-      'Reference files (optional): up to 10 files, 100MB total (PDF, Word, images, AI, PSD, TIFF)',
+      'Reference files (optional): up to 10 files, 100MB total (PDF, Word, images, PowerPoint)',
     ],
+    note: 'Your name and contact number are filled in automatically from your account. Change them on your Profile page.',
     history: 'Print Materials History',
   },
 ];
 
 const STATUSES = [
   { status: 'PENDING', meaning: 'Received and waiting for a technician or staff member to be assigned. You can still cancel it.' },
-  { status: 'UNASSIGNED', meaning: 'Same as Pending. Multimedia requests use this label before someone is assigned.' },
+  { status: 'UNASSIGNED', meaning: 'Same as Pending. Event documentation requests use this label before someone is assigned.' },
   { status: 'IN_PROGRESS', meaning: 'Someone has been assigned and is working on it. The Assigned To column shows who; if the team moves it to another staff member, the name updates on its own.' },
   { status: 'DONE', meaning: 'Finished. On IT History this shows as Completed, along with whether the unit was Repaired or is Beyond Repair.' },
   { status: 'RATED', meaning: 'Done, and you have rated it. Thank you for your feedback. A rated request cannot be rated again or reopened.' },
@@ -373,7 +373,7 @@ function ClientGuide() {
             <ol className="gd-steps">
               <li>Choose the request type from the menu bar, then <strong>New request</strong>.</li>
               <li>Fill in the form. Fields marked with <strong>*</strong> are required.</li>
-              <li>Set the <strong>Priority</strong>. Leave it at Normal unless work has stopped or your deadline is within two days. Keeping Urgent for real emergencies means they get handled first.</li>
+              <li>Set the <strong>Priority</strong> (IT, Digital Media and Print Materials; event documentation requests start at Normal and the media admin sets their priority). Leave it at Normal unless work has stopped or your deadline is within two days. Keeping Urgent for real emergencies means they get handled first.</li>
               <li>Attach files if the form allows it and they will help the team.</li>
               <li>Select <strong>Submit</strong>. A confirmation shows your <strong>request code</strong>.</li>
             </ol>

@@ -81,6 +81,7 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
         primary_role: 1,
         office: 1,
         position: 1,
+        contact_number: 1,
         created_at: 1,
         approved: 1,
         active: 1
@@ -113,7 +114,7 @@ router.get('/get_users', isAuthenticated, isAdmin, async (req: AuthenticatedRequ
 
 router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { username, password, first_name, middle_name, last_name, roles, primary_role, office, position } = req.body;
+    const { username, password, first_name, middle_name, last_name, roles, primary_role, office, position, contact_number } = req.body;
 
     const usersCollection = getUsersCollection();
     const existing = await usersCollection.findOne({ username });
@@ -136,6 +137,7 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
       primary_role,
       office: office || '',
       position: (position || '').trim(),
+      contact_number: (contact_number || '').trim(),
       created_at: new Date(),
       approved: true
     });
@@ -154,7 +156,7 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
 
 router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSchema), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { user_id, username, first_name, middle_name, last_name, roles, primary_role, office, position, password } = req.body;
+    const { user_id, username, first_name, middle_name, last_name, roles, primary_role, office, position, contact_number, password } = req.body;
 
     const usersCollection = getUsersCollection();
     
@@ -169,6 +171,9 @@ router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSch
       office: office || '',
       position: (position || '').trim()
     };
+    if (contact_number !== undefined) {
+      updateData.contact_number = contact_number.trim();
+    }
 
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);

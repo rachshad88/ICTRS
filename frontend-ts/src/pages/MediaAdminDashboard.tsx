@@ -72,7 +72,7 @@ const NO_COUNTS: Counts = { waiting: 0, in_progress: 0, urgent_open: 0, overdue:
 
 // Per type: its label, the URL prefix of its actions, its cache key, and its full management page.
 const TYPES: Record<TypeKey, { label: string; api: string; service: Service; manage: string }> = {
-  multimedia: { label: 'Multimedia', api: '/multimedia', service: 'multimedia', manage: '/multimedia-management' },
+  multimedia: { label: 'Event Documentation', api: '/multimedia', service: 'multimedia', manage: '/multimedia-management' },
   digital_media: { label: 'Digital Media', api: '/digitalmedia', service: 'digitalMedia', manage: '/digitalmedia-management' },
   print_materials: { label: 'Print Materials', api: '/printmaterials', service: 'printMaterials', manage: '/print-materials-management' },
 };

@@ -88,7 +88,7 @@ function MultimediaRequestsDashboard() {
   return (
     <div className="history-page">
       <div className="page-header">
-        <h2>Multimedia Requests</h2>
+        <h2>Event Documentation Requests</h2>
       </div>
 
       <div className="filters-row">
@@ -100,7 +100,7 @@ function MultimediaRequestsDashboard() {
       {loading ? (
         <Skeleton variant="table" rows={5} />
       ) : requests.length === 0 ? (
-        <div className="history-empty">No assigned multimedia requests</div>
+        <div className="history-empty">No assigned event documentation requests</div>
       ) : (
         <>
           <div className="history-table-wrap hide-on-mobile">
@@ -162,7 +162,7 @@ function MultimediaRequestsDashboard() {
                 title={request.event_title}
                 subtitle={request.location_type}
                 thumbnailLabel={request.request_code}
-                typeLabel="Multimedia"
+                typeLabel="Event Documentation"
                 statusLabel={request.status.replace(/_/g, ' ')}
                 statusClass={request.status.toLowerCase().replace(/_/g, '-')}
                 metaItems={[
@@ -231,7 +231,7 @@ function MultimediaRequestsDashboard() {
       {showCompleteModal && selectedRequest && (
         <div className="modal">
           <div className="modal-content">
-            <h3>Complete Multimedia Request</h3>
+            <h3>Complete Event Documentation Request</h3>
             <p><strong>Event:</strong> {selectedRequest.event_title}</p>
             <NotesList notes={selectedRequest.notes} />
             <div className="form-group">

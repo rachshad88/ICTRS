@@ -15,6 +15,7 @@ interface User {
   primary_role: string;
   office?: string;
   position?: string;
+  contact_number?: string;
   is_default_password?: boolean;
 }
 
@@ -26,7 +27,7 @@ interface AuthContextType {
   signup: (data: SignupData) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  updateUser: (data: { username?: string; first_name: string; middle_name: string; last_name: string; office?: string; position?: string }) => Promise<void>;
+  updateUser: (data: { username?: string; first_name: string; middle_name: string; last_name: string; office?: string; position?: string; contact_number?: string }) => Promise<void>;
 }
 
 interface SignupData {
@@ -36,6 +37,7 @@ interface SignupData {
   last_name: string;
   office: string;
   position: string;
+  contact_number: string;
   /** Bot trap: the hidden field's value and how long the form was open (backend signup route). */
   website?: string;
   form_ms?: number;
@@ -124,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
-  const updateUser = async (data: { username?: string; first_name: string; middle_name: string; last_name: string; office?: string; position?: string }) => {
+  const updateUser = async (data: { username?: string; first_name: string; middle_name: string; last_name: string; office?: string; position?: string; contact_number?: string }) => {
     await api.put('/auth/update_profile', data);
     const response = await api.get('/auth/me');
     setUser(response.data);

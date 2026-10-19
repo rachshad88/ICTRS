@@ -1,7 +1,7 @@
 import { HistoryTable, formatDate, HistoryTableConfig } from '../components/HistoryTable';
 
 const config: HistoryTableConfig = {
-  title: 'Multimedia Request History',
+  title: 'Event Documentation History',
   fetchEndpoint: '/multimedia/my_history',
   cancelEndpoint: '/multimedia/cancel_request',
   noteEndpoint: '/multimedia/add_note',
@@ -13,8 +13,8 @@ const config: HistoryTableConfig = {
     { key: 'location_type', label: 'Location' },
   ],
   searchPlaceholder: 'Search by code, event, location...',
-  emptyMessage: 'No multimedia requests yet',
-  newRequest: { to: '/multimedia-request', label: 'Make a multimedia request' },
+  emptyMessage: 'No event documentation requests yet',
+  newRequest: { to: '/multimedia-request', label: 'Make an event documentation request' },
   cancelStatus: 'UNASSIGNED',
   service: 'multimedia',
   rateType: 'multimedia',

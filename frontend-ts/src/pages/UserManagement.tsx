@@ -20,6 +20,7 @@ interface User {
   primary_role: string;
   office?: string;
   position?: string;
+  contact_number?: string;
   is_default_password?: boolean;
   /** false for a self sign-up waiting for approval (it cannot sign in until approved). */
   approved?: boolean;
@@ -54,7 +55,8 @@ function UserManagement() {
     roles: [] as string[],
     primary_role: 'CLIENT',
     office: '',
-    position: ''
+    position: '',
+    contact_number: ''
   });
 
   const { data, isPending: loading } = useQuery({
@@ -91,7 +93,8 @@ function UserManagement() {
         roles: user.roles || [user.role || 'CLIENT'],
         primary_role: user.primary_role || user.role || 'CLIENT',
         office: user.office || '',
-        position: user.position || ''
+        position: user.position || '',
+        contact_number: user.contact_number || ''
       });
     } else {
       setEditingUser(null);
@@ -105,7 +108,8 @@ function UserManagement() {
         roles: ['CLIENT'],
         primary_role: 'CLIENT',
         office: '',
-        position: ''
+        position: '',
+        contact_number: ''
       });
     }
     setShowModal(true);
@@ -127,7 +131,8 @@ function UserManagement() {
           roles: formData.roles,
           primary_role: formData.primary_role,
           office: formData.office,
-          position: formData.position
+          position: formData.position,
+          contact_number: formData.contact_number
         };
         if (formData.password) payload.password = formData.password;
         await api.post('/users/update_user', payload);
@@ -213,7 +218,7 @@ function UserManagement() {
     }
   };
 
-  // Search covers username, name, position and office; the office filter lists the offices people
+  // Search covers username, name, position, contact number and office; the office filter lists the offices people
   // are actually in (and "No office" when someone has none). Both work on the list already loaded.
   const NO_OFFICE = '__none';
   const offices = [...new Set(users.map((u) => u.office?.trim() || ''))].filter(Boolean).sort((a, b) => a.localeCompare(b));
@@ -223,7 +228,7 @@ function UserManagement() {
     const office = u.office?.trim() || '';
     if (officeFilter && (officeFilter === NO_OFFICE ? office !== '' : office !== officeFilter)) return false;
     if (!term) return true;
-    return [u.username, `${u.first_name} ${u.middle_name || ''} ${u.last_name}`.replace(/\s+/g, ' '), u.position, office]
+    return [u.username, `${u.first_name} ${u.middle_name || ''} ${u.last_name}`.replace(/\s+/g, ' '), u.position, u.contact_number, office]
       .some((v) => (v || '').toLowerCase().includes(term));
   });
   const isFiltered = !!searchTerm || !!officeFilter;
@@ -290,7 +295,7 @@ function UserManagement() {
               <li key={u._id} className="approval-item">
                 <div className="approval-who">
                   <strong>{u.first_name} {u.middle_name} {u.last_name}</strong>
-                  <span>{u.username} · {u.office || 'No office'}{u.position ? ` · ${u.position}` : ''}</span>
+                  <span>{u.username} · {u.office || 'No office'}{u.position ? ` · ${u.position}` : ''}{u.contact_number ? ` · ${u.contact_number}` : ''}</span>
                   {u.created_at && <time dateTime={u.created_at}>Signed up {new Date(u.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>}
                 </div>
                 <div className="history-actions">
@@ -306,7 +311,7 @@ function UserManagement() {
       )}
 
       <div className="filters-row um-filters">
-        <SearchBox value={searchTerm} onSearch={setSearchTerm} placeholder="Search by name, username, position or office" />
+        <SearchBox value={searchTerm} onSearch={setSearchTerm} placeholder="Search by name, username, position, contact or office" />
         <Select value={officeFilter} onChange={(e) => setOfficeFilter(e.target.value)} aria-label="Office">
           <option value="">All offices</option>
           {offices.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -339,8 +344,8 @@ function UserManagement() {
                   <td className="td-cell" data-label="Username">{user.username}</td>
                   <td data-label="Name">
                     <div>{user.first_name} {user.middle_name} {user.last_name}</div>
-                    {user.position && (
-                      <div style={{ marginTop: '2px', fontSize: '11px', opacity: 0.75 }}>{user.position}</div>
+                    {(user.position || user.contact_number) && (
+                      <div style={{ marginTop: '2px', fontSize: '11px', opacity: 0.75 }}>{[user.position, user.contact_number].filter(Boolean).join(' · ')}</div>
                     )}
                     {user.active === false && <div className="um-inactive">Inactive</div>}
                     {user.is_default_password && (
@@ -460,6 +465,10 @@ function UserManagement() {
               <div className="form-group">
                 <label>Position</label>
                 <input autoComplete="off" type="text" value={formData.position} maxLength={120} placeholder="e.g. Computer Programmer I" onChange={(e) => setFormData({...formData, position: e.target.value})} />
+              </div>
+              <div className="form-group">
+                <label>Contact Number</label>
+                <input autoComplete="off" type="tel" inputMode="numeric" value={formData.contact_number} minLength={7} placeholder="e.g. 09XXXXXXXXX" onChange={(e) => setFormData({...formData, contact_number: e.target.value.replace(/\D/g, '').slice(0, 11)})} />
               </div>
               <div className="modal-actions">
                 <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>

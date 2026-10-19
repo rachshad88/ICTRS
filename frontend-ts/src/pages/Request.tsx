@@ -5,6 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { PriorityField, Priority } from '../components/Priority';
 import Select from '../components/Select';
 
+// Common units that aren't in the Unit list; picking one fills the box, which stays editable.
+const OTHER_UNIT_PICKS = ['Printer', 'Scanner', 'Projector', 'CCTV'];
+
 function Request() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -107,15 +110,30 @@ function Request() {
           {unit === 'others' && (
             <div className="form-group rf-unit-other">
               <label>What is the unit? *</label>
-              <input
-                type="text"
-                value={unitOther}
-                onChange={(e) => setUnitOther(e.target.value)}
-                placeholder="e.g. Printer, Projector, CCTV"
-                required
-                maxLength={100}
-                autoFocus
-              />
+              <div className="unit-other-row">
+                <input
+                  type="text"
+                  value={unitOther}
+                  onChange={(e) => setUnitOther(e.target.value)}
+                  placeholder="Type the unit or pick a common one"
+                  required
+                  maxLength={100}
+                  autoFocus
+                />
+                <div className="tech-period unit-picks" role="group" aria-label="Common units">
+                  {OTHER_UNIT_PICKS.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      className={unitOther.trim().toLowerCase() === name.toLowerCase() ? 'on' : undefined}
+                      aria-pressed={unitOther.trim().toLowerCase() === name.toLowerCase()}
+                      onClick={() => setUnitOther(name)}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
           

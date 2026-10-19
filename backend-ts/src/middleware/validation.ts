@@ -28,6 +28,8 @@ export const changePasswordSchema = z.object({
 
 // Job title printed under the user's name on the DAR signature line.
 const positionSchema = z.string().trim().max(120, 'Position is too long').optional();
+// On an account: optional for admins and profile edits (older accounts have none), blank allowed.
+const accountContactSchema = z.string().trim().regex(/^(\d{7,11})?$/, 'Contact number must be 7 to 11 digits').optional();
 
 // Public self sign-up. Always creates a CLIENT on the default password; any role or password
 // sent is ignored. Usernames are kept to characters that are easy to read out and type.
@@ -41,6 +43,7 @@ export const signupSchema = z.object({
   last_name: z.string().trim().min(1, 'Last name is required').max(60, 'Last name is too long'),
   office: z.enum(OFFICES, { errorMap: () => ({ message: 'Select your office' }) }),
   position: z.string().trim().min(1, 'Position is required').max(120, 'Position is too long'),
+  contact_number: z.string().trim().regex(/^\d{7,11}$/, 'Contact number must be 7 to 11 digits'),
   // Bot trap (routes/auth.ts): a hidden field people never see, and how long the form was open.
   website: z.string().max(200).optional(),
   form_ms: z.number().nonnegative().optional()
@@ -52,7 +55,8 @@ export const updateProfileSchema = z.object({
   middle_name: z.string().optional(),
   last_name: z.string().min(1, 'Last name is required'),
   office: z.string().optional(),
-  position: positionSchema
+  position: positionSchema,
+  contact_number: accountContactSchema
 });
 
 // Any field may be left blank; the DAR then prints an empty signature line for it.
@@ -87,7 +91,6 @@ const text = (label: string, max = TEXT_MAX) =>
   z.string().trim().min(1, `${label} is required`).max(max, `${label} must be ${max} characters or fewer`);
 const optionalText = (label: string, max = TEXT_MAX) =>
   z.string().max(max, `${label} must be ${max} characters or fewer`).optional();
-const contactNumber = (label: string) => z.string().regex(/^\d{7,11}$/, `${label} must be 7 to 11 digits`);
 // Event and target dates must be real days, today or later (in the app timezone).
 const upcomingDay = (label: string) => z.string()
   .refine(isValidDay, `${label} must be a valid date`)
@@ -115,7 +118,6 @@ export const createMultimediaSchema = z.object({
   event_end_time: time('End time'),
   specific_location: text('Specific location', 300),
   location_type: z.enum(LOCATION_TYPES, { errorMap: () => ({ message: 'Please choose a location type from the list' }) }),
-  contact_number: contactNumber('Contact number'),
   priority: prioritySchema.optional()
 }).refine((b) => b.event_end_time > b.event_start_time, { message: 'End time must be after the start time', path: ['event_end_time'] });
 
@@ -123,8 +125,6 @@ const targetFields = {
   target_date: upcomingDay('Target date'),
   target_time: time('Target time'),
   event_ppa_name: text('Event / PPA name', 300),
-  requestor_name: text('Requestor name', 200),
-  requestor_contact: contactNumber('Requestor contact'),
   priority: prioritySchema.optional()
 };
 
@@ -238,7 +238,8 @@ export const createUserSchema = z.object({
   roles: z.array(z.enum(ALL_ROLES)).min(1, 'At least one role is required'),
   primary_role: z.enum(ALL_ROLES),
   office: z.string().optional(),
-  position: positionSchema
+  position: positionSchema,
+  contact_number: accountContactSchema
 }).refine((b) => b.roles.includes(b.primary_role), primaryRoleInRoles);
 
 export const updateUserSchema = z.object({
@@ -251,6 +252,7 @@ export const updateUserSchema = z.object({
   primary_role: z.enum(ALL_ROLES),
   office: z.string().optional(),
   position: positionSchema,
+  contact_number: accountContactSchema,
   password: adminPasswordSchema
 }).refine((b) => b.roles.includes(b.primary_role), primaryRoleInRoles);
 
