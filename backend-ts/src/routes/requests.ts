@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import { Server } from 'socket.io';
-import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput } from '../config/database';
+import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput, USER_NAME_FIELDS, STAFF_LIST_FIELDS } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema, reopenRequestSchema, verifyMovSchema, returnMovSchema } from '../middleware/validation';
@@ -893,7 +893,7 @@ router.get('/get_dashboard', isAuthenticated, isItAdminOrTechnician, async (req:
             let: { lookupId: '$created_by' },
             pipeline: [
               { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
-              { $project: { password: 0 } }
+              { $project: USER_NAME_FIELDS }
             ],
             as: 'requester'
           }
@@ -1165,7 +1165,7 @@ router.get('/my_requests', isAuthenticated, async (req: AuthenticatedRequest, re
 router.get('/get_technicians', isAuthenticated, isItAdmin, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const usersCollection = getUsersCollection();
-    const technicians = await usersCollection.find({ roles: 'TECHNICIAN', active: { $ne: false } }).project({ password: 0 }).toArray();
+    const technicians = await usersCollection.find({ roles: 'TECHNICIAN', active: { $ne: false } }).project(STAFF_LIST_FIELDS).toArray();
     res.json({ technicians });
   } catch (error) {
     console.error('Get technicians error:', error);

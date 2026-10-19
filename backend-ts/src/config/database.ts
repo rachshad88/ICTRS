@@ -417,6 +417,12 @@ export async function createRedisPubSub(): Promise<[RedisClientType, RedisClient
   }
 }
 
+// What other users may see of an account: a requester or the staff member on a request is shown
+// by name only. Sessions, roles, offices and the rest stay on the server.
+export const USER_NAME_FIELDS = { first_name: 1, last_name: 1 } as const;
+// The staff lists in the assign forms (admins only) also show the username.
+export const STAFF_LIST_FIELDS = { first_name: 1, last_name: 1, username: 1 } as const;
+
 export function getUsersCollection(): Collection<User> {
   return db.collection<User>('users');
 }

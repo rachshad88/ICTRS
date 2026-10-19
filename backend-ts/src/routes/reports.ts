@@ -3,7 +3,7 @@ import { ObjectId, Collection, Document } from 'mongodb';
 import * as XLSX from 'xlsx';
 import {
   getRequestsCollection, getMultimediaRequestsCollection, getDigitalMediaRequestsCollection,
-  getPrintMaterialsRequestsCollection, getUsersCollection
+  getPrintMaterialsRequestsCollection, getUsersCollection, USER_NAME_FIELDS
 } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 import { formatDateTime, todayString } from '../utils/dates';
@@ -160,7 +160,7 @@ async function queryType(
   }
 
   const usersCollection = getUsersCollection();
-  const allUsers = await usersCollection.find({}).project({ password: 0 }).toArray();
+  const allUsers = await usersCollection.find({}).project(USER_NAME_FIELDS).toArray();
   const userMap = new Map<string, { first_name: string; last_name: string }>();
   allUsers.forEach(u => {
     userMap.set(u._id!.toString(), { first_name: u.first_name, last_name: u.last_name });

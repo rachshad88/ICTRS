@@ -3,7 +3,7 @@ import { ObjectId } from 'mongodb';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { z } from 'zod';
-import { getUsersCollection, getCache, setCache, redisClient, logAudit } from '../config/database';
+import { getUsersCollection, getCache, setCache, redisClient, logAudit, STAFF_LIST_FIELDS } from '../config/database';
 import { notify } from '../utils/notify';
 import { AuthenticatedRequest, isAuthenticated, isAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
@@ -49,7 +49,7 @@ router.get('/get_technicians', isAuthenticated, isAdmin, async (req: Authenticat
     const usersCollection = getUsersCollection();
     const technicians = await usersCollection
       .find({ roles: 'TECHNICIAN', active: { $ne: false } })
-      .project({ password: 0 })
+      .project(STAFF_LIST_FIELDS)
       .limit(100)
       .toArray();
 

@@ -9,7 +9,7 @@ import { assignMultimediaSchema, assignWithPrioritySchema, completeMultimediaSch
 import { normalizePriority, priorityExpr, overdueExpr, toDay, COMPLETED_STATUSES } from '../utils/priority';
 import { watchOverdue } from '../utils/overdueAlerts';
 import { formatDateTime } from '../utils/dates';
-import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId } from '../config/database';
+import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId, USER_NAME_FIELDS, STAFF_LIST_FIELDS } from '../config/database';
 import { getIO } from '../config/socket';
 import * as XLSX from 'xlsx';
 import { ZodIssue, ZodTypeAny } from 'zod';
@@ -359,7 +359,7 @@ export function createRequestRouter(config: RouteConfig): Router {
             let: { lookupId: '$assigned_to' },
             pipeline: [
               { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
-              { $project: { password: 0 } }
+              { $project: USER_NAME_FIELDS }
             ],
             as: 'assignedTechnician'
           }
@@ -370,7 +370,7 @@ export function createRequestRouter(config: RouteConfig): Router {
             let: { lookupId: '$created_by' },
             pipeline: [
               { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
-              { $project: { password: 0 } }
+              { $project: USER_NAME_FIELDS }
             ],
             as: 'requester'
           }
@@ -411,7 +411,7 @@ export function createRequestRouter(config: RouteConfig): Router {
             let: { lookupId: '$created_by' },
             pipeline: [
               { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
-              { $project: { password: 0 } }
+              { $project: USER_NAME_FIELDS }
             ],
             as: 'requester'
           }
@@ -650,7 +650,7 @@ export function createRequestRouter(config: RouteConfig): Router {
             let: { lookupId: '$created_by' },
             pipeline: [
               { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
-              { $project: { password: 0 } }
+              { $project: USER_NAME_FIELDS }
             ],
             as: 'requester'
           }
@@ -760,7 +760,7 @@ export function createRequestRouter(config: RouteConfig): Router {
             let: { lookupId: '$assigned_to' },
             pipeline: [
               { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
-              { $project: { password: 0 } }
+              { $project: USER_NAME_FIELDS }
             ],
             as: 'assignedTechnician'
           }
@@ -991,7 +991,7 @@ export function createRequestRouter(config: RouteConfig): Router {
   router.get('/get_technicians', isAuthenticated, isMultimediaAdmin, async (req: AuthenticatedRequest, res: Response) => {
     try {
       const usersCollection = getUsersCollection();
-      const technicians = await usersCollection.find({ roles: 'MULTIMEDIA', active: { $ne: false } }).project({ password: 0 }).toArray();
+      const technicians = await usersCollection.find({ roles: 'MULTIMEDIA', active: { $ne: false } }).project(STAFF_LIST_FIELDS).toArray();
       res.json({ technicians });
     } catch (error) {
       console.error('Get technicians error:', error);
@@ -1012,7 +1012,7 @@ export function createRequestRouter(config: RouteConfig): Router {
             let: { lookupId: '$assigned_to' },
             pipeline: [
               { $match: { $expr: { $eq: ['$_id', { $convert: { input: '$$lookupId', to: 'objectId', onError: null, onNull: null } }] } } },
-              { $project: { password: 0 } }
+              { $project: USER_NAME_FIELDS }
             ],
             as: 'assignedTechnician'
           }
