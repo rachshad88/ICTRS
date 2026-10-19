@@ -397,9 +397,11 @@ function Login() {
                     <motion.div
                       id="reset-help"
                       className="login-reset-help"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0, transition: { duration: 0.45, ease: EASE_OUT } }}
+                      // The gap under it goes with it, so nothing below jumps when it is removed. Hiding
+                      // eases in and out: an ease-out would creep through its last few pixels.
+                      initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                      animate={{ height: 'auto', opacity: 1, marginBottom: 16 }}
+                      exit={{ height: 0, opacity: 0, marginBottom: 0, transition: { duration: reduceMotion ? 0 : 0.32, ease: [0.4, 0, 0.2, 1] } }}
                       transition={{ duration: reduceMotion ? 0 : 0.9, ease: EASE_OUT }}
                     >
                       <motion.div
@@ -409,16 +411,25 @@ function Login() {
                         transition={{ duration: reduceMotion ? 0 : 1.1, delay: reduceMotion ? 0 : 0.15, ease: EASE_OUT }}
                       >
                         <svg className="login-reset-key" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <motion.circle
-                            cx="16" cy="32" r="9"
-                            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-                            transition={{ duration: reduceMotion ? 0 : 0.9, delay: 0.5, ease: EASE_OUT }}
-                          />
-                          <motion.path
-                            d="M23 25 L41 7 M34 14 L39 19 M29 19 L33 23"
-                            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-                            transition={{ duration: reduceMotion ? 0 : 1.1, delay: 0.9, ease: EASE_OUT }}
-                          />
+                          {/* Drawn one stroke after another: the ring, the shaft, then each tooth. Separate
+                              paths, since a dash pattern restarts on every subpath, which drew the teeth
+                              early; each stays hidden until it starts, since a round cap shows a dot at length 0. */}
+                          {([
+                            { d: 'M16 23 A9 9 0 1 0 16.01 23', delay: 0.5, duration: 0.9 },
+                            { d: 'M23 25 L41 7', delay: 1.1, duration: 0.6 },
+                            { d: 'M34 14 L39 19', delay: 1.55, duration: 0.3 },
+                            { d: 'M29 19 L33 23', delay: 1.75, duration: 0.3 },
+                          ] as const).map(({ d, delay, duration }) => (
+                            <motion.path
+                              key={d}
+                              d={d}
+                              initial={{ pathLength: 0, opacity: 0 }}
+                              animate={{ pathLength: 1, opacity: 1 }}
+                              transition={reduceMotion
+                                ? { duration: 0 }
+                                : { pathLength: { duration, delay, ease: EASE_OUT }, opacity: { duration: 0.01, delay } }}
+                            />
+                          ))}
                         </svg>
                         <div className="login-reset-text">
                           {[

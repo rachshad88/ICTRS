@@ -483,7 +483,8 @@
 }
 
 .login-reset-help {
-  margin: 0 0 16px;
+  /* Its 16px gap below is set by the animation (Login.tsx), so it collapses with the panel. */
+  margin: 0;
   overflow: hidden;
 }
 
