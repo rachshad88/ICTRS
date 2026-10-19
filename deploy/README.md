@@ -42,6 +42,14 @@ sudo ./deploy/install-nginx.sh
 
 It backs up the current config, checks the new one with `nginx -t`, and restores the old one if the check fails.
 
+Security headers for the files nginx serves (frame protection, nosniff, permissions and so on) live in
+`deploy/nginx-itrs-headers.conf`. The install script copies it to `/etc/nginx/snippets/itrs-security-headers.conf`,
+and every static location of both ITRS sites includes it. The `getregisterforms.online` vhost (below) is not
+in this repo: if you rebuild it, keep its `include snippets/itrs-security-headers.conf;` lines and
+`server_tokens off;`. The page's main Content Security Policy is written into `index.html` at build time
+(`frontend-ts/vite.config.ts`), so an inline script added to `index.html` is allowed automatically, but an
+inline event handler (`onload="..."`) is blocked: attach it from a script instead.
+
 The config compresses everything it sends with Brotli (gzip for older browsers), which needs the Ubuntu
 modules installed once; the install script stops with this command if they are missing:
 

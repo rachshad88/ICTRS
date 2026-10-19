@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { createHash } from 'node:crypto';
 import type { OutputBundle, OutputChunk, Plugin } from 'vite';
 
 // Libraries go in their own files, apart from ITRS's code. A deploy renames every file whose
@@ -61,8 +62,45 @@ function preloadCurrentPage(): Plugin {
   };
 }
 
+/**
+ * Content Security Policy for the built app, as a <meta> at the top of index.html. Scripts run only
+ * from ITRS's own files and the inline scripts in index.html, each allowed by its hash; the hashes
+ * are worked out here at build time, because the preload script above changes with every build.
+ * Styles allow inline ones: the animations set style attributes as they run. Uploaded images and
+ * attachments previewed before upload are blob: URLs; the CSS draws arrows and masks as data: URLs.
+ * A meta policy can't say who may frame the page; nginx sends that part (deploy/nginx-itrs-headers.conf).
+ * Runs last, after every other plugin has finished changing index.html.
+ */
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'content-security-policy',
+    apply: 'build',
+    enforce: 'post',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)];
+        const hashes = inline.map(([, body]) => `'sha256-${createHash('sha256').update(body).digest('base64')}'`);
+        const policy = [
+          "default-src 'self'",
+          `script-src 'self' ${hashes.join(' ')}`,
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: blob:",
+          "font-src 'self'",
+          "connect-src 'self'",
+          "media-src 'self' blob:",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "form-action 'self'",
+        ].join('; ');
+        return html.replace('<meta charset="UTF-8" />', `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`);
+      },
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), preloadCurrentPage()],
+  plugins: [react(), preloadCurrentPage(), contentSecurityPolicy()],
   build: {
     rollupOptions: {
       output: {

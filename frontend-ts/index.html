@@ -263,7 +263,7 @@
           </svg>
           <div class="boot-seal">
             <!-- lazy: the loader is hidden on every page but the landing page, and a hidden lazy image never downloads -->
-            <img src="/solano-logo.png" alt="" loading="lazy" onload="this.classList.add('ok')" />
+            <img src="/solano-logo.png" alt="" loading="lazy" />
           </div>
         </div>
         <div class="boot-pct"><span id="boot-pct">0</span><small>%</small></div>
@@ -277,6 +277,13 @@
       // The ring fills with the same value and the orbit tightens around the seal.
       (function () {
         if (!document.documentElement.classList.contains('boot')) return;
+        // The seal fades in once it has loaded. A listener rather than onload="": the Content
+        // Security Policy (vite.config.ts) allows no inline event handlers.
+        var seal = document.querySelector('#boot .boot-seal img');
+        if (seal) {
+          if (seal.complete) seal.classList.add('ok');
+          else seal.addEventListener('load', function () { seal.classList.add('ok'); });
+        }
         var label = document.getElementById('boot-pct');
         var status = document.getElementById('boot-status');
         var stage = document.getElementById('boot-stage');

@@ -20,8 +20,15 @@ if ! ls /etc/nginx/modules-enabled/*brotli* >/dev/null 2>&1; then
   exit 1
 fi
 
+SNIPPET=/etc/nginx/snippets/itrs-security-headers.conf
+SNIPPET_BACKUP=""
+mkdir -p /etc/nginx/snippets
+if [ -f "$SNIPPET" ]; then SNIPPET_BACKUP="$SNIPPET.bak-$(date +%Y%m%d-%H%M%S)"; cp "$SNIPPET" "$SNIPPET_BACKUP"; fi
+
 cp "$SITE" "$BACKUP"
 cp "$REPO/deploy/nginx-itrs.conf" "$SITE"
+# Security headers shared by both ITRS sites (this one and the getregisterforms.online vhost).
+cp "$REPO/deploy/nginx-itrs-headers.conf" "$SNIPPET"
 
 if nginx -t; then
   systemctl reload nginx
@@ -29,6 +36,7 @@ if nginx -t; then
   echo "To roll back: sudo cp $BACKUP $SITE && sudo systemctl reload nginx"
 else
   cp "$BACKUP" "$SITE"
+  if [ -n "$SNIPPET_BACKUP" ]; then cp "$SNIPPET_BACKUP" "$SNIPPET"; fi
   echo "New config failed nginx -t; the previous config was restored and nginx was not reloaded." >&2
   exit 1
 fi
