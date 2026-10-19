@@ -17,7 +17,7 @@ const GENIE_MARGIN = 72;
 /** How far into the field's edge the neck reaches, in px. */
 const GENIE_NECK_DEPTH = 4;
 /** The content is bent in horizontal slices cut along these rows, and no taller than this. */
-const GENIE_ROWS = '.cal-head, .cal-row, .cal-foot, .cal-pick, .opt-search, .opt-item, .opt-empty, .time-head, .time-label, .time-opt';
+const GENIE_ROWS = '.cal-head, .cal-row, .cal-foot, .cal-pick, .opt-search, .opt-item, .opt-empty, .time-head, .time-label, .time-opt, .office-picker-search, .office-picker-heading, .office-picker-option, .office-picker-empty';
 const GENIE_MAX_SLICE = 48;
 /** The field taking the panel back in, like the nav's lens (BottomNav.tsx absorb): it starts to
  *  bulge toward the panel once it is this far drained, up to this much wider and taller, and
@@ -28,6 +28,73 @@ const FIELD_SWELL_Y = 0.12;
 const FIELD_MERGE_AT = 0.03;
 const FIELD_SETTLE_MS = 420;
 const smooth01 = (v: number) => { const t = Math.min(1, Math.max(0, v)); return t * t * (3 - 2 * t); };
+
+/** On the request forms (and the sign-up page's office field) the panel pours out of the field's icon
+ *  (the arrow, calendar or clock), the
+ *  way a macOS window pours out of its Dock icon, and drains back into it: the neck is about the
+ *  icon's width and meets the icon's edge facing the panel, so the icon itself stays in view. */
+const ICON_FORMS = '.request-form, .office-picker';
+const ICON_NECK_MIN_HALF = 7;
+/** How far into the icon the neck reaches, in px. */
+const ICON_NECK_DEPTH = 2;
+/** The icon gives a little push as the panel leaves it, and swells as it takes the panel back. */
+const ICON_PUSH = 0.22;
+const ICON_PUSH_MS = 380;
+const ICON_SWELL = 0.45;
+const ICON_SETTLE_MS = 460;
+/** A dropdown's arrow is the select's background image (app.css, "A plain arrow for selects"). */
+const SELECT_ARROW = { width: 12, height: 8, right: 16 };
+
+interface FieldIcon {
+  rect: { left: number; top: number; right: number; bottom: number; width: number; height: number };
+  /** Draws the icon k of the way to its biggest size (1 + amount). */
+  scale: (s: number) => void;
+  /** Animates it from its current size back to normal. */
+  settle: (ms: number) => void;
+  /** A quick grow and back, as the panel leaves it. */
+  push: (amount: number, ms: number) => void;
+  reset: () => void;
+}
+
+/** The field's icon, when the field sits on a request form; null elsewhere (they pour from the field). */
+function fieldIcon(anchor: HTMLElement): FieldIcon | null {
+  if (!anchor.closest(ICON_FORMS)) return null;
+  const easing = 'cubic-bezier(0.25, 1, 0.5, 1)';
+  const svg = anchor.querySelector<SVGElement>('.date-field-icon, .office-picker-chevron');
+  if (svg) {
+    return {
+      rect: svg.getBoundingClientRect(),
+      scale: (s) => { svg.style.scale = s.toFixed(4); },
+      settle: (ms) => {
+        const from = svg.style.scale || '1';
+        svg.style.scale = '';
+        svg.animate([{ scale: from }, { scale: '1' }], { duration: ms, easing });
+      },
+      push: (amount, ms) => { svg.animate([{ scale: '1' }, { scale: String(1 + amount), offset: 0.35 }, { scale: '1' }], { duration: ms, easing: 'ease-out' }); },
+      reset: () => { svg.style.scale = ''; },
+    };
+  }
+  const select = anchor.querySelector('select');
+  if (!select) return null;
+  // Where the arrow is drawn: its right offset as the stylesheet sets it, centred top to bottom.
+  const r = select.getBoundingClientRect();
+  const offset = parseFloat(getComputedStyle(select).backgroundPositionX.match(/(\d+(?:\.\d+)?)px/)?.[1] ?? '') || SELECT_ARROW.right;
+  const { width, height } = SELECT_ARROW;
+  const right = r.right - offset;
+  const top = r.top + (r.height - height) / 2;
+  const size = (s: number) => `${(width * s).toFixed(2)}px ${(height * s).toFixed(2)}px`;
+  return {
+    rect: { left: right - width, top, right, bottom: top + height, width, height },
+    scale: (s) => { select.style.backgroundSize = size(s); },
+    settle: (ms) => {
+      const from = select.style.backgroundSize || size(1);
+      select.style.backgroundSize = '';
+      select.animate([{ backgroundSize: from }, { backgroundSize: size(1) }], { duration: ms, easing });
+    },
+    push: (amount, ms) => { select.animate([{ backgroundSize: size(1) }, { backgroundSize: size(1 + amount), offset: 0.35 }, { backgroundSize: size(1) }], { duration: ms, easing: 'ease-out' }); },
+    reset: () => { select.style.backgroundSize = ''; },
+  };
+}
 
 export function usePhone() {
   const [phone, setPhone] = useState(() => window.matchMedia(PHONE_QUERY).matches);
@@ -71,7 +138,11 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
       const r = anchor.getBoundingClientRect();
       const h = panel.current?.offsetHeight || 360;
       const w = Math.min(matchWidth ? Math.max(width, r.width) : width, window.innerWidth - 16);
-      const left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+      // On the request forms the panel pours from the field's icon at its right end, so a panel
+      // narrower than the field lines up with that end, under the icon (the funnel can only be drawn
+      // across the panel's own width).
+      const start = anchor.closest(ICON_FORMS) ? r.right - w : r.left;
+      const left = Math.min(Math.max(8, start), window.innerWidth - w - 8);
       // The side is chosen once, when it opens; it doesn't jump across as its height changes.
       if (side.current === null) side.current = r.bottom + GAP + h <= window.innerHeight - 8 || r.top - GAP - h < 8 ? 'below' : 'above';
       const below = side.current === 'below';
@@ -120,16 +191,30 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
     const h = el.offsetHeight;
     const field = anchor.getBoundingClientRect();
     const panelLeft = at.left;
+    const icon = fieldIcon(anchor);
     // The neck meets the field's edge facing the panel, a little way in, as wide as the field
-    // (up to the panel's own width). Measured from the panel's far side (lib/genie.ts).
-    const geometry = {
-      width: w,
-      height: h,
-      neckY: h + GAP + GENIE_NECK_DEPTH,
-      neckX: field.left + field.width / 2 - panelLeft,
-      neckHalf: Math.min(field.width, w) / 2,
-      margin: GENIE_MARGIN,
-    };
+    // (up to the panel's own width). On the request forms it meets the field's icon instead, about
+    // as wide as the icon. Measured from the panel's far side (lib/genie.ts).
+    const geometry = icon
+      ? {
+          width: w,
+          height: h,
+          // From the field's edge facing the panel to the icon's edge facing it, plus a little.
+          neckY: h + GAP + (at.above ? icon.rect.top - field.top : field.bottom - icon.rect.bottom) + ICON_NECK_DEPTH,
+          neckX: icon.rect.left + icon.rect.width / 2 - panelLeft,
+          neckHalf: Math.max(ICON_NECK_MIN_HALF, icon.rect.width / 2),
+          margin: GENIE_MARGIN,
+        }
+      : {
+          width: w,
+          height: h,
+          neckY: h + GAP + GENIE_NECK_DEPTH,
+          neckX: field.left + field.width / 2 - panelLeft,
+          neckHalf: Math.min(field.width, w) / 2,
+          margin: GENIE_MARGIN,
+        };
+    // Opening from scratch (not turning back mid-drain), the icon gives a push as the panel leaves.
+    if (icon && isPresent && progress.get() < 0.05) icon.push(ICON_PUSH, ICON_PUSH_MS);
     const frameAt = at.above ? genieFrame : genieFrameBelow;
     const below = !at.above;
 
@@ -159,7 +244,7 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
       // panel, and the part of each that shows (an option scrolled half out of its list, half).
       const rows = Array.from(b.querySelectorAll<HTMLElement>(GENIE_ROWS), (n) => {
         const r = n.getBoundingClientRect();
-        const list = n.closest('.opt-list, .time-col')?.getBoundingClientRect();
+        const list = n.closest('.opt-list, .time-col, .office-picker-list')?.getBoundingClientRect();
         return {
           n,
           x: r.left - box.left,
@@ -277,6 +362,18 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
     };
     const absorb = (p: number) => {
       if (isPresent || merged) return;
+      if (icon) {
+        // The icon takes it back: it swells as the last of the panel drains in, then settles.
+        if (p > FIELD_MERGE_AT) {
+          icon.scale(1 + ICON_SWELL * smooth01(1 - p / FIELD_SWELL_FROM));
+          swollen = true;
+          return;
+        }
+        merged = true;
+        swollen = false;
+        icon.settle(ICON_SETTLE_MS);
+        return;
+      }
       if (p > FIELD_MERGE_AT) {
         bulge(smooth01(1 - p / FIELD_SWELL_FROM));
         return;
@@ -338,8 +435,11 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
       cancelAnimationFrame(buildFrame);
       warp?.remove();
       if (b) b.style.opacity = '';
-      // Opened again mid-drain: the field lets go of what it had taken in.
-      if (swollen && !merged) unbulge();
+      // Opened again mid-drain: the field (or its icon) lets go of what it had taken in.
+      if (swollen && !merged) {
+        if (icon) icon.reset();
+        else unbulge();
+      }
     };
     // Starts once the panel is placed and again when it closes; moving it (pos) must not restart it.
   }, [placed, isPresent, phone, anchor, reduce, progress, safeToRemove]);

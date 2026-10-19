@@ -900,6 +900,21 @@
   box-shadow: 0 28px 56px -22px rgba(11, 58, 140, 0.45), 0 2px 0 rgba(11, 58, 140, 0.05);
 }
 
+/* Desktop: the list in the shared popover (Popup.tsx), which is drawn outside the page, so it
+   brings the page's colours and its own card look */
+.popup-popover.office-picker-popup {
+  --lg-ink: #0c1f4a;
+  --lg-ink-soft: #4a5875;
+  --lg-cobalt: #1452c9;
+  --lg-mono: 'JetBrains Mono', 'SF Mono', Monaco, monospace;
+  padding: 0;
+  border: 1px solid rgba(12, 31, 74, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 28px 56px -22px rgba(11, 58, 140, 0.45), 0 2px 0 rgba(11, 58, 140, 0.05);
+  font-family: var(--public-body);
+  color: var(--lg-ink);
+}
+
 .office-picker-search {
   display: flex;
   align-items: center;
@@ -911,7 +926,9 @@
 
 /* Flush with the panel: undo the form's field styling, which would otherwise apply here too */
 .login-container .office-picker-search input,
-.login-container .office-picker-search input:focus {
+.login-container .office-picker-search input:focus,
+.office-picker-popup .office-picker-search input,
+.office-picker-popup .office-picker-search input:focus {
   height: 32px;
   padding: 0;
   border: 0;

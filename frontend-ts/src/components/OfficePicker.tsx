@@ -1,11 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { EASE_OUT } from '../lib/motion';
+import Popup, { usePhone } from './Popup';
 
 // The office field on the sign-up page: a searchable list in the page's ticket style, in place of a
 // native <select> (whose open list can't be styled and differs on every phone). Offices are grouped
 // by their prefix, so "MMO - Tourism Section" shows as "Tourism Section" under "Mayor's Office".
 // A hidden required input keeps the browser's own "please fill in this field" check on submit.
+// On desktop the list is the shared popover, so it pours out of the field's arrow like the request
+// forms' dropdowns (Popup.tsx); on phones it stays a panel under the field.
 
 interface Props {
   id: string;
@@ -49,6 +52,13 @@ export default function OfficePicker({ id, value, options, onChange, placeholder
   const listRef = useRef<HTMLUListElement>(null);
   const validityRef = useRef<HTMLInputElement>(null);
   const listId = useId();
+  const phone = usePhone();
+  // Each open is a new popover, so one reopened while the last still drains gets its own.
+  const [openCount, setOpenCount] = useState(0);
+  const toggle = (next: boolean) => {
+    if (next && !open) setOpenCount((n) => n + 1);
+    setOpen(next);
+  };
 
   // Matching offices in display order (grouped), each with its group and short name.
   const items = useMemo(() => {
@@ -73,15 +83,16 @@ export default function OfficePicker({ id, value, options, onChange, placeholder
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Click or tap outside closes it.
+  // Click or tap outside closes it. (On desktop the popover sees to that itself: it lives outside
+  // this element, so a press inside it would count as outside here.)
   useEffect(() => {
-    if (!open) return;
+    if (!open || !phone) return;
     const away = (e: PointerEvent) => {
       if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener('pointerdown', away);
     return () => document.removeEventListener('pointerdown', away);
-  }, [open]);
+  }, [open, phone]);
 
   // Keep the highlighted option in view while arrowing through the list.
   useEffect(() => {
@@ -120,6 +131,66 @@ export default function OfficePicker({ id, value, options, onChange, placeholder
     }
   };
 
+  // The search box and the list, in the popover (desktop) or the panel under the field (phones).
+  const panel = (
+    <>
+      <div className="office-picker-search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-3.5-3.5" />
+        </svg>
+        <input
+          ref={searchRef}
+          type="text"
+          role="combobox"
+          aria-label="Search offices"
+          aria-controls={listId}
+          aria-expanded="true"
+          aria-autocomplete="list"
+          aria-activedescendant={items[active] ? `${listId}-${active}` : undefined}
+          placeholder="Search offices"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setActive(0);
+          }}
+          onKeyDown={onSearchKey}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <span className="office-picker-count">{items.length}</span>
+      </div>
+
+      <ul className="office-picker-list" id={listId} role="listbox" aria-label="Offices" ref={listRef}>
+        {items.length === 0 && <li className="office-picker-empty">No office matches “{query}”</li>}
+        {items.map((o, i) => {
+          const first = i === 0 || items[i - 1].label !== o.label;
+          return (
+            <li key={o.office} role="presentation">
+              {first && <span className="office-picker-heading" aria-hidden="true">{o.label}</span>}
+              <div
+                id={`${listId}-${i}`}
+                data-index={i}
+                role="option"
+                aria-selected={o.office === value}
+                className={`office-picker-option ${i === active ? 'is-active' : ''} ${o.office === value ? 'is-selected' : ''}`}
+                onPointerMove={() => setActive(i)}
+                onClick={() => choose(o.office)}
+              >
+                <span><Highlight text={o.name} query={query.trim()} /></span>
+                {o.office === value && (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+
   const current = value ? groupOf(value) : null;
 
   return (
@@ -132,11 +203,11 @@ export default function OfficePicker({ id, value, options, onChange, placeholder
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => toggle(!open)}
         onKeyDown={(e) => {
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
-            setOpen(true);
+            toggle(true);
           }
         }}
       >
@@ -166,7 +237,7 @@ export default function OfficePicker({ id, value, options, onChange, placeholder
       />
 
       <AnimatePresence>
-        {open && (
+        {open && (phone ? (
           <motion.div
             className="office-picker-panel"
             initial={{ opacity: 0, y: -6, scaleY: 0.96 }}
@@ -175,62 +246,13 @@ export default function OfficePicker({ id, value, options, onChange, placeholder
             transition={{ duration: 0.22, ease: EASE_OUT }}
             style={{ transformOrigin: '50% 0%' }}
           >
-            <div className="office-picker-search">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M20 20l-3.5-3.5" />
-              </svg>
-              <input
-                ref={searchRef}
-                type="text"
-                role="combobox"
-                aria-label="Search offices"
-                aria-controls={listId}
-                aria-expanded="true"
-                aria-autocomplete="list"
-                aria-activedescendant={items[active] ? `${listId}-${active}` : undefined}
-                placeholder="Search offices"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setActive(0);
-                }}
-                onKeyDown={onSearchKey}
-                autoComplete="off"
-                spellCheck={false}
-              />
-              <span className="office-picker-count">{items.length}</span>
-            </div>
-
-            <ul className="office-picker-list" id={listId} role="listbox" aria-label="Offices" ref={listRef}>
-              {items.length === 0 && <li className="office-picker-empty">No office matches “{query}”</li>}
-              {items.map((o, i) => {
-                const first = i === 0 || items[i - 1].label !== o.label;
-                return (
-                  <li key={o.office} role="presentation">
-                    {first && <span className="office-picker-heading" aria-hidden="true">{o.label}</span>}
-                    <div
-                      id={`${listId}-${i}`}
-                      data-index={i}
-                      role="option"
-                      aria-selected={o.office === value}
-                      className={`office-picker-option ${i === active ? 'is-active' : ''} ${o.office === value ? 'is-selected' : ''}`}
-                      onPointerMove={() => setActive(i)}
-                      onClick={() => choose(o.office)}
-                    >
-                      <span><Highlight text={o.name} query={query.trim()} /></span>
-                      {o.office === value && (
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                          <path d="M20 6L9 17l-5-5" />
-                        </svg>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            {panel}
           </motion.div>
-        )}
+        ) : (
+          <Popup key={openCount} anchor={buttonRef.current} title="Office" onClose={() => setOpen(false)} width={280} matchWidth className="office-picker-popup">
+            {panel}
+          </Popup>
+        ))}
       </AnimatePresence>
     </div>
   );
