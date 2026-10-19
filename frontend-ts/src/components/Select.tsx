@@ -75,10 +75,14 @@ function Select({ children, onKeyDown, ...props }: Props) {
   };
 
   return (
-    <span className="select-wrap" ref={wrap}>
+    <span className={`select-wrap${open ? ' is-open' : ''}`} ref={wrap}>
       <select ref={select} {...props} onKeyDown={onSelectKey} onMouseDown={(e) => e.preventDefault()}>
         {children}
       </select>
+      {/* The arrow, turned up while the list is out; the list pours from it (Popup.tsx). */}
+      <svg className="select-chevron" width="12" height="8" viewBox="0 0 12 8" aria-hidden="true">
+        <path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
       {/* Takes the click in place of the select, so the browser's own list never opens. */}
       <button
         type="button"

@@ -231,7 +231,7 @@
 .form-group textarea:focus {
   outline: none;
   border-color: var(--purple);
-  background: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.05);
   box-shadow: 0 0 0 3px rgba(102, 192, 244, 0.16);
 }
 
@@ -1781,7 +1781,7 @@
 [data-theme='light'] .form-group input:focus,
 [data-theme='light'] .form-group select:focus,
 [data-theme='light'] .form-group textarea:focus {
-  background: #ffffff;
+  background-color: #ffffff;
 }
 
 [data-theme='light'] .toast-item {
@@ -2979,6 +2979,45 @@
 
 .select-hit:disabled {
   cursor: not-allowed;
+}
+
+/* The arrow is its own icon here, not the select's background (app.css), so it can turn up while
+   the list is out. It sits where that background arrow sat on each kind of field. */
+.app-main .select-wrap > select:not([multiple]),
+.select-wrap > select:not([multiple]) {
+  background-image: none;
+}
+
+.select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  margin-top: -4px;
+  color: var(--ink);
+  pointer-events: none;
+  transition: rotate 260ms var(--ease-out);
+}
+
+.form-group .select-chevron {
+  right: 16px;
+}
+
+select.tech-date ~ .select-chevron {
+  right: 12px;
+}
+
+.select-wrap.is-open .select-chevron {
+  rotate: 180deg;
+}
+
+select:disabled ~ .select-chevron {
+  opacity: 0.45;
+}
+
+@media (max-width: 768px) {
+  .form-group .select-chevron {
+    right: 14px;
+  }
 }
 
 /* The list, in the shared popover / sheet (components/Popup.tsx) */

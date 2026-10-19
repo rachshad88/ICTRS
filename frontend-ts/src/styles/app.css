@@ -276,7 +276,8 @@
 .app-main .form-group select:focus,
 .app-main .form-group textarea:focus {
   border-color: var(--cobalt);
-  background: #ffffff;
+  /* The colour only: the shorthand would clear a dropdown's drawn arrow while it is open. */
+  background-color: #ffffff;
   box-shadow: 0 0 0 4px rgba(255, 217, 26, 0.45);
 }
 
@@ -418,6 +419,21 @@
   font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--card);
   color: var(--ink);
+}
+
+/* Every dropdown gets the request forms' drawn arrow in place of the native one, so its list can pour
+   out of the arrow (components/Popup.tsx). Kept weak (:where) so the forms' own rule above still
+   sets their spacing; the filter rows reset the background, so they restate it. */
+:where(.app-main) select:not([multiple]),
+.app-main .filters-row select,
+.app-main .overview-filters select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%230c1f4a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px 8px;
 }
 
 .app-main .filters-row select:focus,

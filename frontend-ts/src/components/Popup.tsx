@@ -29,11 +29,9 @@ const FIELD_MERGE_AT = 0.03;
 const FIELD_SETTLE_MS = 420;
 const smooth01 = (v: number) => { const t = Math.min(1, Math.max(0, v)); return t * t * (3 - 2 * t); };
 
-/** On the request forms (and the sign-up page's office field) the panel pours out of the field's icon
- *  (the arrow, calendar or clock), the
- *  way a macOS window pours out of its Dock icon, and drains back into it: the neck is about the
- *  icon's width and meets the icon's edge facing the panel, so the icon itself stays in view. */
-const ICON_FORMS = '.request-form, .office-picker';
+/** The panel pours out of the field's icon (the arrow, calendar or clock), the way a macOS window
+ *  pours out of its Dock icon, and drains back into it: the neck is about the icon's width and meets
+ *  the icon's edge facing the panel, so the icon itself stays in view. */
 const ICON_NECK_MIN_HALF = 7;
 /** How far into the icon the neck reaches, in px. */
 const ICON_NECK_DEPTH = 2;
@@ -56,11 +54,10 @@ interface FieldIcon {
   reset: () => void;
 }
 
-/** The field's icon, when the field sits on a request form; null elsewhere (they pour from the field). */
+/** The field's icon; null for a field without one (its panel pours from the whole field). */
 function fieldIcon(anchor: HTMLElement): FieldIcon | null {
-  if (!anchor.closest(ICON_FORMS)) return null;
   const easing = 'cubic-bezier(0.25, 1, 0.5, 1)';
-  const svg = anchor.querySelector<SVGElement>('.date-field-icon, .office-picker-chevron');
+  const svg = anchor.querySelector<SVGElement>('.date-field-icon, .office-picker-chevron, .select-chevron');
   if (svg) {
     return {
       rect: svg.getBoundingClientRect(),
@@ -75,7 +72,9 @@ function fieldIcon(anchor: HTMLElement): FieldIcon | null {
     };
   }
   const select = anchor.querySelector('select');
-  if (!select) return null;
+  // A select still showing the browser's own arrow has nothing to pour from (that arrow can't be
+  // scaled); the drawn one comes with appearance: none, which focus doesn't change.
+  if (!select || getComputedStyle(select).appearance !== 'none') return null;
   // Where the arrow is drawn: its right offset as the stylesheet sets it, centred top to bottom.
   const r = select.getBoundingClientRect();
   const offset = parseFloat(getComputedStyle(select).backgroundPositionX.match(/(\d+(?:\.\d+)?)px/)?.[1] ?? '') || SELECT_ARROW.right;
@@ -138,10 +137,9 @@ function Popup({ anchor, title, onClose, width, matchWidth = false, className = 
       const r = anchor.getBoundingClientRect();
       const h = panel.current?.offsetHeight || 360;
       const w = Math.min(matchWidth ? Math.max(width, r.width) : width, window.innerWidth - 16);
-      // On the request forms the panel pours from the field's icon at its right end, so a panel
-      // narrower than the field lines up with that end, under the icon (the funnel can only be drawn
-      // across the panel's own width).
-      const start = anchor.closest(ICON_FORMS) ? r.right - w : r.left;
+      // The panel pours from the field's icon at its right end, so a panel narrower than the field
+      // lines up with that end, under the icon (the funnel can only be drawn across the panel's own width).
+      const start = fieldIcon(anchor) ? r.right - w : r.left;
       const left = Math.min(Math.max(8, start), window.innerWidth - w - 8);
       // The side is chosen once, when it opens; it doesn't jump across as its height changes.
       if (side.current === null) side.current = r.bottom + GAP + h <= window.innerHeight - 8 || r.top - GAP - h < 8 ? 'below' : 'above';
