@@ -909,13 +909,15 @@
   margin-left: auto;
 }
 
-/* Leader lines pointing at the ticket */
+/* Leader lines pointing at the ticket. Dashes drawn as a background, so the active one can flow
+   toward the ticket. */
 .lp-notes li::after {
   content: '';
   position: absolute;
-  top: 14px;
+  top: 13px;
   width: 52px;
-  border-top: 2px dashed rgba(20, 82, 201, 0.45);
+  height: 2px;
+  background: repeating-linear-gradient(90deg, rgba(20, 82, 201, 0.45) 0 6px, transparent 6px 11px);
 }
 
 .lp-notes-left li::after {
@@ -924,6 +926,428 @@
 
 .lp-notes-right li::after {
   left: -66px;
+}
+
+/* ----- Benefits, working (Landing.tsx BenefitsSection) ----- */
+
+/* Each note is one big press target: its title is the button, stretched over the whole note. */
+.lp-notes li {
+  transition: opacity 0.3s ease;
+}
+
+.lp-anatomy.has-active .lp-notes li:not(.is-active) {
+  opacity: 0.5;
+}
+
+.lp-note-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.lp-note-btn::before {
+  content: '';
+  position: absolute;
+  inset: -14px -18px;
+  border-radius: 16px;
+}
+
+.lp-note-btn:focus-visible {
+  outline: none;
+}
+
+.lp-note-btn:focus-visible::before {
+  outline: 2px solid var(--lp-cobalt);
+  outline-offset: 2px;
+}
+
+.lp-notes li.is-active .lp-note-btn {
+  color: var(--lp-cobalt);
+}
+
+.lp-notes .lp-marker {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lp-notes li.is-active .lp-marker {
+  transform: scale(1.12);
+  animation: lp-marker-ping 1.8s ease-out infinite;
+}
+
+.lp-notes li.is-active::after {
+  background: repeating-linear-gradient(90deg, var(--lp-cobalt) 0 6px, transparent 6px 11px);
+  animation: lp-dash-in 0.55s linear infinite;
+}
+
+.lp-notes-right li.is-active::after {
+  animation-direction: reverse;
+}
+
+@keyframes lp-dash-in {
+  to { background-position: 11px 0; }
+}
+
+@keyframes lp-marker-ping {
+  0% { box-shadow: 0 0 0 4px var(--lp-paper-2), 0 0 0 4px rgba(255, 217, 26, 0.7); }
+  70%, 100% { box-shadow: 0 0 0 4px var(--lp-paper-2), 0 0 0 16px rgba(255, 217, 26, 0); }
+}
+
+/* The tour's timer under the benefit being shown. */
+.lp-tour-bar {
+  position: relative;
+  display: block;
+  height: 2px;
+  margin-top: 16px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(20, 82, 201, 0.14);
+}
+
+.lp-tour-bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--lp-cobalt);
+  transform-origin: left;
+  /* Keep in step with TOUR_MS in Landing.tsx. */
+  animation: lp-tour 4.6s linear forwards;
+}
+
+.lp-notes-left .lp-tour-bar::after {
+  transform-origin: right;
+}
+
+@keyframes lp-tour {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* The parts of the ticket, each with the highlight that glides between them. */
+.lp-ticket-demo .lp-ticket-part {
+  isolation: isolate;
+}
+
+.lp-spot {
+  position: absolute;
+  inset: -6px -12px;
+  z-index: -1;
+  border-radius: 10px;
+  background: rgba(255, 217, 26, 0.3);
+  box-shadow: inset 0 0 0 1.5px rgba(232, 190, 0, 0.75);
+}
+
+.lp-marker-btn {
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lp-marker-btn[aria-pressed='true'] {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px var(--lp-paper-2), 0 0 0 6px var(--lp-cobalt);
+}
+
+.lp-marker-btn:focus-visible {
+  outline: 2px solid var(--lp-cobalt);
+  outline-offset: 5px;
+}
+
+/* Buttons here keep their own face over the public pages' "inherit" (fonts.css, .lp button). */
+.lp .lp-marker-btn,
+.lp .lp-bene-tab {
+  font-family: var(--lp-display);
+}
+
+.lp .lp-prio button {
+  font-family: var(--lp-mono);
+}
+
+/* 1: the code */
+.lp-ticket-demo .lp-ticket-code {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 2: priority switch and the queue it moves you along */
+.lp-prio-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.lp-prio {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(12, 31, 74, 0.08);
+}
+
+.lp-prio button {
+  position: relative;
+  padding: 3px 11px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.lp-prio button.is-on {
+  color: var(--lp-ink);
+}
+
+.lp-prio button > span:last-child {
+  position: relative;
+}
+
+.lp-prio-pill {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--lp-yellow);
+  box-shadow: 0 1px 2px rgba(12, 31, 74, 0.18);
+}
+
+.lp-prio button:focus-visible {
+  outline: 2px solid var(--lp-cobalt);
+  outline-offset: 1px;
+}
+
+.lp-queue {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-queue-line {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.lp-queue-line i {
+  width: 12px;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(12, 31, 74, 0.16);
+}
+
+.lp-queue-line i.is-ours {
+  background: var(--lp-yellow);
+  box-shadow: inset 0 0 0 1.5px var(--lp-ink);
+}
+
+.lp-queue small {
+  font-family: var(--lp-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+}
+
+/* 3: the stamp, pressed to move the request along, and the live dot */
+.lp-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  color: #12825d;
+}
+
+.lp-live i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: lp-live 1.6s ease-out infinite;
+}
+
+@keyframes lp-live {
+  0% { box-shadow: 0 0 0 0 rgba(18, 130, 93, 0.5); }
+  70%, 100% { box-shadow: 0 0 0 7px rgba(18, 130, 93, 0); }
+}
+
+.lp-stamp-btn {
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.lp-stamp-btn:active {
+  transform: scale(0.94);
+}
+
+.lp-stamp-btn:focus-visible {
+  outline: 2px solid var(--lp-cobalt);
+  outline-offset: 2px;
+}
+
+/* 4: the note, and the bell that rings when it reaches the staff member */
+.lp-assignee {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px 6px;
+  min-width: 0;
+  text-align: right;
+}
+
+.lp-bell {
+  display: inline-flex;
+  color: var(--lp-cobalt);
+  transform-origin: 50% 15%;
+}
+
+.lp-notified {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--lp-cobalt);
+  font-family: var(--lp-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #f4f7fc;
+}
+
+.lp-ticket-demo .lp-ticket-note {
+  cursor: pointer;
+}
+
+.lp-written {
+  min-height: 1.15em;
+}
+
+.lp-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.9em;
+  margin-left: 2px;
+  vertical-align: -0.1em;
+  background: currentColor;
+  animation: lp-caret 0.8s steps(2) infinite;
+}
+
+@keyframes lp-caret {
+  to { visibility: hidden; }
+}
+
+/* 5: stars to rate with; only a finished request can be rated, so they wait until Done */
+.lp-stars-live button {
+  display: inline-flex;
+  padding: 1px;
+  border: 0;
+  background: none;
+  color: var(--lp-cobalt);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.lp-stars-live svg {
+  fill: transparent;
+  transition: fill 0.15s ease;
+}
+
+.lp-stars-live button.is-lit svg {
+  fill: var(--lp-yellow);
+}
+
+.lp-stars-live.is-waiting button {
+  opacity: 0.45;
+}
+
+.lp-stars-live button:focus-visible {
+  outline: 2px solid var(--lp-cobalt);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+.lp-demo-hint {
+  margin-top: 18px;
+  text-align: center;
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--lp-ink-soft);
+}
+
+/* Phones and tablets: the five benefits as numbered tabs under the ticket, one shown at a time. */
+.lp-bene-tabs-wrap {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.lp-bene-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.lp-bene-tab {
+  width: 42px;
+  height: 42px;
+  border: 2px solid rgba(12, 31, 74, 0.18);
+  border-radius: 50%;
+  background: transparent;
+  font-family: var(--lp-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--lp-ink);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.lp-bene-tab.is-on {
+  border-color: var(--lp-yellow);
+  background: var(--lp-yellow);
+  transform: scale(1.08);
+}
+
+.lp-bene-tab:focus-visible {
+  outline: 2px solid var(--lp-cobalt);
+  outline-offset: 3px;
+}
+
+.lp-bene-panel {
+  position: relative;
+  min-height: 150px;
+  margin-top: 18px;
+  padding: 20px 22px 18px;
+  border-radius: 16px;
+  background: var(--lp-card);
+  box-shadow: 0 18px 40px -26px rgba(11, 58, 140, 0.45);
+}
+
+.lp-bene-panel h3 {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.lp-bene-panel p {
+  margin-top: 8px;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--lp-ink-soft);
 }
 
 /* ----- How: queue stubs fed out of a take-a-number dispenser ----- */
@@ -1487,6 +1911,13 @@
   .lp-highlight::before {
     animation: none;
     transform: skewX(-8deg) scaleX(1);
+  }
+
+  .lp-notes li.is-active .lp-marker,
+  .lp-notes li.is-active::after,
+  .lp-live i,
+  .lp-caret {
+    animation: none;
   }
 }
 

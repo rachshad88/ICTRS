@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { TransitionLink } from '../components/PageCurtain';
-import { motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
+import { AnimatePresence, MotionConfig, motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { EASE_OUT } from '../lib/motion';
 
@@ -119,7 +119,7 @@ function Marker({ n }: { n: number }) {
   return <span className="lp-marker" aria-hidden="true">{n}</span>;
 }
 
-function Ticket({ status, assigned, detailed = false, className = '' }: { status: string; assigned: string; detailed?: boolean; className?: string }) {
+function Ticket({ status, assigned, className = '' }: { status: string; assigned: string; className?: string }) {
   return (
     <div className={`lp-ticket ${className}`}>
       <div className="lp-ticket-head">
@@ -128,24 +128,16 @@ function Ticket({ status, assigned, detailed = false, className = '' }: { status
         <span className="lp-ticket-type">IT Request</span>
       </div>
       <div className="lp-ticket-body">
-        <div className="lp-ticket-part">
-          {detailed && <Marker n={1} />}
-          <span className="lp-ticket-code">IT-2026-0042</span>
-        </div>
+        <span className="lp-ticket-code">IT-2026-0042</span>
         <p className="lp-ticket-issue">Office printer not detected by the desktop</p>
         <dl className="lp-ticket-meta">
           <div><dt>Office</dt><dd>Municipal Budget Office</dd></div>
-          <div className="lp-ticket-part">
-            {detailed && <Marker n={2} />}
-            <dt>Priority</dt>
-            <dd>{detailed ? <span className="lp-chip-urgent">Urgent</span> : 'Normal'}</dd>
-          </div>
+          <div><dt>Priority</dt><dd>Normal</dd></div>
         </dl>
       </div>
       <div className="lp-ticket-tear" aria-hidden="true" />
       <div className="lp-ticket-stub">
-        <div className="lp-ticket-part lp-ticket-status">
-          {detailed && <Marker n={3} />}
+        <div className="lp-ticket-status">
           <span className="lp-ticket-label">Status</span>
           <Stamp status={status} />
         </div>
@@ -153,20 +145,6 @@ function Ticket({ status, assigned, detailed = false, className = '' }: { status
           <span className="lp-ticket-label">Assigned to</span>
           <span>{assigned}</span>
         </div>
-        {detailed && (
-          <>
-            <div className="lp-ticket-part lp-ticket-note">
-              <Marker n={4} />
-              <span className="lp-ticket-label">Note</span>
-              <span>It is the Epson in the records room.</span>
-            </div>
-            <div className="lp-ticket-part lp-ticket-row">
-              <Marker n={5} />
-              <span className="lp-ticket-label">Rate</span>
-              <span className="lp-stars">{[0, 1, 2, 3, 4].map((i) => <Icon key={i} d={STAR} size={16} />)}</span>
-            </div>
-          </>
-        )}
       </div>
     </div>
   );
@@ -390,6 +368,434 @@ function QueueRoll() {
   );
 }
 
+/* ---------- Benefits: the ticket, working ---------- */
+
+// The ticket here works: each benefit beside it shows itself on the ticket when you point at it,
+// and the ticket's own controls (priority, stamp, stars) can be played with. Until someone does,
+// it tours the five benefits by itself while the section is in view.
+
+type DemoStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE';
+const DEMO_CODE = 'IT-2026-0042';
+const DEMO_NOTE = 'It is the Epson in the records room.';
+const BELL = 'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 0 0 3.4 0';
+const NEXT_STATUS: Record<DemoStatus, DemoStatus> = { PENDING: 'IN_PROGRESS', IN_PROGRESS: 'DONE', DONE: 'PENDING' };
+const ASSIGNEE: Record<DemoStatus, string> = { PENDING: 'Waiting for a technician', IN_PROGRESS: 'IT technician', DONE: 'IT technician' };
+/** How long the tour stays on each benefit. Keep the lp-tour animation in landing.css in step. */
+const TOUR_MS = 4600;
+/** Five requests waiting; ours is the fourth until it is marked urgent. */
+const QUEUE = ['a', 'b', 'c', 'ours', 'd'];
+const SNAP = { type: 'spring', stiffness: 420, damping: 32 } as const;
+
+/** The code's digits roll and land left to right, like a split-flap board, each time `run` changes. */
+function RollingCode({ run }: { run: number }) {
+  const reduce = useReducedMotion();
+  const [text, setText] = useState(DEMO_CODE);
+  useEffect(() => {
+    if (!run || reduce) return;
+    const settleAt = (i: number) => 160 + i * 40;
+    const start = performance.now();
+    let face = -1;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = now - start;
+      // A new face every 45 ms rather than every frame, so the digits read as flipping, not flicker.
+      if (Math.floor(t / 45) !== face) {
+        face = Math.floor(t / 45);
+        setText(DEMO_CODE.replace(/\d/g, (digit: string, i: number) => (t >= settleAt(i) ? digit : String(Math.floor(Math.random() * 10)))));
+      }
+      if (t < settleAt(DEMO_CODE.length)) raf = requestAnimationFrame(tick);
+      else setText(DEMO_CODE);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      setText(DEMO_CODE);
+    };
+  }, [run, reduce]);
+  return <span className="lp-ticket-code">{text}</span>;
+}
+
+/** The note writes itself out each time `run` changes, then calls onWritten. */
+function WrittenNote({ run, onWritten }: { run: number; onWritten: () => void }) {
+  const reduce = useReducedMotion();
+  const [length, setLength] = useState(DEMO_NOTE.length);
+  const written = useRef(onWritten);
+  written.current = onWritten;
+  useEffect(() => {
+    if (!run) return;
+    // Without motion the note is simply there, and the staff member is notified at once.
+    if (reduce) {
+      written.current();
+      return;
+    }
+    setLength(0);
+    const id = window.setInterval(() => {
+      setLength((n) => {
+        if (n + 1 >= DEMO_NOTE.length) {
+          window.clearInterval(id);
+          written.current();
+        }
+        return Math.min(n + 1, DEMO_NOTE.length);
+      });
+    }, 34);
+    return () => {
+      window.clearInterval(id);
+      setLength(DEMO_NOTE.length);
+    };
+  }, [run, reduce]);
+  return (
+    <span className="lp-written" aria-label={DEMO_NOTE}>
+      <span aria-hidden="true">{DEMO_NOTE.slice(0, length)}</span>
+      {length < DEMO_NOTE.length && <span className="lp-caret" aria-hidden="true" />}
+    </span>
+  );
+}
+
+function Queue({ urgent }: { urgent: boolean }) {
+  const order = urgent ? ['ours', ...QUEUE.filter((k) => k !== 'ours')] : QUEUE;
+  return (
+    <span className="lp-queue" aria-hidden="true">
+      <span className="lp-queue-line">
+        {order.map((k) => <motion.i key={k} layout transition={SNAP} className={k === 'ours' ? 'is-ours' : undefined} />)}
+      </span>
+      <small>{urgent ? 'First in line' : 'Fourth in line'}</small>
+    </span>
+  );
+}
+
+function Stars({ value, waiting, onRate }: { value: number; waiting: boolean; onRate: (n: number) => void }) {
+  const [hover, setHover] = useState(0);
+  const lit = hover || value;
+  return (
+    <span className={`lp-stars lp-stars-live${waiting ? ' is-waiting' : ''}`} role="radiogroup" aria-label="Rate the service" onMouseLeave={() => setHover(0)}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={value === n}
+          aria-label={`${n} star${n === 1 ? '' : 's'}`}
+          className={n <= lit ? 'is-lit' : undefined}
+          onMouseEnter={() => setHover(n)}
+          onClick={() => onRate(n)}
+        >
+          {/* Remounted on every new rating, so the lit stars pop again one after another. */}
+          <motion.span
+            key={`${value}-${n <= value}`}
+            initial={{ scale: 1 }}
+            animate={n <= value ? { scale: [1, 1.4, 1] } : { scale: 1 }}
+            transition={{ duration: 0.36, delay: (n - 1) * 0.08, ease: EASE_OUT }}
+          >
+            <Icon d={STAR} size={18} />
+          </motion.span>
+        </button>
+      ))}
+    </span>
+  );
+}
+
+/** The yellow highlight that glides to whichever part of the ticket is being explained. */
+function Spot({ on }: { on: boolean }) {
+  return on ? <motion.span layoutId="lp-spot" className="lp-spot" transition={SNAP} aria-hidden="true" /> : null;
+}
+
+function BenefitsSection() {
+  const reduce = useReducedMotion();
+  const across = useMediaQuery('(min-width: 961px)');
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { amount: 0.45 });
+  const [active, setActive] = useState<number | null>(null);
+  // Tours until someone points at, presses or tabs to anything here.
+  const [touring, setTouring] = useState(true);
+  const [status, setStatus] = useState<DemoStatus>('IN_PROGRESS');
+  const [urgent, setUrgent] = useState(true);
+  const [rating, setRating] = useState(0);
+  const [codeRun, setCodeRun] = useState(0);
+  const [noteRun, setNoteRun] = useState(0);
+  const [notified, setNotified] = useState(0);
+
+  // Steps of a demo still to come; a new demo (or a hand on the controls) cancels them.
+  const timers = useRef<number[]>([]);
+  const cancelSteps = () => {
+    timers.current.forEach((id) => window.clearTimeout(id));
+    timers.current = [];
+  };
+  const after = (ms: number, step: () => void) => { timers.current.push(window.setTimeout(step, ms)); };
+  useEffect(() => cancelSteps, []);
+
+  // Only a finished request can be rated: moving it back off Done clears the rating.
+  useEffect(() => {
+    if (status !== 'DONE') setRating(0);
+  }, [status]);
+
+  /** Plays benefit n on the ticket. */
+  const demo = (n: number) => {
+    cancelSteps();
+    setActive(n);
+    setNotified(0);
+    if (n === 1) setCodeRun((r) => r + 1);
+    if (n === 2) {
+      setUrgent(false);
+      after(520, () => setUrgent(true));
+    }
+    if (n === 3) {
+      setStatus('PENDING');
+      after(1100, () => setStatus('IN_PROGRESS'));
+      after(2300, () => setStatus('DONE'));
+    }
+    if (n === 4) {
+      // Notes go on open requests.
+      setStatus((s) => (s === 'DONE' ? 'IN_PROGRESS' : s));
+      setNoteRun((r) => r + 1);
+    }
+    if (n === 5) {
+      setStatus('DONE');
+      after(380, () => setRating(5));
+    }
+  };
+
+  /** Someone picked benefit n: the tour ends, and n plays unless it is already the one shown. */
+  const pick = (n: number) => {
+    setTouring(false);
+    if (n !== active) demo(n);
+  };
+
+  /** Someone used one of the ticket's controls, which belongs to benefit n. */
+  const handle = (n: number) => {
+    setTouring(false);
+    cancelSteps();
+    setActive(n);
+  };
+
+  const showRef = useRef(demo);
+  showRef.current = demo;
+  useEffect(() => {
+    if (!touring || reduce || !inView) return;
+    if (active === null) {
+      showRef.current(1);
+      return;
+    }
+    const id = window.setTimeout(() => showRef.current((active % BENEFITS.length) + 1), TOUR_MS);
+    return () => window.clearTimeout(id);
+  }, [touring, reduce, inView, active]);
+
+  const progress = touring && !reduce && inView && active !== null;
+  const tab = active ?? 1;
+
+  const note = (b: (typeof BENEFITS)[number], i: number) => (
+    <motion.li
+      key={b.n}
+      className={active === b.n ? 'is-active' : undefined}
+      onMouseEnter={() => pick(b.n)}
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.6 }}
+      transition={{ duration: 0.6, delay: i * 0.1, ease: EASE_OUT }}
+    >
+      <Marker n={b.n} />
+      <h3>
+        <button type="button" className="lp-note-btn" aria-pressed={active === b.n} onFocus={() => pick(b.n)} onClick={() => pick(b.n)}>
+          {b.title}
+        </button>
+      </h3>
+      <p>{b.body}</p>
+      {progress && active === b.n && <span key={`${b.n}-${inView}`} className="lp-tour-bar" aria-hidden="true" />}
+    </motion.li>
+  );
+
+  // The tab list on phones moves with the arrow keys, as tabs do.
+  const onTabKey = (e: React.KeyboardEvent) => {
+    const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const n = ((tab - 1 + step + BENEFITS.length) % BENEFITS.length) + 1;
+    pick(n);
+    document.getElementById(`lp-bene-tab-${n}`)?.focus();
+  };
+
+  const part = (n: number, extra = '') => `lp-ticket-part${extra}${active === n ? ' is-active' : ''}`;
+  const markerButton = (n: number) => (
+    <button
+      type="button"
+      className="lp-marker lp-marker-btn"
+      aria-label={BENEFITS[n - 1].title}
+      aria-pressed={active === n}
+      // Not also a press on the row it sits in (the note row replays its note on a press).
+      onClick={(e) => { e.stopPropagation(); pick(n); }}
+    >
+      {n}
+    </button>
+  );
+
+  return (
+    <section id="benefits" className={`lp-anatomy${active !== null ? ' has-active' : ''}`}>
+      <MotionConfig reducedMotion="user">
+        <div className="lp-wrap" ref={ref}>
+          <h2 className="lp-display-md">One ticket, five things it does for you</h2>
+          <div className="lp-anatomy-grid">
+            {across && <ol className="lp-notes lp-notes-left">{BENEFITS.slice(0, 2).map(note)}</ol>}
+            <motion.div
+              className="lp-anatomy-ticket"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.7, ease: EASE_OUT }}
+            >
+              <div className="lp-ticket lp-ticket-demo">
+                <div className="lp-ticket-head">
+                  <img src="/solano-logo.png" alt="" />
+                  <span>ITRS request ticket</span>
+                  <span className="lp-ticket-type">IT Request</span>
+                </div>
+                <div className="lp-ticket-body">
+                  <div className={part(1)}>
+                    <Spot on={active === 1} />
+                    {markerButton(1)}
+                    <RollingCode run={codeRun} />
+                  </div>
+                  <p className="lp-ticket-issue">Office printer not detected by the desktop</p>
+                  <dl className="lp-ticket-meta">
+                    <div><dt>Office</dt><dd>Municipal Budget Office</dd></div>
+                    <div className={part(2)}>
+                      <Spot on={active === 2} />
+                      {markerButton(2)}
+                      <dt>Priority</dt>
+                      <dd className="lp-prio-row">
+                        <span className="lp-prio" role="group" aria-label="Priority">
+                          {(['Normal', 'Urgent'] as const).map((p) => {
+                            const on = (p === 'Urgent') === urgent;
+                            return (
+                              <button
+                                key={p}
+                                type="button"
+                                aria-pressed={on}
+                                className={on ? 'is-on' : undefined}
+                                onClick={() => { handle(2); setUrgent(p === 'Urgent'); }}
+                              >
+                                {on && <motion.span layoutId="lp-prio-pill" className="lp-prio-pill" transition={SNAP} />}
+                                <span>{p}</span>
+                              </button>
+                            );
+                          })}
+                        </span>
+                        <Queue urgent={urgent} />
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <div className="lp-ticket-tear" aria-hidden="true" />
+                <div className="lp-ticket-stub">
+                  <div className={part(3, ' lp-ticket-status')}>
+                    <Spot on={active === 3} />
+                    {markerButton(3)}
+                    <span className="lp-ticket-label">
+                      Status <span className="lp-live" aria-hidden="true"><i />Live</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="lp-stamp-btn"
+                      aria-label={`Status: ${status.replace(/_/g, ' ').toLowerCase()}. Press to move it along.`}
+                      onClick={() => { handle(3); setStatus(NEXT_STATUS[status]); }}
+                    >
+                      <Stamp status={status} />
+                    </button>
+                  </div>
+                  <div className="lp-ticket-row">
+                    <span className="lp-ticket-label">Assigned to</span>
+                    <span className="lp-assignee">
+                      <AnimatePresence>
+                        {notified > 0 && (
+                          <motion.span
+                            className="lp-notified"
+                            initial={{ opacity: 0, x: 8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.25, ease: EASE_OUT }}
+                          >
+                            Notified
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
+                      <motion.span
+                        key={notified}
+                        className="lp-bell"
+                        initial={{ rotate: 0 }}
+                        animate={notified ? { rotate: [0, -22, 18, -12, 8, 0] } : { rotate: 0 }}
+                        transition={{ duration: 0.7, ease: 'easeOut' }}
+                      >
+                        <Icon d={BELL} size={15} />
+                      </motion.span>
+                      {ASSIGNEE[status]}
+                    </span>
+                  </div>
+                  <div
+                    className={part(4, ' lp-ticket-note')}
+                    onClick={() => { handle(4); setStatus((s) => (s === 'DONE' ? 'IN_PROGRESS' : s)); setNoteRun((r) => r + 1); }}
+                  >
+                    <Spot on={active === 4} />
+                    {markerButton(4)}
+                    <span className="lp-ticket-label">Note</span>
+                    <WrittenNote run={noteRun} onWritten={() => setNotified((k) => k + 1)} />
+                  </div>
+                  <div className={part(5, ' lp-ticket-row')}>
+                    <Spot on={active === 5} />
+                    {markerButton(5)}
+                    <span className="lp-ticket-label">Rate</span>
+                    <Stars
+                      value={rating}
+                      waiting={status !== 'DONE'}
+                      onRate={(n) => { handle(5); setStatus('DONE'); setRating(n); }}
+                    />
+                  </div>
+                </div>
+              </div>
+              <p className="lp-demo-hint">Try the switch, the stamp and the stars.</p>
+            </motion.div>
+            {across ? (
+              <ol className="lp-notes lp-notes-right">{BENEFITS.slice(2).map((b, i) => note(b, i))}</ol>
+            ) : (
+              <div className="lp-bene-tabs-wrap">
+                <div className="lp-bene-tabs" role="tablist" aria-label="Benefits" onKeyDown={onTabKey}>
+                  {BENEFITS.map((b) => (
+                    <button
+                      key={b.n}
+                      id={`lp-bene-tab-${b.n}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === b.n}
+                      aria-controls="lp-bene-panel"
+                      tabIndex={tab === b.n ? 0 : -1}
+                      className={`lp-bene-tab${tab === b.n ? ' is-on' : ''}`}
+                      onClick={() => pick(b.n)}
+                    >
+                      {b.n}
+                    </button>
+                  ))}
+                </div>
+                <div className="lp-bene-panel" id="lp-bene-panel" role="tabpanel" aria-labelledby={`lp-bene-tab-${tab}`}>
+                  <AnimatePresence mode="wait" initial={false}>
+                    <motion.div
+                      key={tab}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.22, ease: EASE_OUT }}
+                    >
+                      <h3>{BENEFITS[tab - 1].title}</h3>
+                      <p>{BENEFITS[tab - 1].body}</p>
+                    </motion.div>
+                  </AnimatePresence>
+                  {progress && <span key={`${tab}-${inView}`} className="lp-tour-bar" aria-hidden="true" />}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </MotionConfig>
+    </section>
+  );
+}
+
 const rise = {
   hidden: { y: '105%' },
   visible: (delay: number) => ({ y: '0%', transition: { duration: 0.9, delay, ease: EASE_OUT } }),
@@ -555,53 +961,8 @@ function Landing() {
         {/* ----- Why ----- */}
         {wide && !reduce ? <WhyStory /> : <WhyStatic />}
 
-        {/* ----- Benefits: the ticket, annotated ----- */}
-        <section id="benefits" className="lp-anatomy">
-          <div className="lp-wrap">
-            <h2 className="lp-display-md">One ticket, five things it does for you</h2>
-            <div className="lp-anatomy-grid">
-              <ol className="lp-notes lp-notes-left">
-                {BENEFITS.slice(0, 2).map((b, i) => (
-                  <motion.li
-                    key={b.n}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.6 }}
-                    transition={{ duration: 0.6, delay: i * 0.1, ease: EASE_OUT }}
-                  >
-                    <Marker n={b.n} />
-                    <h3>{b.title}</h3>
-                    <p>{b.body}</p>
-                  </motion.li>
-                ))}
-              </ol>
-              <motion.div
-                className="lp-anatomy-ticket"
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.7, ease: EASE_OUT }}
-              >
-                <Ticket status="IN_PROGRESS" assigned="IT technician" detailed />
-              </motion.div>
-              <ol className="lp-notes lp-notes-right">
-                {BENEFITS.slice(2).map((b, i) => (
-                  <motion.li
-                    key={b.n}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.6 }}
-                    transition={{ duration: 0.6, delay: i * 0.1, ease: EASE_OUT }}
-                  >
-                    <Marker n={b.n} />
-                    <h3>{b.title}</h3>
-                    <p>{b.body}</p>
-                  </motion.li>
-                ))}
-              </ol>
-            </div>
-          </div>
-        </section>
+        {/* ----- Benefits: the ticket, working ----- */}
+        <BenefitsSection />
 
         {/* ----- How: queue stubs from a take-a-number dispenser ----- */}
         <section id="how" className="lp-how">
