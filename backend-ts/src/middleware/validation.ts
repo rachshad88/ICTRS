@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { PRIORITIES } from '../utils/priority';
 import { isValidDay, isValidTime, todayString } from '../utils/dates';
-import { OFFICES } from '../utils/offices';
 
 export const objectIdSchema = z.string().refine((val) => /^[a-fA-F0-9]{24}$/.test(val), {
   message: 'Invalid ID format'
@@ -41,7 +40,8 @@ export const signupSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required').max(60, 'First name is too long'),
   middle_name: z.string().trim().max(60, 'Middle name is too long').optional(),
   last_name: z.string().trim().min(1, 'Last name is required').max(60, 'Last name is too long'),
-  office: z.enum(OFFICES, { errorMap: () => ({ message: 'Select your office' }) }),
+  // Checked against the offices collection in the route (utils/officeList.ts).
+  office: z.string().trim().min(1, 'Select your office').max(120, 'Select your office'),
   position: z.string().trim().min(1, 'Position is required').max(120, 'Position is too long'),
   contact_number: z.string().trim().regex(/^\d{7,11}$/, 'Contact number must be 7 to 11 digits'),
   // Bot trap (routes/auth.ts): a hidden field people never see, and how long the form was open.
@@ -256,3 +256,12 @@ export const updateUserSchema = z.object({
   password: adminPasswordSchema
 }).refine((b) => b.roles.includes(b.primary_role), primaryRoleInRoles);
 
+
+// Offices page (super admin).
+const officeName = z.string().trim()
+  .min(2, 'Office name is too short')
+  .max(120, 'Office name must be at most 120 characters');
+
+export const createOfficeSchema = z.object({ name: officeName });
+export const renameOfficeSchema = z.object({ name: officeName });
+export const setOfficeActiveSchema = z.object({ active: z.boolean() });

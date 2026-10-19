@@ -8,6 +8,7 @@ import { notify } from '../utils/notify';
 import { AuthenticatedRequest, isAuthenticated, isAdmin } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createUserSchema, updateUserSchema, objectIdSchema } from '../middleware/validation';
+import { checkOffice } from '../utils/officeList';
 
 const router = Router();
 const DEFAULT_PASSWORD = '12345';
@@ -123,6 +124,11 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
       return res.status(400).json({ error: 'Username already exists' });
     }
 
+    const officeCheck = await checkOffice(office, undefined, true);
+    if ('error' in officeCheck) {
+      return res.status(400).json({ error: officeCheck.error });
+    }
+
     const passwordToUse = password || DEFAULT_PASSWORD;
     const hashedPassword = await bcrypt.hash(passwordToUse, 10);
 
@@ -135,7 +141,7 @@ router.post('/create_user', isAuthenticated, isAdmin, validateBody(createUserSch
       role: primary_role,
       roles,
       primary_role,
-      office: office || '',
+      office: officeCheck.office,
       position: (position || '').trim(),
       contact_number: (contact_number || '').trim(),
       created_at: new Date(),
@@ -183,6 +189,11 @@ router.post('/update_user', isAuthenticated, isAdmin, validateBody(updateUserSch
     if (!existingUser) {
       return res.status(404).json({ error: 'User not found' });
     }
+    const officeCheck = await checkOffice(office, existingUser.office, true);
+    if ('error' in officeCheck) {
+      return res.status(400).json({ error: officeCheck.error });
+    }
+    updateData.office = officeCheck.office;
 
     if (username !== existingUser.username && await usersCollection.findOne({ username, _id: { $ne: existingUser._id } })) {
       return res.status(400).json({ error: 'Username already exists' });

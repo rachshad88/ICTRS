@@ -6,7 +6,7 @@ import { TransitionLink } from '../components/PageCurtain';
 import { useAuth } from '../contexts/AuthContext';
 import { EASE_OUT } from '../lib/motion';
 import { playApprovedStamp, playDenied } from '../services/sfx';
-import { OFFICES } from '../data/offices';
+import { useOffices } from '../services/offices';
 import { useRevealDelay } from '../components/Entrance';
 import OfficePicker from '../components/OfficePicker';
 
@@ -64,6 +64,7 @@ function Signup() {
   const [granted, setGranted] = useState(false);
   const [printed, setPrinted] = useState(false);
   const { signup, user } = useAuth();
+  const offices = useOffices();
   const signingUp = useRef(false);
   const navigate = useNavigate();
   const usernameRef = useRef<HTMLInputElement>(null);
@@ -275,7 +276,7 @@ function Signup() {
 
                 <div className="form-group">
                   <label htmlFor="su-office">Office</label>
-                  <OfficePicker id="su-office" value={form.office} options={OFFICES} onChange={(office) => setForm((f) => ({ ...f, office }))} />
+                  <OfficePicker id="su-office" value={form.office} options={offices} onChange={(office) => setForm((f) => ({ ...f, office }))} />
                 </div>
 
                 <div className="form-group">

@@ -1,4 +1,5 @@
 import { MongoClient, Db, Collection, ObjectId } from 'mongodb';
+import { SEED_OFFICES } from '../utils/offices';
 import { RedisClientType, createClient } from 'redis';
 import { Priority } from '../utils/priority';
 
@@ -205,6 +206,16 @@ export interface Signatories {
   updated_by?: string;
 }
 
+// An office people can belong to. Hidden offices (active: false) stay on the accounts and requests
+// that already use them but can no longer be picked.
+export interface Office {
+  _id?: ObjectId;
+  name: string;
+  active: boolean;
+  created_at: Date;
+  created_by?: string;
+}
+
 // App-wide settings, one document per setting keyed by name.
 export interface SettingDoc {
   _id: string;
@@ -275,6 +286,23 @@ export async function connectDB(): Promise<void> {
   }
 
   await createIndexes();
+  await seedOffices();
+}
+
+// The office list used to be fixed in code. The first start with an empty collection copies that
+// list in; after that the super admin manages it on the Offices page.
+async function seedOffices(): Promise<void> {
+  try {
+    const offices = db.collection<Office>('offices');
+    await offices.createIndex({ name: 1 }, { unique: true, collation: { locale: 'en', strength: 2 } });
+    if (await offices.estimatedDocumentCount() === 0) {
+      const now = new Date();
+      await offices.insertMany(SEED_OFFICES.map((name) => ({ name, active: true, created_at: now })));
+      console.log(`Offices: added the ${SEED_OFFICES.length} starting offices`);
+    }
+  } catch (e) {
+    console.error('Office setup error:', e);
+  }
 }
 
 async function createIndexes(): Promise<void> {
@@ -415,6 +443,10 @@ export function getAuditLogsCollection(): Collection<AuditLog> {
 
 export function getNotificationsCollection(): Collection<Notification> {
   return db.collection<Notification>('notifications');
+}
+
+export function getOfficesCollection(): Collection<Office> {
+  return db.collection<Office>('offices');
 }
 
 export function getSettingsCollection(): Collection<SettingDoc> {

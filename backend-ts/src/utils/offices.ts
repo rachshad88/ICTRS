@@ -1,5 +1,7 @@
-// Offices a client can pick when signing up. Keep in step with frontend-ts/src/data/offices.ts.
-export const OFFICES = [
+// The starting office list, copied into the offices collection the first time the server starts
+// with none (config/database.ts). After that the super admin manages offices on the Offices page,
+// so changing this list has no effect on a running system.
+export const SEED_OFFICES = [
   "Municipal Agriculture Office",
   "Municipal Assessor's Office",
   "Municipal Budget Office",

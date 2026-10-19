@@ -1242,6 +1242,11 @@ yt-channel-avatar.pm { background: #047857; }
   }
 }
 
+/* Offices page: the name box a row turns into while it is renamed (the form inputs' look) */
+.app-main .office-rename {
+  margin: 0;
+}
+
 /* IT request: quick picks under "What is the unit?" (the period toggle's look) */
 .app-main .unit-picks {
   display: flex;

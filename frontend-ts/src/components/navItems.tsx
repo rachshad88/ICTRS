@@ -51,6 +51,7 @@ const ROLE_NAV: Record<string, NavEntry[]> = {
     { section: 'Management', short: 'Manage', icon: 'M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6' },
     { to: '/users', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', label: 'Users' },
     { to: '/signatories', icon: 'M12 20h9 M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z', label: 'Signatories' },
+    { to: '/offices', icon: 'M3 21h18 M5 21V7l7-4 7 4v14 M9 21v-4h6v4 M9 9h.01 M15 9h.01 M9 13h.01 M15 13h.01', label: 'Offices' },
     { to: '/audit-logs', icon: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H9H8', label: 'Audit Log' },
     { section: 'Assign Requests', short: 'Assign', icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11' },
     { to: '/it-dashboard', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4 M7 8l3 3-3 3 M13 14h4', label: 'IT Requests', short: 'IT' },

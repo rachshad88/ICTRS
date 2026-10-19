@@ -3,7 +3,7 @@ import { useLogoutTransition } from '../components/LogoutTransition';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 
-import { OFFICES } from '../data/offices';
+import { useOffices, withCurrentOffice } from '../services/offices';
 import PasswordInput from '../components/PasswordInput';
 import Select from '../components/Select';
 
@@ -21,6 +21,7 @@ function Profile() {
   const [lastName, setLastName] = useState(user?.last_name || '');
   const [office, setOffice] = useState(user?.office || '');
   const [position, setPosition] = useState(user?.position || '');
+  const offices = withCurrentOffice(useOffices(), user?.office);
   const [contactNumber, setContactNumber] = useState(user?.contact_number || '');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -291,7 +292,7 @@ function Profile() {
                         onChange={(e) => setOffice(e.target.value)}
                       >
                         <option value="">Select Office</option>
-                        {OFFICES.map((off) => (
+                        {offices.map((off) => (
                           <option key={off} value={off}>{off}</option>
                         ))}
                       </Select>

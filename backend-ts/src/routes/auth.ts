@@ -9,6 +9,7 @@ import { AuthenticatedRequest, isAuthenticated, AWAITING_APPROVAL, ACCOUNT_INACT
 import { validateBody } from '../middleware/validate';
 import { loginSchema, changePasswordSchema, updateProfileSchema, signupSchema } from '../middleware/validation';
 import { loginRetryAfter, recordLoginFailure, recordLoginSuccess, recordSignup, signupRetryAfter } from '../middleware/loginThrottle';
+import { checkOffice } from '../utils/officeList';
 
 const router = Router();
 // Same default as routes/users.ts; accounts on it must change it before using the app.
@@ -232,10 +233,15 @@ router.post('/signup', validateBody(signupSchema), async (req: Request, res: Res
     }
 
     // validateBody only checks; parse again to get the trimmed values.
-    const { username, first_name, middle_name, last_name, office, position, contact_number, website, form_ms } = signupSchema.parse(req.body);
+    const { username, first_name, middle_name, last_name, position, contact_number, website, form_ms } = signupSchema.parse(req.body);
     if (website || form_ms === undefined || form_ms < MIN_FORM_MS) {
       return res.status(400).json({ error: 'Sign-up could not be completed. Please check your details and try again.' });
     }
+    const officeCheck = await checkOffice(req.body.office, undefined, false);
+    if ('error' in officeCheck) {
+      return res.status(400).json({ error: officeCheck.error });
+    }
+    const office = officeCheck.office;
 
     const usersCollection = getUsersCollection();
     // Usernames are matched exactly at login, but "Juan" and "juan" side by side would only confuse people.
@@ -319,10 +325,10 @@ router.post('/logout', async (req: Request, res: Response) => {
 });
 
 router.get('/me', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
-  // Read from the database rather than the session so a position or contact number set by an admin
-  // shows up without re-login.
+  // Read from the database rather than the session so an office, position or contact number set by an
+  // admin (or an office renamed on the Offices page) shows up without re-login.
   const stored = await getUsersCollection()
-    .findOne({ _id: new ObjectId(req.user!.user_id) }, { projection: { position: 1, contact_number: 1 } })
+    .findOne({ _id: new ObjectId(req.user!.user_id) }, { projection: { office: 1, position: 1, contact_number: 1 } })
     .catch(() => null);
   res.json({
     user_id: req.user?.user_id,
@@ -332,7 +338,7 @@ router.get('/me', isAuthenticated, async (req: AuthenticatedRequest, res: Respon
     last_name: req.user?.last_name,
     roles: req.user?.roles,
     primary_role: req.user?.primary_role,
-    office: req.user?.office,
+    office: stored ? (stored.office || '') : req.user?.office,
     position: stored?.position || '',
     contact_number: stored?.contact_number || '',
     is_default_password: req.user?.is_default_password || false
@@ -412,8 +418,15 @@ router.put('/update_profile', isAuthenticated, validateBody(updateProfileSchema)
       updateData.username = username;
     }
 
+    let storedOffice: string | undefined;
     if (office !== undefined) {
-      updateData.office = office;
+      const current = await usersCollection.findOne({ _id: new ObjectId(userId) }, { projection: { office: 1 } });
+      const officeCheck = await checkOffice(office, current?.office, true);
+      if ('error' in officeCheck) {
+        return res.status(400).json({ error: officeCheck.error });
+      }
+      storedOffice = officeCheck.office;
+      updateData.office = storedOffice;
     }
 
     if (position !== undefined) {
@@ -436,8 +449,8 @@ router.put('/update_profile', isAuthenticated, validateBody(updateProfileSchema)
     if (username) {
       req.session.username = username;
     }
-    if (office !== undefined) {
-      req.session.office = office;
+    if (storedOffice !== undefined) {
+      req.session.office = storedOffice;
     }
 
     await logAudit(new ObjectId(userId), req.user!.username, req.user!.primary_role, 'UPDATE_PROFILE', 'USER', userId, `User ${req.user!.username} updated their profile`);

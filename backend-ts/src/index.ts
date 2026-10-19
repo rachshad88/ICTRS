@@ -32,6 +32,7 @@ import csfRoutes from './routes/csf_route';
 import dashboardRoutes from './routes/dashboard';
 import overviewRoutes from './routes/overview';
 import signatoryRoutes from './routes/signatories';
+import officeRoutes from './routes/offices';
 import liveRoutes, { registerLiveNamespace } from './routes/live';
 
 const app: Express = express();
@@ -222,6 +223,7 @@ app.use('/api/csf', csfRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/overview', overviewRoutes);
 app.use('/api/signatories', signatoryRoutes);
+app.use('/api/offices', officeRoutes);
 // Wall display queue: no login, limited to LIVE_ALLOWED_CIDRS (see routes/live.ts).
 app.use('/api/live', liveRoutes);
 

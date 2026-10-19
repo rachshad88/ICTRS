@@ -64,6 +64,7 @@ export const PRIVATE_PAGES: Array<{ path: string; roles?: string[] } & PageEntry
   { path: '/media-dashboard', roles: MEDIA_ADMINS, ...page(() => import('./pages/MediaAdminDashboard')) },
   { path: '/audit-logs', roles: ['ADMIN'], ...page(() => import('./pages/AuditLogs')) },
   { path: '/signatories', roles: ['ADMIN'], ...page(() => import('./pages/Signatories')) },
+  { path: '/offices', roles: ['ADMIN'], ...page(() => import('./pages/Offices')) },
   { path: '/print-materials-dashboard', roles: ['MULTIMEDIA', ...MEDIA_ADMINS], ...page(() => import('./pages/PrintMaterialsDashboard')) },
 ];
 
@@ -96,6 +97,7 @@ export const PAGE_TITLES: Record<string, string> = {
   '/media-dashboard': 'Media Assign Dashboard',
   '/audit-logs': 'Audit Log',
   '/signatories': 'Signatories',
+  '/offices': 'Offices',
   '/print-materials-dashboard': 'Print Materials Requests',
 };
 

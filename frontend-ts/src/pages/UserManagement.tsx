@@ -6,7 +6,7 @@ import Skeleton from '../components/Skeleton';
 import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import SearchBox from '../components/SearchBox';
-import { OFFICES } from '../data/offices';
+import { useOffices, withCurrentOffice } from '../services/offices';
 import Select from '../components/Select';
 
 interface User {
@@ -64,6 +64,7 @@ function UserManagement() {
     queryFn: () => api.get<{ users?: User[] }>('/users/get_users').then((r) => r.data.users || []),
   });
   const allUsers = data ?? NO_USERS;
+  const officeChoices = useOffices();
   // Self sign-ups waiting for approval get their own section above the list.
   const pending = allUsers.filter((u) => u.approved === false);
   const users = allUsers.filter((u) => u.approved !== false);
@@ -457,7 +458,7 @@ function UserManagement() {
                 <label>Office</label>
                 <Select value={formData.office} onChange={(e) => setFormData({...formData, office: e.target.value})}>
                   <option value="">Select Office</option>
-                  {OFFICES.map((office) => (
+                  {withCurrentOffice(officeChoices, editingUser?.office).map((office) => (
                     <option key={office} value={office}>{office}</option>
                   ))}
                 </Select>
