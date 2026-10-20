@@ -2,6 +2,7 @@ import { HistoryTable, formatDate, HistoryTableConfig } from '../components/Hist
 
 const config: HistoryTableConfig = {
   title: 'Print Materials Request History',
+  ticketType: 'Print Materials',
   fetchEndpoint: '/printmaterials/my_history',
   cancelEndpoint: '/printmaterials/cancel_request',
   noteEndpoint: '/printmaterials/add_note',

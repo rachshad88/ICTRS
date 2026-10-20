@@ -11,6 +11,7 @@ import EmptyState from './EmptyState';
 import RequestProgress from './RequestProgress';
 import { useConfirm } from './ConfirmDialog';
 import Pagination from './Pagination';
+import RequestTicket from './RequestTicket';
 import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
 import { NotesList, DeclineReason, AddNoteForm, RequestNote, StaffReport } from './RequestNotes';
@@ -37,6 +38,8 @@ export interface FileViewerConfig {
 
 export interface HistoryTableConfig {
   title: string;
+  /** The service as named on a phone's request tickets: "Event Documentation", ... */
+  ticketType: string;
   fetchEndpoint: string;
   cancelEndpoint: string;
   noteEndpoint: string;
@@ -138,6 +141,24 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
+  const rowActions = (request: any) => (
+    <div className="history-actions">
+      {request.status === config.cancelStatus && (
+        <button className="hbtn hbtn-cancel" onClick={() => handleCancel(request._id)}>
+          Cancel
+        </button>
+      )}
+      {request.status === 'DONE' && (
+        <button className="hbtn hbtn-rate" onClick={() => openRating(request._id, request.request_code, config.rateType)}>
+          Rate
+        </button>
+      )}
+      <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
+        {canAddNote(request.status) ? 'View / Add note' : 'View'}
+      </button>
+    </div>
+  );
+
   const defaultRender = (row: any, col: ColumnDef) => {
     if (col.render) return col.render(row);
     const value = row[col.key];
@@ -178,7 +199,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
         />
       ) : (
         <>
-          <div className="history-table-wrap it-table">
+          <div className="history-table-wrap it-table hide-on-mobile">
             <table className="history-table stack-mobile">
               <thead>
                 <tr>
@@ -205,27 +226,34 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
                       <td key={col.key} className="td-cell" data-label={col.label} title={typeof request[col.key] === 'string' ? request[col.key] : undefined}>{defaultRender(request, col)}</td>
                     ))}
                     <td className="td-cell" data-label="Assigned To">{renderAssignedTechnician(request.assignedTechnician)}</td>
-                    <td className="col-actions">
-                      <div className="history-actions">
-                        {request.status === config.cancelStatus && (
-                          <button className="hbtn hbtn-cancel" onClick={() => handleCancel(request._id)}>
-                            Cancel
-                          </button>
-                        )}
-                        {request.status === 'DONE' && (
-                          <button className="hbtn hbtn-rate" onClick={() => openRating(request._id, request.request_code, config.rateType)}>
-                            Rate
-                          </button>
-                        )}
-                        <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                          {canAddNote(request.status) ? 'View / Add note' : 'View'}
-                        </button>
-                      </div>
-                    </td>
+                    <td className="col-actions">{rowActions(request)}</td>
                   </motion.tr>
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="rq-ticket-list">
+            {requests.map((request, idx) => {
+              const tech = request.assignedTechnician?.[0];
+              return (
+                <RequestTicket
+                  key={request._id}
+                  index={idx}
+                  type={config.ticketType}
+                  code={request.request_code}
+                  title={request[config.modalTitleKey] || '-'}
+                  status={request.status}
+                  meta={config.columns
+                    .filter((col) => col.key !== config.modalTitleKey)
+                    .map((col) => ({ label: col.label, value: defaultRender(request, col) }))}
+                  rows={tech || !['DECLINED', 'CANCELLED'].includes(request.status)
+                    ? [{ label: 'Assigned to', value: tech ? `${tech.first_name} ${tech.last_name}` : 'Not assigned yet' }]
+                    : []}
+                  actions={rowActions(request)}
+                />
+              );
+            })}
           </div>
 
           <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />

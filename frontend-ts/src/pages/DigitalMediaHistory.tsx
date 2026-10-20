@@ -2,6 +2,7 @@ import { HistoryTable, formatDate, HistoryTableConfig } from '../components/Hist
 
 const config: HistoryTableConfig = {
   title: 'Digital Media Request History',
+  ticketType: 'Digital Media',
   fetchEndpoint: '/digitalmedia/my_history',
   cancelEndpoint: '/digitalmedia/cancel_request',
   noteEndpoint: '/digitalmedia/add_note',

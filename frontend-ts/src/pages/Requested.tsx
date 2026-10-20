@@ -9,6 +9,7 @@ import RequestProgress from '../components/RequestProgress';
 import MovPhotos from '../components/MovPhotos';
 import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
+import RequestTicket from '../components/RequestTicket';
 import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
 import { NotesList, DeclineReason, StaffReport, AddNoteForm, ReopenForm, canReopen, RequestNote } from '../components/RequestNotes';
@@ -130,6 +131,33 @@ function Requested() {
     return 'badge-' + status.toLowerCase().replace(/_/g, '-');
   };
 
+  const detailsButton = (req: MyRequest) => (
+    <button className="btn btn-sm btn-view" onClick={() => setSelectedRequest(req)}>
+      {OPEN_STATUSES.includes(req.status) ? 'Details / Add note' : 'Details'}
+    </button>
+  );
+
+  const cancelButton = (req: MyRequest) => req.status === 'PENDING' && user?.roles?.includes('CLIENT') && (
+    <button
+      onClick={() => handleCancel(req._id)}
+      className="btn btn-sm btn-cancel"
+    >
+      Cancel
+    </button>
+  );
+
+  // Once rated, the rating system won't take another, so the button goes.
+  const rateButton = (req: MyRequest) => req.status === 'DONE' && (
+    <button
+      className="btn-rate"
+      onClick={() => openRating(req._id, req.request_code, 'it_request')}
+    >
+      Rate
+    </button>
+  );
+
+  const resultLabel = (req: MyRequest) => (req.finished === 'repaired' ? 'Repaired' : 'Beyond Repair');
+
   const handleNoteAdded = (note: RequestNote) => {
     if (!selectedRequest) return;
     const updated = { ...selectedRequest, notes: [...(selectedRequest.notes || []), note] };
@@ -176,69 +204,79 @@ function Requested() {
             onClearSearch={() => setSearchTerm('')}
           />
         ) : (
-          <div className="table-container it-table">
-            <table className="requests-table stack-mobile">
-              <thead>
-                <tr>
-                  <th>Request ID</th>
-                  <th>Issue</th>
-                  <th>Status</th>
-                  <th>Created</th>
-                  <th>Completed</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {requests.map((req) => {
-                  const isAssigned = req.assigned_to !== null;
-                  return (
-                    <tr key={req._id}>
-                      <td className="request-code" data-label="Request ID">{req.request_code}</td>
-                      <td className="issue-cell" data-label="Issue" title={req.issue}>{truncateCell(req.issue)}</td>
-                      <td data-label="Status">
-                        <span className={`status-badge ${getStatusClass(req.status)}`}>
-                          {STATUS_LABELS[req.status] || req.status}
-                        </span>
-                      </td>
-                      <td className="date-cell" data-label="Created">{formatDate(req.created_at)}</td>
-                      <td className="date-cell" data-label="Completed">{formatDate(req.completed_at)}</td>
-                      <td className="col-actions">
-                        <span className="req-actions">
-                        <button className="btn btn-sm btn-view" onClick={() => setSelectedRequest(req)}>
-                          {OPEN_STATUSES.includes(req.status) ? 'Details / Add note' : 'Details'}
-                        </button>
-                        {req.status === 'PENDING' && user?.roles?.includes('CLIENT') && (
-                          <button 
-                            onClick={() => handleCancel(req._id)}
-                            className="btn btn-sm btn-cancel"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        {isCompleted(req.status) && (
-                          <span className="req-actions">
-                            <span className={`status-badge ${req.finished === 'repaired' ? 'badge-repaired' : 'badge-beyond-repair'}`}>
-                              {req.finished === 'repaired' ? 'Repaired' : 'Beyond Repair'}
-                            </span>
-                            {/* Once rated, the rating system won't take another, so the button goes. */}
-                            {req.status === 'DONE' && (
-                              <button 
-                                className="btn-rate"
-                                onClick={() => openRating(req._id, req.request_code, 'it_request')}
-                              >
-                                Rate
-                              </button>
-                            )}
+          <>
+            <div className="table-container it-table hide-on-mobile">
+              <table className="requests-table stack-mobile">
+                <thead>
+                  <tr>
+                    <th>Request ID</th>
+                    <th>Issue</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Completed</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.map((req) => {
+                    const isAssigned = req.assigned_to !== null;
+                    return (
+                      <tr key={req._id}>
+                        <td className="request-code" data-label="Request ID">{req.request_code}</td>
+                        <td className="issue-cell" data-label="Issue" title={req.issue}>{truncateCell(req.issue)}</td>
+                        <td data-label="Status">
+                          <span className={`status-badge ${getStatusClass(req.status)}`}>
+                            {STATUS_LABELS[req.status] || req.status}
                           </span>
-                        )}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="date-cell" data-label="Created">{formatDate(req.created_at)}</td>
+                        <td className="date-cell" data-label="Completed">{formatDate(req.completed_at)}</td>
+                        <td className="col-actions">
+                          <span className="req-actions">
+                          {detailsButton(req)}
+                          {cancelButton(req)}
+                          {isCompleted(req.status) && (
+                            <span className="req-actions">
+                              <span className={`status-badge ${req.finished === 'repaired' ? 'badge-repaired' : 'badge-beyond-repair'}`}>
+                                {resultLabel(req)}
+                              </span>
+                              {rateButton(req)}
+                            </span>
+                          )}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="rq-ticket-list">
+              {requests.map((req, idx) => (
+                <RequestTicket
+                  key={req._id}
+                  index={idx}
+                  type="IT Request"
+                  code={req.request_code}
+                  title={req.issue}
+                  status={req.status}
+                  statusLabel={STATUS_LABELS[req.status]}
+                  meta={[
+                    ...(req.unit ? [{ label: 'Unit', value: req.unit }] : []),
+                    { label: 'Created', value: formatDate(req.created_at) },
+                    ...(req.completed_at ? [{ label: 'Completed', value: formatDate(req.completed_at) }] : []),
+                  ]}
+                  rows={isCompleted(req.status)
+                    ? [{ label: 'Result', value: resultLabel(req) }]
+                    : OPEN_STATUSES.includes(req.status)
+                      ? [{ label: 'Technician', value: req.assigned_to ? 'Assigned' : 'Not assigned yet' }]
+                      : []}
+                  actions={<>{cancelButton(req)}{rateButton(req)}{detailsButton(req)}</>}
+                />
+              ))}
+            </div>
+          </>
         )}
 
         <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
