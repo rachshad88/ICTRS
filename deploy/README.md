@@ -34,19 +34,28 @@ The page chimes on new requests, but browsers keep sound off until someone click
 loads. Starting a kiosk browser with `--autoplay-policy=no-user-gesture-required` avoids the click.
 
 ## nginx
-The site config is `deploy/nginx-itrs.conf`. To install a changed version:
+ITRS has two nginx sites, both in this repo: `deploy/nginx-itrs.conf` (the LAN site, self-signed certificate)
+and `deploy/nginx-getregisterforms.conf` (the public site, Let's Encrypt). Shared parts:
+
+- `nginx-itrs-http.conf`: the backend upstream and the sign-in rate-limit zones (installed in `conf.d/`).
+- `nginx-itrs-api.conf` and `nginx-itrs-api-proxy.conf`: the `/api` locations. API bodies are limited to 1 MB,
+  except the upload routes (media request forms, MOV photos) at 100 MB. Sign-in is limited to 10 requests a
+  minute per address (burst 10) and sign-up to 3 a minute (burst 5); beyond that nginx answers 429 with
+  `Retry-After: 60`, which the sign-in page uses to pause its button. A new upload route needs its own
+  location there, or it gets the 1 MB limit.
+- `nginx-itrs-headers.conf`: security headers for the files nginx serves (frame protection, nosniff,
+  permissions and so on), included by every static location of both sites.
+
+To install a changed version of any of them:
 
 ```
 sudo ./deploy/install-nginx.sh
 ```
 
-It backs up the current config, checks the new one with `nginx -t`, and restores the old one if the check fails.
+It backs up every file it replaces, checks the new set with `nginx -t`, and restores the old files if the check
+fails. Keep the ACME webroot location in the public site: certbot renews the certificate through it.
 
-Security headers for the files nginx serves (frame protection, nosniff, permissions and so on) live in
-`deploy/nginx-itrs-headers.conf`. The install script copies it to `/etc/nginx/snippets/itrs-security-headers.conf`,
-and every static location of both ITRS sites includes it. The `getregisterforms.online` vhost (below) is not
-in this repo: if you rebuild it, keep its `include snippets/itrs-security-headers.conf;` lines and
-`server_tokens off;`. The page's main Content Security Policy is written into `index.html` at build time
+The page's main Content Security Policy is written into `index.html` at build time
 (`frontend-ts/vite.config.ts`), so an inline script added to `index.html` is allowed automatically, but an
 inline event handler (`onload="..."`) is blocked: attach it from a script instead.
 
@@ -62,7 +71,8 @@ sudo apt install libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static
 nginx vhost with a real Let's Encrypt certificate — not the self-signed `itrs.dave` fallback:
 
 - Vhost: `/etc/nginx/sites-available/getregisterforms.online`
-  (symlinked in `sites-enabled/`). Port 80 serves `/.well-known/acme-challenge/` from
+  (symlinked in `sites-enabled/`), installed from `deploy/nginx-getregisterforms.conf`
+  by `install-nginx.sh`; edit the repo copy, not the live file. Port 80 serves `/.well-known/acme-challenge/` from
   `/var/www/letsencrypt` and redirects everything else to HTTPS. Port 443 serves
   `/var/www/itrs` and proxies `/api`, `/socket.io`, `/health` to the backend, same as the
   default server.
