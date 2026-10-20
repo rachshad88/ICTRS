@@ -1,0 +1,12 @@
+[Unit]
+Description=Limit MongoDB (Docker port 27017) to the rating system and admin workstation
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/itrs-mongo-firewall.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -195,12 +195,20 @@ request's ID and status, and the rating system stores its ratings there. Setup, 
 the developer guide: [`RATING_DB.md`](RATING_DB.md).
 
 ## Remote admin access to MongoDB
-`mongod` listens on `0.0.0.0:27017`, but UFW denies incoming traffic by default, so only an explicitly allowed
-client can reach it. One rule is in place:
+`mongod` runs in Docker with port 27017 published on all addresses. **ufw does not control this port:** Docker
+publishes it through its own iptables chains, which are evaluated before ufw's rules. The restriction lives in
+the `DOCKER-USER` chain instead: only the rating system (`192.168.110.19`) and the admin workstation
+(`192.168.110.41`) may open connections to it. It is applied at boot by `itrs-mongo-firewall.service`:
 
 ```
-sudo ufw allow from 192.168.110.41 to any port 27017 proto tcp comment 'ITRS mongo admin'
+sudo cp deploy/itrs-mongo-firewall.sh /usr/local/sbin/ && sudo chmod 755 /usr/local/sbin/itrs-mongo-firewall.sh
+sudo cp deploy/itrs-mongo-firewall.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now itrs-mongo-firewall.service
 ```
+
+To allow another address, add it to `ALLOWED` in the script and run `sudo systemctl restart itrs-mongo-firewall`.
+Check the rules with `sudo iptables -S DOCKER-USER` and `sudo iptables -S ITRS-MONGO`. IPv6 clients are
+refused by ufw, because they reach the port through docker-proxy rather than Docker's forwarding.
 
 `192.168.110.41` is the admin workstation. Connect with the full URI (password URL-encoded):
 
