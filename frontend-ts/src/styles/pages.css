@@ -915,10 +915,18 @@ button.rq-ticket-code {
   display: contents;
 }
 
-.rq-ticket-actions button {
+.rq-ticket-actions button,
+.rq-ticket-actions a {
   flex: 1 1 0;
   min-height: 40px;
   white-space: nowrap;
+}
+
+.rq-ticket-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 /* Rubber stamp, as on the landing page; statuses keep their app colours */
@@ -1721,6 +1729,12 @@ button.rq-ticket-code {
     padding-top: 7px;
     padding-bottom: 7px;
   }
+}
+
+/* The phone tickets that replace the service table (pages.css, "REQUEST TICKETS"); their heading
+   sits on the page, not in a panel. */
+.app-main .adm-tickets-head {
+  padding: 0 2px;
 }
 
 /* Narrow desktops and tablets: one column. The service table scrolls sideways inside its panel. */

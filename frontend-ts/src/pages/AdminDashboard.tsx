@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
+import RequestTicket from '../components/RequestTicket';
 import { useAuth } from '../contexts/AuthContext';
 
 interface StatsData {
@@ -145,7 +146,7 @@ function AdminDashboard() {
       </div>
 
       <div className="adm-grid adm-grid--top">
-        <section className="adm-panel" aria-labelledby="adm-services">
+        <section className="adm-panel hide-on-mobile" aria-labelledby="adm-services">
           <header className="adm-panel-head">
             <h3 id="adm-services">Requests by service</h3>
             <Link to="/all-requests">All requests</Link>
@@ -186,6 +187,34 @@ function AdminDashboard() {
               </tfoot>
             </table>
           </div>
+        </section>
+
+        {/* Phones: a ticket per service instead of the table, outside the panel so the ticket's
+            notches show the page behind it. The stamp says how many wait for someone to take them. */}
+        <section className="rq-ticket-list" aria-labelledby="adm-services-m">
+          <header className="adm-panel-head adm-tickets-head">
+            <h3 id="adm-services-m">Requests by service</h3>
+            <Link to="/all-requests">All requests</Link>
+          </header>
+          {[...rows, { key: 'all', label: 'All services', manage: '/all-requests', counts: allCounts }].map((r, idx) => {
+            const waiting = sum(r.counts, COLUMNS[0].statuses);
+            return (
+              <RequestTicket
+                key={r.key}
+                index={idx}
+                brand="ITRS service"
+                type={r.key === 'all' ? 'Summary' : 'Requests'}
+                title={r.label}
+                status={waiting > 0 ? 'PENDING' : 'DONE'}
+                statusLabel={waiting > 0 ? `${waiting} waiting` : 'All assigned'}
+                meta={COLUMNS.slice(1).map((c) => ({ label: c.label, value: sum(r.counts, c.statuses) }))}
+                rows={[{ label: 'Total', value: sum(r.counts) }]}
+                actions={r.key !== 'all' && (
+                  <Link to={r.manage} className="hbtn hbtn-view">{waiting > 0 ? 'Assign requests' : 'View requests'}</Link>
+                )}
+              />
+            );
+          })}
         </section>
 
         <section className="adm-panel" aria-labelledby="adm-users">
