@@ -7,7 +7,7 @@ import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, RequestNote } from '../components/RequestNotes';
-import RequestMobileCard from '../components/RequestMobileCard';
+import RequestTicket from '../components/RequestTicket';
 import { RequestFlags, priorityLabel } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
 
@@ -143,17 +143,17 @@ function PrintMaterialsDashboard() {
             </table>
           </div>
 
-          <div className="mobile-request-list">
-            {requests.map((request) => (
-              <RequestMobileCard
+          <div className="rq-ticket-list">
+            {requests.map((request, idx) => (
+              <RequestTicket
                 key={request._id}
+                index={idx}
                 title={request.form_of_printed_media}
-                subtitle={request.event_ppa_name}
-                thumbnailLabel={request.request_code}
-                typeLabel="Print Materials"
-                statusLabel={request.status.replace(/_/g, ' ')}
-                statusClass={request.status.toLowerCase().replace(/_/g, '-')}
-                metaItems={[
+                sub={request.event_ppa_name}
+                code={request.request_code}
+                type="Print Materials"
+                status={request.status}
+                meta={[
                   { label: 'Priority', value: <>{priorityLabel(request.priority)}<RequestFlags overdue={request.overdue} /></> },
                   { label: 'Size', value: request.size_of_printed_media },
                   { label: 'Target', value: formatDate(request.target_date) },
@@ -174,11 +174,11 @@ function PrintMaterialsDashboard() {
                 )}
                 actions={(
                   <>
-                    <button className="btn-primary" onClick={() => setSelectedRequest(request)}>
+                    <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
                       View Files
                     </button>
                     {request.status === 'IN_PROGRESS' && (
-                      <button className="btn-secondary" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
+                      <button className="hbtn hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
                         Mark Done
                       </button>
                     )}

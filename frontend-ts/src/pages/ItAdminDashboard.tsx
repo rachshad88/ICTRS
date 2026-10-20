@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../components/RequestNotes';
 import FinishRequestModal from '../components/FinishRequestModal';
 import VerifyMovModal from '../components/VerifyMovModal';
+import RequestTicket, { STAMP_ONLY } from '../components/RequestTicket';
 import MovPhotos from '../components/MovPhotos';
 import { RequestFlags, PriorityForm, ReassignForm, PRIORITY_OPTIONS, suggestedDueDate, priorityLabel, formatDay } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
@@ -328,6 +329,32 @@ function ItAdminDashboard() {
     </tr>
   );
 
+  // The same request as a ticket, for phones; tapping it opens the details like the row does.
+  const renderTicket = (req: Request, idx: number) => (
+    <RequestTicket
+      key={req.request_code}
+      index={idx}
+      type="IT Request"
+      code={req.request_code}
+      onOpen={() => setDetailTarget(req)}
+      flags={<RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} reopened={req.reopened} />}
+      title={req.issue}
+      sub={req.notes && req.notes.length > 0 ? `${req.notes.length} ${req.notes.length === 1 ? 'note' : 'notes'} from the client` : undefined}
+      status={req.status}
+      meta={[
+        { label: 'Requested by', value: req.client_name },
+        { label: 'Office', value: req.office },
+        { label: 'Created', value: req.created_at },
+        ...(req.completed_at !== '-' ? [{ label: 'Completed', value: req.completed_at }] : []),
+      ]}
+      rows={[
+        { label: 'Assigned to', value: req.assigned_name || 'Not assigned yet' },
+        ...(req.mov_return_reason ? [{ label: 'MOV returned', value: req.mov_return_reason }] : []),
+      ]}
+      actions={STAMP_ONLY.includes(req.status) ? undefined : getActionButtons(req)}
+    />
+  );
+
   return (
     <div className="page-wrap tech-dash it-dash">
       <div className="page-header">
@@ -376,31 +403,39 @@ function ItAdminDashboard() {
       {loading ? (
         <Skeleton variant="table" rows={5} />
       ) : (
-        <div className="history-table-wrap it-table">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Requested By</th>
-                <th>Assigned To</th>
-                <th>Issue</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th className="col-actions">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {earlier.length > 0 && (
-                <tr className="group-row"><td colSpan={7}>{ranged && !rangeIsPeriod ? 'Still open from before these dates' : EARLIER_LABEL[filterType]} ({earlier.length})</td></tr>
-              )}
-              {earlier.map(renderRow)}
-              {earlier.length > 0 && (
-                <tr className="group-row"><td colSpan={7}>{ranged && !rangeIsPeriod ? 'Selected dates' : PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</td></tr>
-              )}
-              {requests.map(renderRow)}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <div className="history-table-wrap it-table hide-on-mobile">
+            <table className="history-table stack-mobile">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Requested By</th>
+                  <th>Assigned To</th>
+                  <th>Issue</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th className="col-actions">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {earlier.length > 0 && (
+                  <tr className="group-row"><td colSpan={7}>{ranged && !rangeIsPeriod ? 'Still open from before these dates' : EARLIER_LABEL[filterType]} ({earlier.length})</td></tr>
+                )}
+                {earlier.map(renderRow)}
+                {earlier.length > 0 && (
+                  <tr className="group-row"><td colSpan={7}>{ranged && !rangeIsPeriod ? 'Selected dates' : PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</td></tr>
+                )}
+                {requests.map(renderRow)}
+              </tbody>
+            </table>
+          </div>
+          <div className="rq-ticket-list">
+            {earlier.length > 0 && <p className="rq-ticket-group">{ranged && !rangeIsPeriod ? 'Still open from before these dates' : EARLIER_LABEL[filterType]} ({earlier.length})</p>}
+            {earlier.map(renderTicket)}
+            {earlier.length > 0 && <p className="rq-ticket-group">{ranged && !rangeIsPeriod ? 'Selected dates' : PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</p>}
+            {requests.map(renderTicket)}
+          </div>
+        </>
       )}
 
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />

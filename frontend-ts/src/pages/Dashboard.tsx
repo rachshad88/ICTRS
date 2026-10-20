@@ -9,6 +9,7 @@ import Pagination from '../components/Pagination';
 import AnimatedNumber from '../components/AnimatedNumber';
 import { RequestNote } from '../components/RequestNotes';
 import FinishRequestModal from '../components/FinishRequestModal';
+import RequestTicket from '../components/RequestTicket';
 import { RequestFlags } from '../components/Priority';
 import { EASE_OUT, staggerContainer, staggerItem } from '../lib/motion';
 import SearchBox from '../components/SearchBox';
@@ -185,6 +186,31 @@ function Dashboard() {
     </motion.tr>
   );
 
+  // The same request as a ticket, for phones.
+  const renderTicket = (req: Request, idx: number) => (
+    <RequestTicket
+      key={req.request_code}
+      index={idx}
+      type="IT Request"
+      code={req.request_code}
+      flags={<RequestFlags priority={req.priority} overdue={req.overdue} due={req.due_date} reopened={req.reopened} />}
+      title={req.issue}
+      sub={req.notes && req.notes.length > 0 ? `${req.notes.length} ${req.notes.length === 1 ? 'note' : 'notes'} from the client` : undefined}
+      status={req.status}
+      meta={[
+        { label: 'Requested by', value: req.client_name },
+        { label: 'Office', value: req.office },
+        { label: 'Filed', value: req.created_at },
+        ...(req.completed_at && req.completed_at !== '-' ? [{ label: 'Done', value: req.completed_at }] : []),
+      ]}
+      rows={[
+        ...(req.mov_return_reason ? [{ label: 'MOV returned', value: req.mov_return_reason }] : []),
+        ...(req.status === 'FOR_VERIFICATION' ? [{ label: 'Next', value: 'Waiting for the IT admin' }] : []),
+      ]}
+      actions={req.status === 'IN_PROGRESS' ? getActionButtons(req) : undefined}
+    />
+  );
+
   return (
     <div className="page-wrap tech-dash">
       <div className="page-header">
@@ -237,7 +263,7 @@ function Dashboard() {
         <Skeleton variant="table" rows={5} />
       ) : (
         <>
-          <div className="history-table-wrap">
+          <div className="history-table-wrap hide-on-mobile">
             <table className="history-table stack-mobile">
               <thead>
                 <tr>
@@ -260,6 +286,12 @@ function Dashboard() {
                 {requests.map(renderRow)}
               </tbody>
             </table>
+          </div>
+          <div className="rq-ticket-list">
+            {earlier.length > 0 && <p className="rq-ticket-group">{EARLIER_LABEL[filterType]} ({earlier.length})</p>}
+            {earlier.map(renderTicket)}
+            {earlier.length > 0 && <p className="rq-ticket-group">{PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</p>}
+            {requests.map(renderTicket)}
           </div>
           {requests.length === 0 && earlier.length === 0 && <div className="history-empty">No requests match the current filter. Try broadening search criteria.</div>}
         </>

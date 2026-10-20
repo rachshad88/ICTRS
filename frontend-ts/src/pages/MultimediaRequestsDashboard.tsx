@@ -7,7 +7,7 @@ import FileViewer from '../components/FileViewer';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import { NotesList, RequestNote } from '../components/RequestNotes';
-import RequestMobileCard from '../components/RequestMobileCard';
+import RequestTicket from '../components/RequestTicket';
 import { RequestFlags, priorityLabel } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
 
@@ -155,17 +155,17 @@ function MultimediaRequestsDashboard() {
             </table>
           </div>
 
-          <div className="mobile-request-list">
-            {requests.map((request) => (
-              <RequestMobileCard
+          <div className="rq-ticket-list">
+            {requests.map((request, idx) => (
+              <RequestTicket
                 key={request._id}
+                index={idx}
                 title={request.event_title}
-                subtitle={request.location_type}
-                thumbnailLabel={request.request_code}
-                typeLabel="Event Documentation"
-                statusLabel={request.status.replace(/_/g, ' ')}
-                statusClass={request.status.toLowerCase().replace(/_/g, '-')}
-                metaItems={[
+                sub={request.location_type}
+                code={request.request_code}
+                type="Event Documentation"
+                status={request.status}
+                meta={[
                   { label: 'Priority', value: <>{priorityLabel(request.priority)}<RequestFlags overdue={request.overdue} /></> },
                   { label: 'Date', value: formatDate(request.event_date) },
                   { label: 'Time', value: `${request.event_start_time} - ${request.event_end_time}` },
@@ -185,11 +185,11 @@ function MultimediaRequestsDashboard() {
                 )}
                 actions={(
                   <>
-                    <button className="btn-primary" onClick={() => setSelectedRequest(request)}>
+                    <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
                       View Files
                     </button>
                     {request.status === 'IN_PROGRESS' && (
-                      <button className="btn-secondary" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
+                      <button className="hbtn hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
                         Mark Done
                       </button>
                     )}

@@ -10,6 +10,7 @@ import { NotesList, DeclineReason, DeclineForm, RequestNote } from '../component
 import { RequestFlags, PriorityForm, ReassignForm, CompleteForm } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
 import Select from '../components/Select';
+import RequestTicket from '../components/RequestTicket';
 
 interface PrintMaterialsRequest {
   _id: string;
@@ -125,6 +126,29 @@ function PrintMaterialsManagement() {
   const totalItems = activeTab === 'unassigned' ? totalUnassigned : totalAll;
   const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
+  const requesterName = (request: PrintMaterialsRequest) =>
+    request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown';
+
+  // The row's buttons, shared by the table and the phone tickets.
+  const rowActions = (request: PrintMaterialsRequest) => (
+    <div className="history-actions">
+      {request.status === 'PENDING' && !request.assignedTechnician?.[0] ? (
+        <>
+          <button className="hbtn hbtn-assign" onClick={() => { setSelectedRequest(request); setSelectedTechnician(''); }}>
+            Assign
+          </button>
+          <button className="hbtn hbtn-done" onClick={() => user && handleAssign(request, user.user_id)} disabled={assigning}>
+            Take
+          </button>
+        </>
+      ) : (
+        <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
+          {request.status === 'IN_PROGRESS' ? 'Manage' : 'View'}
+        </button>
+      )}
+    </div>
+  );
+
   return (
     <div className="history-page">
       <div className="page-header">
@@ -155,63 +179,72 @@ function PrintMaterialsManagement() {
       ) : displayRequests.length === 0 ? (
         <div className="history-empty">No {activeTab === 'unassigned' ? 'unassigned ' : ''}print materials requests</div>
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                <th>Status</th>
-                <th>Code</th>
-                <th>Form</th>
-                <th>Size</th>
-                <th>Event / PPA</th>
-                <th>Target Date</th>
-                <th>Requested By</th>
-                <th className="col-actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {displayRequests.map((request) => (
-                <tr key={request._id}>
-                  <td data-label="Status">
-                    <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
-                      <span className={`hstatus-dot ${request.status.toLowerCase().replace(/_/g, '-')}`} />
-                      {request.status.replace(/_/g, ' ')}
-                    </span>
-                  </td>
-                  <td className="td-code" data-label="Code">
-                    {request.request_code}
-                    <RequestFlags priority={request.priority} overdue={request.overdue} />
-                  </td>
-                  <td data-label="Form">{request.form_of_printed_media}</td>
-                  <td className="td-cell" data-label="Size">{request.size_of_printed_media}</td>
-                  <td className="td-cell" data-label="Event / PPA">{request.event_ppa_name}</td>
-                  <td className="td-cell" data-label="Target Date">{formatDate(request.target_date)}</td>
-                  <td className="td-cell" data-label="Requested By">
-                    {request.requester?.[0] ? `${request.requester[0].first_name} ${request.requester[0].last_name}` : 'Unknown'}
-                  </td>
-                  <td className="col-actions">
-                    <div className="history-actions">
-                      {request.status === 'PENDING' && !request.assignedTechnician?.[0] ? (
-                        <>
-                          <button className="hbtn hbtn-assign" onClick={() => { setSelectedRequest(request); setSelectedTechnician(''); }}>
-                            Assign
-                          </button>
-                          <button className="hbtn hbtn-done" onClick={() => user && handleAssign(request, user.user_id)} disabled={assigning}>
-                            Take
-                          </button>
-                        </>
-                      ) : (
-                        <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                          {request.status === 'IN_PROGRESS' ? 'Manage' : 'View'}
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        <>
+          <div className="history-table-wrap hide-on-mobile">
+            <table className="history-table stack-mobile">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Code</th>
+                  <th>Form</th>
+                  <th>Size</th>
+                  <th>Event / PPA</th>
+                  <th>Target Date</th>
+                  <th>Requested By</th>
+                  <th className="col-actions">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {displayRequests.map((request) => (
+                  <tr key={request._id}>
+                    <td data-label="Status">
+                      <span className={`hstatus ${request.status.toLowerCase().replace(/_/g, '-')}`}>
+                        <span className={`hstatus-dot ${request.status.toLowerCase().replace(/_/g, '-')}`} />
+                        {request.status.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="td-code" data-label="Code">
+                      {request.request_code}
+                      <RequestFlags priority={request.priority} overdue={request.overdue} />
+                    </td>
+                    <td data-label="Form">{request.form_of_printed_media}</td>
+                    <td className="td-cell" data-label="Size">{request.size_of_printed_media}</td>
+                    <td className="td-cell" data-label="Event / PPA">{request.event_ppa_name}</td>
+                    <td className="td-cell" data-label="Target Date">{formatDate(request.target_date)}</td>
+                    <td className="td-cell" data-label="Requested By">
+                      {requesterName(request)}
+                    </td>
+                    <td className="col-actions">{rowActions(request)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="rq-ticket-list">
+            {displayRequests.map((request, idx) => {
+              const tech = request.assignedTechnician?.[0];
+              return (
+                <RequestTicket
+                  key={request._id}
+                  index={idx}
+                  type="Print Materials"
+                  code={request.request_code}
+                  flags={<RequestFlags priority={request.priority} overdue={request.overdue} />}
+                  title={request.form_of_printed_media}
+                  status={request.status}
+                  meta={[
+                    { label: 'Size', value: request.size_of_printed_media },
+                    { label: 'Event / PPA', value: request.event_ppa_name },
+                    { label: 'Target date', value: formatDate(request.target_date) },
+                    { label: 'Requested by', value: requesterName(request) },
+                  ]}
+                  rows={[{ label: 'Assigned to', value: tech ? `${tech.first_name} ${tech.last_name}` : 'Not assigned yet' }]}
+                  actions={rowActions(request)}
+                />
+              );
+            })}
+          </div>
+        </>
       )}
 
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />

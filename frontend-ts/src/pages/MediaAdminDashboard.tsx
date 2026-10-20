@@ -12,6 +12,7 @@ import RequestProgress from '../components/RequestProgress';
 import SearchBox from '../components/SearchBox';
 import { DateField } from '../components/DateField';
 import Select from '../components/Select';
+import RequestTicket, { STAMP_ONLY } from '../components/RequestTicket';
 
 /**
  * The multimedia admin's home: the IT admin dashboard's layout for the three media request types
@@ -315,6 +316,31 @@ function MediaAdminDashboard() {
     </tr>
   );
 
+  // The same request as a ticket, for phones; tapping it opens the details like the row does.
+  const renderTicket = (r: MediaRequest, idx: number) => (
+    <RequestTicket
+      key={r._id}
+      index={idx}
+      type={TYPES[r.type]?.label ?? r.type}
+      code={r.request_code}
+      onOpen={() => setDetailTarget(r)}
+      flags={<RequestFlags priority={r.priority} overdue={r.overdue} due={r.due} reopened={!!r.reopened_at && !['DONE', 'RATED', 'CANCELLED', 'DECLINED'].includes(r.status)} />}
+      title={r.title || '-'}
+      sub={[r.detail, r.notes && r.notes.length > 0 ? `${r.notes.length} ${r.notes.length === 1 ? 'note' : 'notes'} from the client` : '']
+        .filter(Boolean).join(' · ') || undefined}
+      status={r.status}
+      statusLabel={statusText(r.status)}
+      meta={[
+        { label: 'Requested by', value: r.requester_name || 'Unknown' },
+        ...(r.office ? [{ label: 'Office', value: r.office }] : []),
+        { label: 'Created', value: formatWhen(r.created_at) },
+        ...(r.completed_at ? [{ label: 'Completed', value: formatWhen(r.completed_at) }] : []),
+      ]}
+      rows={[{ label: 'Assigned to', value: r.assignee_name || 'Not assigned yet' }]}
+      actions={STAMP_ONLY.includes(r.status) ? undefined : getActionButtons(r)}
+    />
+  );
+
   return (
     <div className="page-wrap tech-dash it-dash media-dash">
       <div className="page-header">
@@ -369,7 +395,7 @@ function MediaAdminDashboard() {
         <Skeleton variant="table" rows={5} />
       ) : (
         <>
-          <div className="history-table-wrap it-table">
+          <div className="history-table-wrap it-table hide-on-mobile">
             <table className="history-table stack-mobile">
               <thead>
                 <tr>
@@ -394,6 +420,12 @@ function MediaAdminDashboard() {
                 {requests.map(renderRow)}
               </tbody>
             </table>
+          </div>
+          <div className="rq-ticket-list">
+            {earlier.length > 0 && <p className="rq-ticket-group">{EARLIER_LABEL[filterType]} ({earlier.length})</p>}
+            {earlier.map(renderTicket)}
+            {earlier.length > 0 && <p className="rq-ticket-group">{PERIOD_LABEL[filterType]}{requests.length === 0 ? ': nothing yet' : ''}</p>}
+            {requests.map(renderTicket)}
           </div>
           {requests.length === 0 && earlier.length === 0 && (
             <div className="history-empty">No requests match the current filter.</div>

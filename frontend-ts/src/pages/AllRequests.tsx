@@ -12,6 +12,7 @@ import MovPhotos from '../components/MovPhotos';
 import SearchBox from '../components/SearchBox';
 import { DateRangeField } from '../components/DateField';
 import Select from '../components/Select';
+import RequestTicket from '../components/RequestTicket';
 
 interface OverviewRequest {
   _id: string;
@@ -304,59 +305,85 @@ function AllRequests() {
           {isFiltered ? 'No requests match these filters.' : 'No requests yet.'}
         </div>
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Summary</th>
-                <th>Requested By</th>
-                <th>Assigned To</th>
-                <th>Due</th>
-                <th>Status</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((r) => (
-                <tr key={`${r.type}-${r._id}`} className="overview-row" onClick={() => setSelected(r)}>
-                  <td className="td-code" data-label="Code">
-                    <span className="td-stack">
-                      <button type="button" className="code-link" onClick={(e) => { e.stopPropagation(); setSelected(r); }}>
-                        {r.request_code}
-                      </button>
-                      <span className="req-flags">
-                        <span className={`type-tag ${r.type}`}>{typeLabel(r.type)}</span>
-                        <RequestFlags priority={r.priority} overdue={r.overdue} reopened={!!r.reopened_at && OPEN.includes(r.status)} />
-                      </span>
-                    </span>
-                  </td>
-                  <td className="td-wrap" data-label="Summary">
-                    <span className="td-stack">
-                      {r.title || '-'}
-                      {r.detail && r.detail.trim() && <span className="td-sub">{r.detail}</span>}
-                    </span>
-                  </td>
-                  <td className="td-cell td-wrap" data-label="Requested By">
-                    <span className="td-stack">
-                      {r.requester_name || 'Unknown'}
-                      {r.office && <span className="td-sub">{r.office}</span>}
-                    </span>
-                  </td>
-                  <td className="td-cell" data-label="Assigned To">{r.assignee_name || '-'}</td>
-                  <td className="td-cell" data-label="Due">{r.due ? formatDay(r.due) : '-'}</td>
-                  <td data-label="Status">
-                    <span className={`hstatus ${statusClass(r.status)}`}>
-                      <span className={`hstatus-dot ${statusClass(r.status)}`} />
-                      {statusText(r.status)}
-                    </span>
-                  </td>
-                  <td className="td-cell" data-label="Created">{formatDay(toLocalDay(r.created_at))}</td>
+        <>
+          <div className="history-table-wrap hide-on-mobile">
+            <table className="history-table stack-mobile">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Summary</th>
+                  <th>Requested By</th>
+                  <th>Assigned To</th>
+                  <th>Due</th>
+                  <th>Status</th>
+                  <th>Created</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {requests.map((r) => (
+                  <tr key={`${r.type}-${r._id}`} className="overview-row" onClick={() => setSelected(r)}>
+                    <td className="td-code" data-label="Code">
+                      <span className="td-stack">
+                        <button type="button" className="code-link" onClick={(e) => { e.stopPropagation(); setSelected(r); }}>
+                          {r.request_code}
+                        </button>
+                        <span className="req-flags">
+                          <span className={`type-tag ${r.type}`}>{typeLabel(r.type)}</span>
+                          <RequestFlags priority={r.priority} overdue={r.overdue} reopened={!!r.reopened_at && OPEN.includes(r.status)} />
+                        </span>
+                      </span>
+                    </td>
+                    <td className="td-wrap" data-label="Summary">
+                      <span className="td-stack">
+                        {r.title || '-'}
+                        {r.detail && r.detail.trim() && <span className="td-sub">{r.detail}</span>}
+                      </span>
+                    </td>
+                    <td className="td-cell td-wrap" data-label="Requested By">
+                      <span className="td-stack">
+                        {r.requester_name || 'Unknown'}
+                        {r.office && <span className="td-sub">{r.office}</span>}
+                      </span>
+                    </td>
+                    <td className="td-cell" data-label="Assigned To">{r.assignee_name || '-'}</td>
+                    <td className="td-cell" data-label="Due">{r.due ? formatDay(r.due) : '-'}</td>
+                    <td data-label="Status">
+                      <span className={`hstatus ${statusClass(r.status)}`}>
+                        <span className={`hstatus-dot ${statusClass(r.status)}`} />
+                        {statusText(r.status)}
+                      </span>
+                    </td>
+                    <td className="td-cell" data-label="Created">{formatDay(toLocalDay(r.created_at))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="rq-ticket-list">
+            {requests.map((r, idx) => (
+              <RequestTicket
+                key={`${r.type}-${r._id}`}
+                index={idx}
+                type={typeLabel(r.type)}
+                code={r.request_code}
+                onOpen={() => setSelected(r)}
+                flags={<RequestFlags priority={r.priority} overdue={r.overdue} reopened={!!r.reopened_at && OPEN.includes(r.status)} />}
+                title={r.title || '-'}
+                sub={r.detail && r.detail.trim() ? r.detail : undefined}
+                status={r.status}
+                statusLabel={statusText(r.status)}
+                meta={[
+                  { label: 'Requested by', value: r.requester_name || 'Unknown' },
+                  ...(r.office ? [{ label: 'Office', value: r.office }] : []),
+                  { label: 'Created', value: formatDay(toLocalDay(r.created_at)) },
+                  { label: 'Due', value: r.due ? formatDay(r.due) : '-' },
+                ]}
+                rows={[{ label: 'Assigned to', value: r.assignee_name || 'Not assigned yet' }]}
+                actions={<button type="button" className="hbtn hbtn-view" onClick={() => setSelected(r)}>Details</button>}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />

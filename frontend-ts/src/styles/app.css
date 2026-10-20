@@ -631,8 +631,7 @@
 .app-main .td-code,
 .app-main .code-link,
 .app-main .yt-card-code,
-.app-main .youtube-card-code,
-.app-main .mobile-request-code {
+.app-main .youtube-card-code {
   font-family: var(--font-mono);
   letter-spacing: -0.01em;
 }
@@ -1068,51 +1067,6 @@
 .app-main .file-item {
   border-radius: var(--radius-sm);
   background: var(--paper);
-}
-
-/* Phone request cards: the head is the ticket's navy strip */
-.app-main .mobile-request-card {
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--card);
-  box-shadow: var(--shadow-medium);
-}
-
-.app-main .mobile-request-thumb {
-  background: var(--navy);
-  background: var(--accent-grad);
-}
-
-.app-main .mobile-request-thumb-body h3 {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.app-main .mobile-request-chip {
-  font-family: var(--font-mono);
-  letter-spacing: 0.12em;
-  background: rgba(255, 255, 255, 0.14);
-}
-
-.app-main .mobile-request-code {
-  background: var(--seal-yellow);
-  color: var(--ink);
-}
-
-.app-main .mobile-request-meta-item span {
-  font-family: var(--font-mono);
-  letter-spacing: 0.1em;
-}
-
-.app-main .mobile-request-toggle {
-  background: var(--paper-2);
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.app-main .mobile-request-details {
-  border-top: 2px dashed rgba(12, 31, 74, 0.18);
 }
 
 .app-main .loading {

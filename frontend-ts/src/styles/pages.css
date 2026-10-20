@@ -673,173 +673,16 @@ yt-channel-avatar.pm { background: #047857; }
   margin-left: 2px;
 }
 
-/* ========== MOBILE REQUEST CARDS ========== */
-.mobile-request-card {
-  display: none;
-  background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: var(--shadow-soft);
-}
-
-.mobile-request-thumb {
-  position: relative;
-  min-height: 132px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(44, 111, 187, 0.22));
-}
-
-.mobile-request-thumb-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.mobile-request-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 4px 8px;
-  border-radius: var(--radius-full);
-  background: rgba(255,255,255,0.16);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.mobile-request-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  border-radius: var(--radius-full);
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  background: rgba(255,255,255,0.18);
-  color: #fff;
-}
-
-.mobile-request-status.pending,
-.mobile-request-status.assigned,
-.mobile-request-status.in-progress {
-  background: rgba(245, 158, 11, 0.22);
-}
-
-.mobile-request-status.done,
-.mobile-request-status.rated,
-.mobile-request-status.completed {
-  background: rgba(16, 185, 129, 0.22);
-}
-
-.mobile-request-thumb-body h3 {
-  margin: 0 0 4px;
-  font-size: 16px;
-  color: #fff;
-}
-
-.mobile-request-thumb-body p {
-  margin: 0;
-  font-size: 12px;
-  color: rgba(255,255,255,0.86);
-}
-
-.mobile-request-code {
-  display: inline-block;
-  align-self: flex-start;
-  padding: 4px 8px;
-  border-radius: var(--radius-full);
-  background: rgba(0,0,0,0.2);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.mobile-request-body {
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.mobile-request-meta {
-  display: grid;
-  gap: 8px;
-}
-
-.mobile-request-meta-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 12px;
-}
-
-.mobile-request-meta-item span {
-  color: var(--text-secondary);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
-
-.mobile-request-toggle {
-  border: none;
-  background: rgba(124, 58, 237, 0.1);
-  color: var(--purple);
-  padding: 8px 10px;
-  border-radius: var(--radius-full);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  align-self: flex-start;
-}
-
-.mobile-request-details {
-  border-top: 1px solid var(--border-light);
-  padding-top: 10px;
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--text-primary);
-}
-
-.mobile-request-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.mobile-request-actions .hbtn,
-.mobile-request-actions .btn-primary,
-.mobile-request-actions .btn-secondary {
-  flex: 1 1 140px;
-}
-
+/* Tables that a phone replaces with request tickets (below) */
 @media (max-width: 640px) {
-  .mobile-request-card {
-    display: flex;
-    flex-direction: column;
-  }
-
   .hide-on-mobile {
     display: none;
   }
-
-  .mobile-request-list {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
 }
 
-/* ========== CLIENT REQUEST TICKETS (components/RequestTicket.tsx) ========== */
-/* On phones a client's request history is a stack of tickets, drawn like the one on the landing
-   page (landing.css, "The ticket"); wider screens keep the table. */
+/* ========== REQUEST TICKETS (components/RequestTicket.tsx) ========== */
+/* On phones the request lists (clients' histories, staff dashboards) are stacks of tickets, drawn
+   like the one on the landing page (landing.css, "The ticket"); wider screens keep the table. */
 .rq-ticket-list {
   display: none;
 }
@@ -850,6 +693,21 @@ yt-channel-avatar.pm { background: #047857; }
   background: var(--card);
   color: var(--ink);
   box-shadow: var(--shadow-medium);
+}
+
+.rq-ticket.is-openable {
+  cursor: pointer;
+}
+
+/* "Still open from earlier days" and the like, between the tickets */
+.rq-ticket-group {
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
 }
 
 .rq-ticket-head {
@@ -892,6 +750,25 @@ yt-channel-avatar.pm { background: #047857; }
   overflow-wrap: anywhere;
 }
 
+button.rq-ticket-code {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  text-decoration: underline dotted rgba(12, 31, 74, 0.35);
+  text-underline-offset: 5px;
+  cursor: pointer;
+}
+
+.rq-ticket-flags {
+  margin-top: 6px;
+}
+
+.rq-ticket-flags .req-flags {
+  margin-left: 0;
+}
+
 /* Long issues stop at three lines; Details shows the rest. */
 .rq-ticket-issue {
   display: -webkit-box;
@@ -904,6 +781,14 @@ yt-channel-avatar.pm { background: #047857; }
   font-size: 18px;
   line-height: 1.25;
   letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.rq-ticket-sub {
+  margin: -8px 0 14px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
 
@@ -977,6 +862,26 @@ yt-channel-avatar.pm { background: #047857; }
   min-height: 32px;
   font-weight: 700;
   text-align: right;
+}
+
+.rq-ticket-toggle {
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--cobalt);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rq-ticket-details {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-light);
+  font-size: 13.5px;
 }
 
 .rq-ticket-actions {
