@@ -8,6 +8,7 @@ import Pagination from '../components/Pagination';
 import SearchBox from '../components/SearchBox';
 import { useOffices, withCurrentOffice } from '../services/offices';
 import Select from '../components/Select';
+import RequestTicket from '../components/RequestTicket';
 
 interface User {
   _id: string;
@@ -281,6 +282,18 @@ function UserManagement() {
 
   const getRoleLabel = (role: string) => ROLE_LABELS[role] || role;
 
+  // The row's buttons, shared by the table and the phone tickets.
+  const userActions = (user: User) => (
+    <div className="history-actions">
+      <button className="hbtn hbtn-view" onClick={() => openModal(user)}>Edit</button>
+      <button className="hbtn hbtn-view" onClick={() => handleResetPassword(user)}>Reset password</button>
+      <button className="hbtn hbtn-view" onClick={() => handleSignOut(user)}>Sign out</button>
+      {user.active === false
+        ? <button className="hbtn hbtn-assign" onClick={() => handleSetActive(user, true)}>Activate</button>
+        : <button className="hbtn hbtn-cancel" onClick={() => handleSetActive(user, false)}>Deactivate</button>}
+    </div>
+  );
+
   return (
     <div className="page-wrap">
       {confirmDialog}
@@ -339,58 +352,82 @@ function UserManagement() {
       ) : shownUsers.length === 0 ? (
         <div className="history-empty">{isFiltered ? 'No users match this search.' : 'No users yet.'}</div>
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Name</th>
-                <th>Office</th>
-                <th>Role</th>
-                <th className="col-actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedUsers.map((user) => (
-                <tr key={user._id} className={user.active === false ? 'is-inactive' : undefined}>
-                  <td className="td-cell" data-label="Username">{user.username}</td>
-                  <td data-label="Name">
-                    <div>{user.first_name} {user.middle_name} {user.last_name}</div>
-                    {(user.position || user.contact_number) && (
-                      <div style={{ marginTop: '2px', fontSize: '11px', opacity: 0.75 }}>{[user.position, user.contact_number].filter(Boolean).join(' · ')}</div>
-                    )}
-                    {user.active === false && <div className="um-inactive">Inactive</div>}
-                    {user.is_default_password && (
-                      <div style={{ marginTop: '4px', fontSize: '10px', color: '#8a4b00', fontWeight: 600 }}>
-                        Default password
-                      </div>
-                    )}
-                  </td>
-                  <td className="td-cell" data-label="Office">{user.office?.trim() || '-'}</td>
-                  <td data-label="Role">
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      {(user.roles || [user.role]).map(r => (
-                        <span key={r} className={`role-badge ${getRoleClass(r)}`} style={{ fontSize: '10px' }}>
-                          {getRoleLabel(r)}{r === (user.primary_role || user.role) ? '*' : ''}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="col-actions">
-                    <div className="history-actions">
-                      <button className="hbtn hbtn-view" onClick={() => openModal(user)}>Edit</button>
-                      <button className="hbtn hbtn-view" onClick={() => handleResetPassword(user)}>Reset password</button>
-                      <button className="hbtn hbtn-view" onClick={() => handleSignOut(user)}>Sign out</button>
-                      {user.active === false
-                        ? <button className="hbtn hbtn-assign" onClick={() => handleSetActive(user, true)}>Activate</button>
-                        : <button className="hbtn hbtn-cancel" onClick={() => handleSetActive(user, false)}>Deactivate</button>}
-                    </div>
-                  </td>
+        <>
+          <div className="history-table-wrap hide-on-mobile">
+            <table className="history-table stack-mobile">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Name</th>
+                  <th>Office</th>
+                  <th>Role</th>
+                  <th className="col-actions">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {paginatedUsers.map((user) => (
+                  <tr key={user._id} className={user.active === false ? 'is-inactive' : undefined}>
+                    <td className="td-cell" data-label="Username">{user.username}</td>
+                    <td data-label="Name">
+                      <div>{user.first_name} {user.middle_name} {user.last_name}</div>
+                      {(user.position || user.contact_number) && (
+                        <div style={{ marginTop: '2px', fontSize: '11px', opacity: 0.75 }}>{[user.position, user.contact_number].filter(Boolean).join(' · ')}</div>
+                      )}
+                      {user.active === false && <div className="um-inactive">Inactive</div>}
+                      {user.is_default_password && (
+                        <div style={{ marginTop: '4px', fontSize: '10px', color: '#8a4b00', fontWeight: 600 }}>
+                          Default password
+                        </div>
+                      )}
+                    </td>
+                    <td className="td-cell" data-label="Office">{user.office?.trim() || '-'}</td>
+                    <td data-label="Role">
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                        {(user.roles || [user.role]).map(r => (
+                          <span key={r} className={`role-badge ${getRoleClass(r)}`} style={{ fontSize: '10px' }}>
+                            {getRoleLabel(r)}{r === (user.primary_role || user.role) ? '*' : ''}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="col-actions">{userActions(user)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="rq-ticket-list">
+            {paginatedUsers.map((user, idx) => (
+              <RequestTicket
+                key={user._id}
+                index={idx}
+                brand="ITRS account"
+                type={getRoleLabel(user.primary_role || user.role)}
+                code={user.username}
+                title={[user.first_name, user.middle_name, user.last_name].filter(Boolean).join(' ')}
+                sub={[user.position, user.contact_number].filter(Boolean).join(' · ') || undefined}
+                status={user.active === false ? 'INACTIVE' : 'ACTIVE'}
+                meta={[
+                  { label: 'Office', value: user.office?.trim() || '-' },
+                  {
+                    label: 'Roles',
+                    value: (
+                      <span className="rq-ticket-roles">
+                        {(user.roles || [user.role]).map((r) => (
+                          <span key={r} className={`role-badge ${getRoleClass(r)}`}>
+                            {getRoleLabel(r)}{r === (user.primary_role || user.role) ? '*' : ''}
+                          </span>
+                        ))}
+                      </span>
+                    ),
+                  },
+                ]}
+                rows={user.is_default_password ? [{ label: 'Password', value: 'Still the default' }] : []}
+                actions={userActions(user)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />

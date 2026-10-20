@@ -699,6 +699,16 @@ yt-channel-avatar.pm { background: #047857; }
   cursor: pointer;
 }
 
+/* A ticket that is not a request (an office, an audit entry) can open on its title */
+.rq-ticket-body > .rq-ticket-issue:first-child {
+  margin-top: 0;
+}
+
+/* The stub's first line when there is no stamp above it */
+.rq-ticket-stub > .rq-ticket-row:first-child {
+  margin-top: 6px;
+}
+
 /* "Still open from earlier days" and the like, between the tickets */
 .rq-ticket-group {
   margin-top: 4px;
@@ -785,6 +795,10 @@ button.rq-ticket-code {
 }
 
 .rq-ticket-sub {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
   margin: -8px 0 14px;
   font-size: 13.5px;
   line-height: 1.4;
@@ -806,6 +820,12 @@ button.rq-ticket-code {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-soft);
+}
+
+.rq-ticket-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .rq-ticket-meta dd {
@@ -924,7 +944,9 @@ button.rq-ticket-code {
 .rq-stamp-in-progress,
 .rq-stamp-for-verification { color: var(--cobalt); }
 .rq-stamp-done,
-.rq-stamp-rated { color: var(--green); }
+.rq-stamp-rated,
+.rq-stamp-active,
+.rq-stamp-shown { color: var(--green); }
 .rq-stamp-declined { color: var(--danger-red); }
 
 @media (max-width: 640px) {

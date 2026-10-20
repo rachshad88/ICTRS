@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
 import Pagination from '../components/Pagination';
 import Select from '../components/Select';
+import RequestTicket from '../components/RequestTicket';
 
 interface AuditEntry {
   _id: string;
@@ -94,34 +95,56 @@ function AuditLogs() {
       ) : logs.length === 0 ? (
         <div className="history-empty">No audit logs found</div>
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>User</th>
-                <th>Role</th>
-                <th>Action</th>
-                <th>Type</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log._id}>
-                  <td className="td-cell" style={{ whiteSpace: 'nowrap' }} data-label="Timestamp">{formatDate(log.timestamp)}</td>
-                    <td className="td-cell" data-label="User">{log.username || '-'}</td>
-                  <td data-label="Role">
-                    <span className={`role-badge ${(log.role || '').toLowerCase()}`}>{log.role ? log.role.charAt(0) + log.role.slice(1).toLowerCase() : '-'}</span>
-                  </td>
-                  <td className="td-cell" data-label="Action">{actionLabels[log.action] || log.action || '-'}</td>
-                  <td className="td-cell" data-label="Type">{(log.entity_type || '').replace(/_/g, ' ') || '-'}</td>
-                  <td className="td-truncate" style={{ maxWidth: '400px' }} data-label="Details">{typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}</td>
+        <>
+          <div className="history-table-wrap hide-on-mobile">
+            <table className="history-table stack-mobile">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Action</th>
+                  <th>Type</th>
+                  <th>Details</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr key={log._id}>
+                    <td className="td-cell" style={{ whiteSpace: 'nowrap' }} data-label="Timestamp">{formatDate(log.timestamp)}</td>
+                      <td className="td-cell" data-label="User">{log.username || '-'}</td>
+                    <td data-label="Role">
+                      <span className={`role-badge ${(log.role || '').toLowerCase()}`}>{log.role ? log.role.charAt(0) + log.role.slice(1).toLowerCase() : '-'}</span>
+                    </td>
+                    <td className="td-cell" data-label="Action">{actionLabels[log.action] || log.action || '-'}</td>
+                    <td className="td-cell" data-label="Type">{(log.entity_type || '').replace(/_/g, ' ') || '-'}</td>
+                    <td className="td-truncate" style={{ maxWidth: '400px' }} data-label="Details">{typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="rq-ticket-list">
+            {logs.map((log, idx) => (
+              <RequestTicket
+                key={log._id}
+                index={idx}
+                brand="ITRS audit log"
+                type={(log.entity_type || '').replace(/_/g, ' ') || 'Entry'}
+                title={actionLabels[log.action] || log.action || '-'}
+                sub={typeof log.details === 'string' ? log.details : JSON.stringify(log.details)}
+                rows={[
+                  { label: 'User', value: log.username || '-' },
+                  {
+                    label: 'Role',
+                    value: <span className={`role-badge ${(log.role || '').toLowerCase()}`}>{log.role ? log.role.charAt(0) + log.role.slice(1).toLowerCase() : '-'}</span>,
+                  },
+                  { label: 'When', value: formatDate(log.timestamp) },
+                ]}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />

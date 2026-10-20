@@ -4,7 +4,8 @@ import { EASE_OUT } from '../lib/motion';
 
 // A request drawn as the ticket on the landing page (Landing.tsx): navy head, the code, what was
 // asked for, a perforation, and a stub with the status stamp. Phones only; wider screens keep
-// the table (pages.css, "REQUEST TICKETS"). Used by the clients' histories and the staff lists.
+// the table (pages.css, "REQUEST TICKETS"). Used by every request list, and by the other admin
+// tables (users, offices, audit log) so each phone list reads the same.
 
 /** Closed statuses whose table Action column holds only a status pill, which the stamp already shows. */
 export const STAMP_ONLY = ['CANCELLED', 'DONE', 'RATED'];
@@ -15,15 +16,18 @@ export interface TicketRow {
 }
 
 interface RequestTicketProps {
+  /** Left of the head; records that are not requests name themselves ("ITRS account"). */
+  brand?: string;
   /** Which service, in the head: "IT Request", "Event Documentation", ... */
   type: string;
-  code: string;
+  code?: string;
   /** Priority, overdue and reopened chips (RequestFlags), under the code. */
   flags?: ReactNode;
   title: ReactNode;
   /** A smaller line under the title: the request's detail, or how many notes it has. */
   sub?: ReactNode;
-  status: string;
+  /** The stamp; records without a status leave it out. */
+  status?: string;
   statusLabel?: string;
   /** Under the title, two to a row. */
   meta?: TicketRow[];
@@ -39,7 +43,7 @@ interface RequestTicketProps {
 }
 
 function RequestTicket({
-  type, code, flags, title, sub, status, statusLabel, meta = [], rows = [], details, actions, onOpen, index = 0,
+  brand = 'ITRS ticket', type, code, flags, title, sub, status, statusLabel, meta = [], rows = [], details, actions, onOpen, index = 0,
 }: RequestTicketProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -53,17 +57,17 @@ function RequestTicket({
     >
       <div className="rq-ticket-head">
         <img src="/solano-logo.png" alt="" />
-        <span className="rq-ticket-brand">ITRS ticket</span>
+        <span className="rq-ticket-brand">{brand}</span>
         <span className="rq-ticket-type">{type}</span>
       </div>
       <div className="rq-ticket-body">
-        {onOpen ? (
+        {code && (onOpen ? (
           <button type="button" className="rq-ticket-code" onClick={(e) => { e.stopPropagation(); onOpen(); }}>{code}</button>
         ) : (
           <span className="rq-ticket-code">{code}</span>
-        )}
+        ))}
         {flags && <div className="rq-ticket-flags">{flags}</div>}
-        <p className="rq-ticket-issue">{title}</p>
+        <div className="rq-ticket-issue">{title}</div>
         {sub && <p className="rq-ticket-sub">{sub}</p>}
         {meta.length > 0 && (
           <dl className="rq-ticket-meta">
@@ -75,12 +79,14 @@ function RequestTicket({
       </div>
       <div className="rq-ticket-tear" aria-hidden="true" />
       <div className="rq-ticket-stub">
-        <div className="rq-ticket-status">
-          <span className="rq-ticket-label">Status</span>
-          <span className={`rq-stamp rq-stamp-${status.toLowerCase().replace(/_/g, '-')}`}>
-            {statusLabel || status.replace(/_/g, ' ')}
-          </span>
-        </div>
+        {status && (
+          <div className="rq-ticket-status">
+            <span className="rq-ticket-label">Status</span>
+            <span className={`rq-stamp rq-stamp-${status.toLowerCase().replace(/_/g, '-')}`}>
+              {statusLabel || status.replace(/_/g, ' ')}
+            </span>
+          </div>
+        )}
         {rows.map((r) => (
           <div key={r.label} className="rq-ticket-row">
             <span className="rq-ticket-label">{r.label}</span>

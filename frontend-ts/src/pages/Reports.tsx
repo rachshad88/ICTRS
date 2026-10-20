@@ -15,6 +15,7 @@ import { DateField, DateRangeField } from '../components/DateField';
 import { usePeriodFilter } from '../lib/periods';
 import Select from '../components/Select';
 import { isCompleted } from '../lib/status';
+import RequestTicket from '../components/RequestTicket';
 
 interface Column {
   key: string;
@@ -68,6 +69,14 @@ const ALL_TABS: TabConfig[] = [
   { key: 'digital-media', label: 'Digital Media' },
   { key: 'print-materials', label: 'Print Materials' },
 ];
+
+// How a phone's report tickets name the service in their head, and which column is their title.
+const TICKET: Record<TabKey, { type: string; titleKey: string }> = {
+  'it': { type: 'IT Request', titleKey: 'issue' },
+  'multimedia': { type: 'Event Documentation', titleKey: 'event_title' },
+  'digital-media': { type: 'Digital Media', titleKey: 'form_of_digital_media' },
+  'print-materials': { type: 'Print Materials', titleKey: 'form_of_printed_media' },
+};
 
 const ROLE_TABS: Record<string, TabConfig[]> = {
   ADMIN: ALL_TABS,
@@ -427,6 +436,36 @@ function Reports() {
     }
   };
 
+  const cellText = (report: Record<string, unknown>, col: Column) => (col.render ? col.render(report[col.key]) : fmt(report[col.key]));
+
+  // A report row as a ticket, for phones: the code, what was asked for as the title, the first
+  // four other filled-in columns on the ticket and the rest under Show details.
+  const renderTicket = (report: Record<string, unknown>, idx: number) => {
+    const { type, titleKey } = TICKET[activeTab];
+    const titleCol = columns.find((c) => c.key === titleKey);
+    const filled = columns
+      .filter((c) => c.key !== 'request_code' && c.key !== 'status' && c.key !== titleKey)
+      .map((c) => ({ label: c.label, value: cellText(report, c) }))
+      .filter((m) => m.value !== '-' && m.value !== '');
+    const more = filled.slice(4);
+    return (
+      <RequestTicket
+        key={report.request_code as string || idx}
+        index={idx}
+        type={type}
+        code={String(report.request_code || '-')}
+        title={titleCol ? cellText(report, titleCol) : '-'}
+        status={String(report.status || '') || undefined}
+        meta={filled.slice(0, 4)}
+        details={more.length > 0 ? (
+          <dl className="rq-ticket-meta">
+            {more.map((m) => <div key={m.label}><dt>{m.label}</dt><dd>{m.value}</dd></div>)}
+          </dl>
+        ) : undefined}
+      />
+    );
+  };
+
   const renderStatus = (status: unknown) => {
     const s = String(status || '');
     const cls = s === 'DONE' ? 'done' : s === 'RATED' ? 'rated' : s === 'CANCELLED' ? 'cancelled' : s === 'DECLINED' ? 'declined' : 'pending';
@@ -512,33 +551,38 @@ function Reports() {
           <p>Try adjusting your search or date filters.</p>
         </div>
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                {columns.map(col => (
-                  <th key={col.key}>{col.label}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {reports.map((report, idx) => (
-                <motion.tr
-                  key={report.request_code as string || idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.26, delay: Math.min(idx, 8) * 0.03, ease: EASE_OUT }}
-                >
+        <>
+          <div className="history-table-wrap hide-on-mobile">
+            <table className="history-table stack-mobile">
+              <thead>
+                <tr>
                   {columns.map(col => (
-                    <td key={col.key} className={col.key === 'request_code' ? 'td-code' : 'td-cell'} data-label={col.label}>
-                      {col.key === 'status' ? renderStatus(report[col.key]) : col.render ? col.render(report[col.key]) : fmt(report[col.key])}
-                    </td>
+                    <th key={col.key}>{col.label}</th>
                   ))}
-                </motion.tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((report, idx) => (
+                  <motion.tr
+                    key={report.request_code as string || idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.26, delay: Math.min(idx, 8) * 0.03, ease: EASE_OUT }}
+                  >
+                    {columns.map(col => (
+                      <td key={col.key} className={col.key === 'request_code' ? 'td-code' : 'td-cell'} data-label={col.label}>
+                        {col.key === 'status' ? renderStatus(report[col.key]) : cellText(report, col)}
+                      </td>
+                    ))}
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="rq-ticket-list">
+            {reports.map(renderTicket)}
+          </div>
+        </>
       )}
 
       {showPrintModal && (

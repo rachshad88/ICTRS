@@ -4,6 +4,7 @@ import { api } from '../services/api';
 import { queryClient } from '../services/queryClient';
 import SearchBox from '../components/SearchBox';
 import Skeleton from '../components/Skeleton';
+import RequestTicket from '../components/RequestTicket';
 
 interface Office {
   _id: string;
@@ -103,6 +104,42 @@ function Offices() {
     }
   };
 
+  // Rename in place, and the row's buttons; the table and the phone tickets each pass their own
+  // form id, so the Save button submits the form that is on screen.
+  const renameForm = (office: Office, formId: string) => (
+    <form id={`${formId}-${office._id}`} className="form-group office-rename" onSubmit={(e) => handleRename(e, office)}>
+      <input
+        type="text"
+        value={editName}
+        onChange={(e) => setEditName(e.target.value)}
+        maxLength={120}
+        aria-label="Office name"
+        autoFocus
+      />
+    </form>
+  );
+
+  const officeActions = (office: Office, formId: string) => (
+    <div className="history-actions">
+      {/* Keyed apart, so the Rename click never lands on the Save button that replaces it. */}
+      {editingId === office._id ? (
+        <>
+          <button key="save" type="submit" form={`${formId}-${office._id}`} className="hbtn hbtn-assign" disabled={busyId !== null || editName.trim().length < 2}>
+            {busyId === office._id ? 'Saving...' : 'Save'}
+          </button>
+          <button key="cancel" type="button" className="hbtn hbtn-view" onClick={() => setEditingId(null)}>Cancel</button>
+        </>
+      ) : (
+        <>
+          <button key="rename" type="button" className="hbtn hbtn-view" onClick={() => startRename(office)} disabled={busyId !== null}>Rename</button>
+          {office.active
+            ? <button type="button" className="hbtn hbtn-cancel" onClick={() => handleSetActive(office, false)} disabled={busyId !== null}>Hide</button>
+            : <button type="button" className="hbtn hbtn-assign" onClick={() => handleSetActive(office, true)} disabled={busyId !== null}>Show</button>}
+        </>
+      )}
+    </div>
+  );
+
   const term = searchTerm.toLowerCase();
   const shown = term ? offices.filter((o) => o.name.toLowerCase().includes(term)) : offices;
   const activeCount = offices.filter((o) => o.active).length;
@@ -143,63 +180,49 @@ function Offices() {
       ) : shown.length === 0 ? (
         <div className="history-empty">{term ? 'No offices match this search.' : 'No offices yet.'}</div>
       ) : (
-        <div className="history-table-wrap">
-          <table className="history-table stack-mobile">
-            <thead>
-              <tr>
-                <th>Office</th>
-                <th>Accounts</th>
-                <th className="col-actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.map((office) => (
-                <tr key={office._id} className={office.active ? undefined : 'is-inactive'}>
-                  <td className="td-cell" data-label="Office">
-                    {editingId === office._id ? (
-                      <form id={`rename-${office._id}`} className="form-group office-rename" onSubmit={(e) => handleRename(e, office)}>
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          maxLength={120}
-                          aria-label="Office name"
-                          autoFocus
-                        />
-                      </form>
-                    ) : (
-                      <>
-                        <div>{office.name}</div>
-                        {!office.active && <div className="um-inactive">Hidden</div>}
-                      </>
-                    )}
-                  </td>
-                  <td className="td-cell" data-label="Accounts">{office.users}</td>
-                  <td className="col-actions">
-                    <div className="history-actions">
-                      {/* Keyed apart, so the Rename click never lands on the Save button that replaces it. */}
-                      {editingId === office._id ? (
+        <>
+          <div className="history-table-wrap hide-on-mobile">
+            <table className="history-table stack-mobile">
+              <thead>
+                <tr>
+                  <th>Office</th>
+                  <th>Accounts</th>
+                  <th className="col-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((office) => (
+                  <tr key={office._id} className={office.active ? undefined : 'is-inactive'}>
+                    <td className="td-cell" data-label="Office">
+                      {editingId === office._id ? renameForm(office, 'rename') : (
                         <>
-                          <button key="save" type="submit" form={`rename-${office._id}`} className="hbtn hbtn-assign" disabled={busyId !== null || editName.trim().length < 2}>
-                            {busyId === office._id ? 'Saving...' : 'Save'}
-                          </button>
-                          <button key="cancel" type="button" className="hbtn hbtn-view" onClick={() => setEditingId(null)}>Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button key="rename" type="button" className="hbtn hbtn-view" onClick={() => startRename(office)} disabled={busyId !== null}>Rename</button>
-                          {office.active
-                            ? <button type="button" className="hbtn hbtn-cancel" onClick={() => handleSetActive(office, false)} disabled={busyId !== null}>Hide</button>
-                            : <button type="button" className="hbtn hbtn-assign" onClick={() => handleSetActive(office, true)} disabled={busyId !== null}>Show</button>}
+                          <div>{office.name}</div>
+                          {!office.active && <div className="um-inactive">Hidden</div>}
                         </>
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    </td>
+                    <td className="td-cell" data-label="Accounts">{office.users}</td>
+                    <td className="col-actions">{officeActions(office, 'rename')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="rq-ticket-list">
+            {shown.map((office, idx) => (
+              <RequestTicket
+                key={office._id}
+                index={idx}
+                brand="ITRS office"
+                type="Office"
+                title={editingId === office._id ? renameForm(office, 'rename-m') : office.name}
+                status={office.active ? 'SHOWN' : 'HIDDEN'}
+                meta={[{ label: 'Accounts', value: office.users }]}
+                actions={officeActions(office, 'rename-m')}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
