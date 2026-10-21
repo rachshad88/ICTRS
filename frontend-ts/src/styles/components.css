@@ -2194,6 +2194,46 @@
   background: var(--bg-hover);
 }
 
+/* All Requests table: fits the window (not the base max-content), so the Action column is in
+   view; Summary and Requested By wrap to make room, and the type tag and flags wrap under the code. */
+.overview-table {
+  width: 100%;
+}
+
+.overview-table td.td-wrap {
+  min-width: 120px;
+}
+
+.overview-table .td-code .req-flags {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.overview-table td.td-date {
+  white-space: nowrap;
+}
+
+.overview-table .col-actions {
+  width: 1%;
+}
+
+.overview-table .history-actions {
+  flex-wrap: nowrap;
+}
+
+.overview-table .hbtn {
+  padding: 4px 11px;
+}
+
+/* Assign / Take / Manage in the request's details dialog (components/RequestActions.tsx). */
+.overview-detail-actions {
+  margin-top: 16px;
+}
+
+.overview-detail-actions .history-actions {
+  justify-content: flex-start;
+}
+
 @media (max-width: 640px) {
   .overview-filters {
     grid-template-columns: 1fr 1fr;

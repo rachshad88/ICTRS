@@ -14,6 +14,7 @@ import SearchBox from '../components/SearchBox';
 import { DateRangeField } from '../components/DateField';
 import Select from '../components/Select';
 import RequestTicket from '../components/RequestTicket';
+import { useRequestActions } from '../components/RequestActions';
 
 interface OverviewRequest {
   _id: string;
@@ -24,6 +25,7 @@ interface OverviewRequest {
   office?: string | null;
   requester_name?: string | null;
   assignee_name?: string | null;
+  assigned_to?: string | null;
   status: string;
   priority: string;
   due: string | null;
@@ -165,6 +167,9 @@ function AllRequests() {
   const [filters, setFilters] = useState<Filters>(loadFilters);
   const [currentPage, setCurrentPage] = useState(1);
   const [selected, setSelected] = useState<OverviewRequest | null>(null);
+  const [actionError, setActionError] = useState('');
+  // Assign, take, reassign and finish, for the types this admin manages (components/RequestActions.tsx).
+  const actions = useRequestActions(setActionError);
 
   useEffect(() => {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(filters)); } catch { /* storage unavailable */ }
@@ -306,7 +311,7 @@ function AllRequests() {
         )}
       </div>
 
-      {error && <div className="error-message">{error}</div>}
+      {(error || actionError) && <div className="error-message">{error || actionError}</div>}
 
       {loading ? (
         <Skeleton variant="table" rows={6} />
@@ -317,7 +322,7 @@ function AllRequests() {
       ) : (
         <>
           <div className="history-table-wrap hide-on-mobile">
-            <table className="history-table stack-mobile">
+            <table className="history-table overview-table stack-mobile">
               <thead>
                 <tr>
                   <th>Code</th>
@@ -327,6 +332,7 @@ function AllRequests() {
                   <th>Due</th>
                   <th>Status</th>
                   <th>Created</th>
+                  <th className="col-actions">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -356,14 +362,15 @@ function AllRequests() {
                       </span>
                     </td>
                     <td className="td-cell" data-label="Assigned To">{r.assignee_name || '-'}</td>
-                    <td className="td-cell" data-label="Due">{r.due ? formatDay(r.due) : '-'}</td>
+                    <td className="td-cell td-date" data-label="Due">{r.due ? formatDay(r.due) : '-'}</td>
                     <td data-label="Status">
                       <span className={`hstatus ${statusClass(r.status)}`}>
                         <span className={`hstatus-dot ${statusClass(r.status)}`} />
                         {statusText(r.status)}
                       </span>
                     </td>
-                    <td className="td-cell" data-label="Created">{formatDay(toLocalDay(r.created_at))}</td>
+                    <td className="td-cell td-date" data-label="Created">{formatDay(toLocalDay(r.created_at))}</td>
+                    <td className="col-actions" onClick={(e) => e.stopPropagation()}>{actions.buttons(r)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -389,7 +396,7 @@ function AllRequests() {
                   { label: 'Due', value: r.due ? formatDay(r.due) : '-' },
                 ]}
                 rows={[{ label: 'Assigned to', value: r.assignee_name || 'Not assigned yet' }]}
-                actions={<button type="button" className="hbtn hbtn-view" onClick={() => setSelected(r)}>Details</button>}
+                actions={actions.buttons(r) || <button type="button" className="hbtn hbtn-view" onClick={() => setSelected(r)}>Details</button>}
               />
             ))}
           </div>
@@ -429,6 +436,9 @@ function AllRequests() {
             {selected.type === 'it' && <MovPhotos requestId={selected._id} code={selected.request_code} files={selected.mov_files} />}
             <DeclineReason reason={selected.decline_reason} />
             <NotesList notes={selected.notes} />
+            {actions.buttons(selected, () => setSelected(null)) && (
+              <div className="overview-detail-actions">{actions.buttons(selected, () => setSelected(null))}</div>
+            )}
             <div className="modal-actions">
               {manage && roles.includes(manage.role) && (
                 <Link to={manage.to} className="btn-primary">Open {manage.label}</Link>
@@ -438,6 +448,8 @@ function AllRequests() {
           </div>
         </div>
       )}
+
+      {actions.dialogs}
     </div>
   );
 }
