@@ -3,13 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { refreshService, type Service } from '../services/queryClient';
-import { NotesList, RequestNote } from './RequestNotes';
+import { NotesList, DeclineForm, RequestNote } from './RequestNotes';
 import { ReassignForm, PriorityForm, CompleteForm, PRIORITY_OPTIONS, priorityLabel, suggestedDueDate, formatDay } from './Priority';
 import FinishRequestModal from './FinishRequestModal';
 import { DateField } from './DateField';
 import Select from './Select';
 
-// Assign, take, reassign and finish for the All Requests list (pages/AllRequests.tsx), for whoever
+// Assign, take, decline, reassign and finish for the All Requests list (pages/AllRequests.tsx), for whoever
 // manages the request's type: the super admin every type, IT and multimedia admins their own. Each
 // action goes to the type's own endpoint, the same ones the IT and media assign dashboards use.
 
@@ -33,11 +33,11 @@ interface Staff {
   last_name: string;
 }
 
-const TYPES: Record<string, { api: string; assign: string; service: Service; adminRole: string; staffLabel: string }> = {
-  it: { api: '/requests', assign: '/requests/accept_request', service: 'it', adminRole: 'IT_ADMIN', staffLabel: 'technician' },
-  multimedia: { api: '/multimedia', assign: '/multimedia/assign', service: 'multimedia', adminRole: 'MULTIMEDIA_ADMIN', staffLabel: 'staff member' },
-  digital_media: { api: '/digitalmedia', assign: '/digitalmedia/assign', service: 'digitalMedia', adminRole: 'MULTIMEDIA_ADMIN', staffLabel: 'staff member' },
-  print_materials: { api: '/printmaterials', assign: '/printmaterials/assign', service: 'printMaterials', adminRole: 'MULTIMEDIA_ADMIN', staffLabel: 'staff member' },
+const TYPES: Record<string, { api: string; assign: string; decline: string; service: Service; adminRole: string; staffLabel: string }> = {
+  it: { api: '/requests', assign: '/requests/accept_request', decline: '/requests/decline_request', service: 'it', adminRole: 'IT_ADMIN', staffLabel: 'technician' },
+  multimedia: { api: '/multimedia', assign: '/multimedia/assign', decline: '/multimedia/decline', service: 'multimedia', adminRole: 'MULTIMEDIA_ADMIN', staffLabel: 'staff member' },
+  digital_media: { api: '/digitalmedia', assign: '/digitalmedia/assign', decline: '/digitalmedia/decline', service: 'digitalMedia', adminRole: 'MULTIMEDIA_ADMIN', staffLabel: 'staff member' },
+  print_materials: { api: '/printmaterials', assign: '/printmaterials/assign', decline: '/printmaterials/decline', service: 'printMaterials', adminRole: 'MULTIMEDIA_ADMIN', staffLabel: 'staff member' },
 };
 
 const isWaiting = (r: ActionRequest) => ['PENDING', 'UNASSIGNED'].includes(r.status) && !r.assigned_to;
@@ -60,6 +60,7 @@ export function useRequestActions(onError: (message: string) => void) {
   const [assignDue, setAssignDue] = useState('');
   const [manageTarget, setManageTarget] = useState<ActionRequest | null>(null);
   const [finishTarget, setFinishTarget] = useState<ActionRequest | null>(null);
+  const [declineTarget, setDeclineTarget] = useState<ActionRequest | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Staff for the pickers; changes only when accounts do (the same caches as the assign dashboards).
@@ -151,6 +152,7 @@ export function useRequestActions(onError: (message: string) => void) {
         <div className="history-actions">
           <button type="button" className="hbtn hbtn-assign" onClick={run(() => openAssign(r))}>Assign</button>
           <button type="button" className="hbtn hbtn-done" onClick={run(() => take(r))} disabled={submitting}>Take</button>
+          <button type="button" className="hbtn hbtn-cancel" onClick={run(() => setDeclineTarget(r))}>Decline</button>
         </div>
       );
     }
@@ -263,6 +265,23 @@ export function useRequestActions(onError: (message: string) => void) {
             <div className="modal-actions">
               <button data-modal-dismiss type="button" className="btn-secondary" onClick={() => setManageTarget(null)}>Close</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {declineTarget && (
+        <div className="modal">
+          <div className="modal-content">
+            <h3>Decline {declineTarget.request_code}</h3>
+            <p><strong>Summary:</strong> {declineTarget.title || '-'}</p>
+            <p><strong>Requested By:</strong> {declineTarget.requester_name || 'Unknown'}</p>
+            <NotesList notes={declineTarget.notes} />
+            <DeclineForm
+              endpoint={TYPES[declineTarget.type].decline}
+              requestId={declineTarget._id}
+              onBack={() => setDeclineTarget(null)}
+              onDeclined={() => { refresh(declineTarget); setDeclineTarget(null); onError(''); }}
+            />
           </div>
         </div>
       )}
