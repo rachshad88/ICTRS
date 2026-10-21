@@ -950,6 +950,13 @@ button.rq-ticket-code {
   white-space: nowrap;
 }
 
+/* Icon buttons stay round with a full-size touch target instead of stretching across the card */
+.rq-ticket-actions .hbtn-icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+}
+
 .rq-ticket-actions a {
   display: inline-flex;
   align-items: center;

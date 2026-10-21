@@ -1246,6 +1246,16 @@
   border-color: var(--text-secondary);
 }
 
+/* Icon-only row buttons (the Users page): a round button, the action named in its tooltip */
+.hbtn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
 .hbtn-view {
   border-color: var(--border-light);
   color: var(--text-secondary);

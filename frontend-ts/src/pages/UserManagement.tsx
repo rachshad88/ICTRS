@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { queryClient } from '../services/queryClient';
 import { api } from '../services/api';
@@ -9,6 +9,7 @@ import SearchBox from '../components/SearchBox';
 import { useOffices, withCurrentOffice } from '../services/offices';
 import Select from '../components/Select';
 import RequestTicket from '../components/RequestTicket';
+import { useDialogGenie } from '../lib/dialogGenie';
 
 interface User {
   _id: string;
@@ -42,6 +43,11 @@ function UserManagement() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [error, setError] = useState('');
   const [confirm, confirmDialog] = useConfirm();
+
+  // Each dialog on this page (Edit, Reset password, Sign out, Deactivate...) pours out of the button
+  // that opened it and drains back into it on close.
+  const pageRef = useRef<HTMLDivElement>(null);
+  useDialogGenie(pageRef);
   const [saving, setSaving] = useState(false);
   // Confirmation of the last action (e.g. a password reset); shown in place of the standing warning.
   const [notice, setNotice] = useState('');
@@ -282,20 +288,57 @@ function UserManagement() {
 
   const getRoleLabel = (role: string) => ROLE_LABELS[role] || role;
 
-  // The row's buttons, shared by the table and the phone tickets.
+  // The row's buttons, shared by the table and the phone tickets. Icons only: the tooltip names the
+  // action, and screen readers also hear whose row it is.
+  const iconButton = (user: User, className: string, label: string, onClick: () => void, icon: ReactNode) => (
+    <button type="button" className={`hbtn hbtn-icon ${className}`} onClick={onClick} title={label} aria-label={`${label}: ${user.first_name} ${user.last_name}`}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
+        {icon}
+      </svg>
+    </button>
+  );
+
   const userActions = (user: User) => (
     <div className="history-actions">
-      <button className="hbtn hbtn-view" onClick={() => openModal(user)}>Edit</button>
-      <button className="hbtn hbtn-view" onClick={() => handleResetPassword(user)}>Reset password</button>
-      <button className="hbtn hbtn-view" onClick={() => handleSignOut(user)}>Sign out</button>
+      {iconButton(user, 'hbtn-view', 'Edit', () => openModal(user), (
+        <>
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+        </>
+      ))}
+      {iconButton(user, 'hbtn-view', 'Reset password', () => handleResetPassword(user), (
+        <>
+          <circle cx="7.5" cy="15.5" r="5.5" />
+          <path d="m21 2-9.6 9.6" />
+          <path d="m15.5 7.5 3 3L22 7l-3-3" />
+        </>
+      ))}
+      {iconButton(user, 'hbtn-view', 'Sign out', () => handleSignOut(user), (
+        <>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
+        </>
+      ))}
       {user.active === false
-        ? <button className="hbtn hbtn-assign" onClick={() => handleSetActive(user, true)}>Activate</button>
-        : <button className="hbtn hbtn-cancel" onClick={() => handleSetActive(user, false)}>Deactivate</button>}
+        ? iconButton(user, 'hbtn-assign', 'Activate', () => handleSetActive(user, true), (
+          <>
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <polyline points="16 11 18 13 22 9" />
+          </>
+        ))
+        : iconButton(user, 'hbtn-cancel', 'Deactivate', () => handleSetActive(user, false), (
+          <>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.9" y1="4.9" x2="19.1" y2="19.1" />
+          </>
+        ))}
     </div>
   );
 
   return (
-    <div className="page-wrap">
+    <div className="page-wrap" ref={pageRef}>
       {confirmDialog}
       <div className="page-header">
         <h2>User Management</h2>
