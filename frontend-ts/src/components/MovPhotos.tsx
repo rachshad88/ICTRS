@@ -1,6 +1,8 @@
+import { saveFile } from '../lib/download';
+
 // MOV (means of verification) photos of an IT request: what the technician sent when finishing it,
 // served by the backend's /api/files/requests route. Each opens full size in a new tab, and has a
-// download button saved under the request code ("IT-0042-photo-1.webp") rather than the stored name.
+// download button that saves it under the request code ("IT-0042-photo-1.webp") rather than the stored name.
 
 export function movPhotoUrl(requestId: string, file: string): string {
   return `/api/files/requests/${requestId}/${encodeURIComponent(file)}`;
@@ -10,28 +12,6 @@ function downloadName(file: string, index: number, code?: string): string {
   if (!code) return file;
   const dot = file.lastIndexOf('.');
   return `${code}-photo-${index + 1}${dot > 0 ? file.slice(dot) : ''}`;
-}
-
-// The server names the file in its Content-Disposition header, which beats the download attribute,
-// so the photo is fetched and saved from memory under the request's name. The link's own href is
-// the fallback if that fails.
-async function savePhoto(e: React.MouseEvent<HTMLAnchorElement>, name: string) {
-  e.preventDefault();
-  const link = e.currentTarget;
-  try {
-    const res = await fetch(link.href, { credentials: 'same-origin' });
-    if (!res.ok) throw new Error(String(res.status));
-    const url = URL.createObjectURL(await res.blob());
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch {
-    window.open(link.href, '_blank', 'noopener');
-  }
 }
 
 function MovPhotos({ requestId, files, code, heading = 'MOV photos' }: { requestId: string; files?: string[] | null; code?: string; heading?: string }) {
@@ -49,7 +29,7 @@ function MovPhotos({ requestId, files, code, heading = 'MOV photos' }: { request
               className="mov-download"
               href={movPhotoUrl(requestId, file)}
               download={downloadName(file, i, code)}
-              onClick={(e) => savePhoto(e, downloadName(file, i, code))}
+              onClick={(e) => { e.preventDefault(); saveFile(e.currentTarget.href, downloadName(file, i, code)); }}
               aria-label={`Download photo ${i + 1}`}
               title="Download"
             >

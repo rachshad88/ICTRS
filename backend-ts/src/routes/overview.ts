@@ -24,26 +24,32 @@ interface TypeDef {
   detail: unknown;
   office: unknown;
   due: string;
+  /** Files the client attached (served by routes/files.ts); IT requests have none, only MOV photos. */
+  files: unknown;
 }
 
 const TYPES: TypeDef[] = [
   {
     key: 'it', label: 'IT', collection: 'requests', getCollection: getRequestsCollection, adminRole: 'IT_ADMIN', staffRole: 'TECHNICIAN',
-    title: '$issue', detail: '$unit', office: '$office', due: '$due_date'
+    title: '$issue', detail: '$unit', office: '$office', due: '$due_date',
+    files: { $literal: [] }
   },
   {
     key: 'multimedia', label: 'Event Documentation', collection: 'multimedia_requests', getCollection: getMultimediaRequestsCollection, adminRole: 'MULTIMEDIA_ADMIN', staffRole: 'MULTIMEDIA',
-    title: '$event_title', detail: '$location_type', office: null, due: '$event_date'
+    title: '$event_title', detail: '$location_type', office: null, due: '$event_date',
+    files: { $cond: [{ $ifNull: ['$program_file', false] }, ['$program_file'], []] }
   },
   {
     key: 'digital_media', label: 'Digital Media', collection: 'digital_media_requests', getCollection: getDigitalMediaRequestsCollection, adminRole: 'MULTIMEDIA_ADMIN', staffRole: 'MULTIMEDIA',
-    title: '$description', detail: '$form_of_digital_media', office: null, due: '$target_date'
+    title: '$description', detail: '$form_of_digital_media', office: null, due: '$target_date',
+    files: { $ifNull: ['$supporting_files', []] }
   },
   {
     key: 'print_materials', label: 'Print Materials', collection: 'print_materials_requests', getCollection: getPrintMaterialsRequestsCollection, adminRole: 'MULTIMEDIA_ADMIN', staffRole: 'MULTIMEDIA',
     title: '$event_ppa_name',
     detail: { $concat: [{ $ifNull: ['$form_of_printed_media', ''] }, ' ', { $ifNull: ['$size_of_printed_media', ''] }] },
-    office: null, due: '$target_date'
+    office: null, due: '$target_date',
+    files: { $ifNull: ['$supporting_files', []] }
   }
 ];
 
@@ -179,6 +185,7 @@ router.get('/requests', isAuthenticated, isOverviewAdmin, async (req: Authentica
           created_at: 1, completed_at: 1, accepted_at: 1, declined_at: 1, cancelled_at: 1, reopened_at: 1, previously_completed_at: 1, decline_reason: 1, notes: 1,
           // IT: photos of the finished work (MOV); the other types have none.
           mov_files: { $ifNull: ['$mov.files', []] },
+          files: t.files,
           title: t.title, detail: t.detail, office: t.office === null ? { $literal: null } : t.office,
           priority: priorityExpr(),
           due: { $ifNull: [t.due, null] }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api } from '../services/api';
+import { saveFile } from '../lib/download';
 
 interface FileViewerProps {
   files: string[];
@@ -8,7 +8,7 @@ interface FileViewerProps {
 }
 
 function FileViewer({ files, requestId, type }: FileViewerProps) {
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
 
   const toFilename = (f: unknown): string => {
     if (typeof f === 'string') return f;
@@ -101,7 +101,7 @@ function FileViewer({ files, requestId, type }: FileViewerProps) {
     const url = getFileUrl(filename);
 
     if (['jpg', 'jpeg', 'png'].includes(ext)) {
-      setPreviewImage(url);
+      setPreviewImage({ url, name: getCleanFilename(filename) });
     } else {
       window.open(url, '_blank');
     }
@@ -109,13 +109,7 @@ function FileViewer({ files, requestId, type }: FileViewerProps) {
 
   const handleDownload = (e: React.MouseEvent, filename: string) => {
     e.stopPropagation();
-    const url = getFileUrl(filename);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = getCleanFilename(filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    saveFile(getFileUrl(filename), getCleanFilename(filename));
   };
 
   if (!files || files.length === 0) {
@@ -167,22 +161,15 @@ function FileViewer({ files, requestId, type }: FileViewerProps) {
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
-            <img src={previewImage} alt="Preview" />
+            <img src={previewImage.url} alt={previewImage.name} />
             <div className="preview-actions">
               <button
                 className="btn-secondary"
-                onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = previewImage;
-                  link.download = previewImage.split('/').pop() || 'image';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
+                onClick={() => saveFile(previewImage.url, previewImage.name)}
               >
                 Download
               </button>
-              <button className="btn-secondary" onClick={() => window.open(previewImage, '_blank')}>
+              <button className="btn-secondary" onClick={() => window.open(previewImage.url, '_blank')}>
                 Open in New Tab
               </button>
             </div>

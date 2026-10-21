@@ -9,6 +9,7 @@ import { NotesList, DeclineReason, RequestNote } from '../components/RequestNote
 import { RequestFlags, priorityLabel, formatDay } from '../components/Priority';
 import RequestProgress from '../components/RequestProgress';
 import MovPhotos from '../components/MovPhotos';
+import FileViewer from '../components/FileViewer';
 import SearchBox from '../components/SearchBox';
 import { DateRangeField } from '../components/DateField';
 import Select from '../components/Select';
@@ -38,7 +39,16 @@ interface OverviewRequest {
   notes?: RequestNote[];
   /** IT only: photos of the finished work (MOV). */
   mov_files?: string[];
+  /** Media only: what the client attached (the program, supporting files). */
+  files?: string[];
 }
+
+/** The /api/files route of each media type, for its attached files. */
+const FILE_ROUTES: Record<string, 'multimedia' | 'digitalmedia' | 'printmaterials'> = {
+  multimedia: 'multimedia',
+  digital_media: 'digitalmedia',
+  print_materials: 'printmaterials',
+};
 
 interface Counts {
   total: number;
@@ -408,6 +418,12 @@ function AllRequests() {
               <p><strong>Office:</strong> {selected.office || '-'}</p>
               <p><strong>Requested By:</strong> {selected.requester_name || 'Unknown'}</p>
               <p><strong>Assigned To:</strong> {selected.assignee_name || 'Not assigned yet'}</p>
+              {FILE_ROUTES[selected.type] && selected.files && selected.files.length > 0 && (
+                <div className="file-section">
+                  <p><strong>{selected.files.length === 1 ? 'File' : 'Files'}:</strong></p>
+                  <FileViewer files={selected.files} requestId={selected._id} type={FILE_ROUTES[selected.type]} />
+                </div>
+              )}
             </div>
             <RequestProgress request={selected} assigneeName={selected.assignee_name} />
             {selected.type === 'it' && <MovPhotos requestId={selected._id} code={selected.request_code} files={selected.mov_files} />}
