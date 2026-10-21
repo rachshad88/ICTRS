@@ -49,12 +49,13 @@ function ConfirmDialog({ title, message, confirmLabel = 'Confirm', cancelLabel =
       <div className={`modal-content confirm-content${danger ? ' is-danger' : ''}`} role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby={message ? 'confirm-message' : undefined}>
         <h3 id="confirm-title">{title}</h3>
         {message && <p id="confirm-message" className="confirm-message">{message}</p>}
+        {/* The way back sits on the right, as Cancel does in the app's other dialogs. */}
         <div className="modal-actions">
-          <button data-modal-dismiss type="button" className="btn-secondary" ref={cancelRef} onClick={() => onAnswer(false)}>
-            {cancelLabel}
-          </button>
           <button type="button" className={danger ? 'btn-danger' : 'btn-primary'} onClick={() => onAnswer(true)}>
             {confirmLabel}
+          </button>
+          <button data-modal-dismiss type="button" className="btn-secondary" ref={cancelRef} onClick={() => onAnswer(false)}>
+            {cancelLabel}
           </button>
         </div>
       </div>
