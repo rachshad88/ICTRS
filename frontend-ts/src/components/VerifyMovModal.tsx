@@ -62,7 +62,7 @@ function VerifyMovModal({ request, onClose, onDone, onError }: {
         {request.remarks && <p><strong>Remarks:</strong> {request.remarks}</p>}
         {request.recommendation && <p><strong>Recommendation:</strong> {request.recommendation}</p>}
 
-        <MovPhotos requestId={request._id} files={request.mov_files} />
+        <MovPhotos requestId={request._id} code={request.request_code} files={request.mov_files} />
         <NotesList notes={request.notes} />
 
         {returning ? (

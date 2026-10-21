@@ -300,7 +300,7 @@ function Requested() {
                   showRecommendation
                 />
               )}
-              <MovPhotos requestId={selectedRequest._id} files={selectedRequest.mov?.files} heading="Photos of the finished work" />
+              <MovPhotos requestId={selectedRequest._id} code={selectedRequest.request_code} files={selectedRequest.mov?.files} heading="Photos of the finished work" />
               {canReopen(selectedRequest.status, selectedRequest.completed_at) && (
                 <ReopenForm requestId={selectedRequest._id} onReopened={() => refreshService('it')} />
               )}

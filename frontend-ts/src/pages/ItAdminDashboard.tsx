@@ -574,7 +574,7 @@ function ItAdminDashboard() {
               {detailTarget.recommendation && <p><strong>Recommendation:</strong> {detailTarget.recommendation}</p>}
               {detailTarget.mov_return_reason && <p className="mov-returned"><strong>MOV returned:</strong> {detailTarget.mov_return_reason}</p>}
             </div>
-            <MovPhotos requestId={detailTarget._id} files={detailTarget.mov_files} />
+            <MovPhotos requestId={detailTarget._id} code={detailTarget.request_code} files={detailTarget.mov_files} />
             <DeclineReason reason={detailTarget.decline_reason} />
             <NotesList notes={detailTarget.notes} />
             <div className="modal-actions">

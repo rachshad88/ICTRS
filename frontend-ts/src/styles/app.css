@@ -1970,8 +1970,35 @@
   object-fit: cover;
 }
 
-.app-main a.mov-thumb:hover {
+.app-main .mov-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.app-main .mov-thumb:has(.mov-open:hover) {
   border-color: var(--cobalt);
+}
+
+/* Always shown, not only on hover, so phones can reach it. */
+.app-main .mov-download {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: rgba(12, 31, 74, 0.75);
+  color: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.app-main .mov-download:hover,
+.app-main .mov-download:focus-visible {
+  background: var(--cobalt);
 }
 
 .app-main .mov-remove {

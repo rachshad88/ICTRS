@@ -410,7 +410,7 @@ function AllRequests() {
               <p><strong>Assigned To:</strong> {selected.assignee_name || 'Not assigned yet'}</p>
             </div>
             <RequestProgress request={selected} assigneeName={selected.assignee_name} />
-            {selected.type === 'it' && <MovPhotos requestId={selected._id} files={selected.mov_files} />}
+            {selected.type === 'it' && <MovPhotos requestId={selected._id} code={selected.request_code} files={selected.mov_files} />}
             <DeclineReason reason={selected.decline_reason} />
             <NotesList notes={selected.notes} />
             <div className="modal-actions">
