@@ -1,4 +1,5 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import {
   getRequestsCollection,
   getMultimediaRequestsCollection,
@@ -8,7 +9,22 @@ import {
 
 const router = Router();
 
-router.get('/request-codes', async (_req, res: Response) => {
+// For the CSF rating system only, which has no ITRS login: it sends the shared key CSF_API_KEY (in
+// backend-ts/.env) in an X-CSF-Key header, from its server rather than a browser, where anyone could
+// read it. With no key set the endpoint is closed.
+function csfKeyOnly(req: Request, res: Response, next: NextFunction) {
+  const expected = process.env.CSF_API_KEY || '';
+  const sent = req.get('X-CSF-Key') || '';
+  const a = crypto.createHash('sha256').update(sent).digest();
+  const b = crypto.createHash('sha256').update(expected).digest();
+  if (!expected || !crypto.timingSafeEqual(a, b)) {
+    res.status(401).json({ error: 'A valid X-CSF-Key header is required' });
+    return;
+  }
+  next();
+}
+
+router.get('/request-codes', csfKeyOnly, async (_req, res: Response) => {
   try {
     const requestsCol = getRequestsCollection();
     const multimediaCol = getMultimediaRequestsCollection();

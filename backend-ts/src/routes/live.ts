@@ -146,7 +146,23 @@ function isAllowedClient(remote: string | undefined, forwardedFor: string | stri
   return type !== null && list.check(address, type);
 }
 
+// A browser says which site a request comes from (Origin). The display is ITRS's own /live page, so
+// another site must not read the queue through an office computer's browser: websockets get no CORS
+// protection. Host names only, not ports (the Vite dev proxy changes the port). No Origin (a
+// same-origin page load, or no browser at all) is allowed; the address allowlist still applies.
+function fromOwnSite(origin: string | undefined, host: string | undefined): boolean {
+  if (!origin) return true;
+  try {
+    return new URL(origin).hostname === (host || '').replace(/:\d+$/, '');
+  } catch {
+    return false;
+  }
+}
+
 function lanOnly(req: Request, res: Response, next: NextFunction) {
+  if (!fromOwnSite(req.headers.origin, req.headers.host)) {
+    return res.status(403).json({ status: 'error', message: 'The live display can only be opened from ITRS itself.' });
+  }
   if (!isAllowedClient(req.socket.remoteAddress, req.headers['x-forwarded-for'])) {
     return res.status(403).json({ status: 'error', message: 'The live display is only available on the office network.' });
   }
@@ -185,7 +201,8 @@ const NAMESPACE = '/live';
 // Clients only listen: the namespace registers no handlers for anything they send.
 export function registerLiveNamespace(io: Server) {
   io.of(NAMESPACE).use((socket, next) => {
-    if (isAllowedClient(socket.request.socket.remoteAddress, socket.request.headers['x-forwarded-for'])) {
+    const { origin, host } = socket.request.headers;
+    if (fromOwnSite(origin, host) && isAllowedClient(socket.request.socket.remoteAddress, socket.request.headers['x-forwarded-for'])) {
       next();
     } else {
       next(new Error('Forbidden'));

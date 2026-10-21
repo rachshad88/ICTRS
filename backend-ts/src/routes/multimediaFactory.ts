@@ -246,34 +246,34 @@ export function createRequestRouter(config: RouteConfig): Router {
         return res.status(400).json({ status: 'error', error: 'Add your contact number on your Profile page before submitting a request.' });
       }
 
+      // Files are checked before a request code is taken, so a rejected upload doesn't use up a number.
+      const fileData = getUploadedFiles(req);
+      if (fileData) {
+        if (config.uploadMethod === 'single') {
+          const f = fileData as Express.Multer.File;
+          if (!validateFileMagicBytes(f.path, mimeTypeForFilename(f.originalname) || '')) {
+            try { fs.unlinkSync(f.path); } catch {}
+            return res.status(400).json({ status: 'error', message: `File ${f.originalname} content does not match its declared type` });
+          }
+        } else {
+          const files = fileData as Express.Multer.File[];
+          for (const f of files) {
+            if (!validateFileMagicBytes(f.path, mimeTypeForFilename(f.originalname) || '')) {
+              for (const f2 of files) {
+                try { fs.unlinkSync(f2.path); } catch {}
+              }
+              return res.status(400).json({ status: 'error', message: `File ${f.originalname} content does not match its declared type` });
+            }
+          }
+        }
+      }
+
       let request_code = '';
       let result: any;
       for (let i = 0; i < 100; i++) {
         request_code = await generateRequestCode(config.prefix, config.collectionName);
 
         try {
-          const fileData = getUploadedFiles(req);
-
-          if (fileData) {
-            if (config.uploadMethod === 'single') {
-              const f = fileData as Express.Multer.File;
-              if (!validateFileMagicBytes(f.path, mimeTypeForFilename(f.originalname) || '')) {
-                try { fs.unlinkSync(f.path); } catch {}
-                return res.status(400).json({ status: 'error', message: `File ${f.originalname} content does not match its declared type` });
-              }
-            } else {
-              const files = fileData as Express.Multer.File[];
-              for (const f of files) {
-                if (!validateFileMagicBytes(f.path, mimeTypeForFilename(f.originalname) || '')) {
-                  for (const f2 of files) {
-                    try { fs.unlinkSync(f2.path); } catch {}
-                  }
-                  return res.status(400).json({ status: 'error', message: `File ${f.originalname} content does not match its declared type` });
-                }
-              }
-            }
-          }
-
           const storedFile = config.uploadMethod === 'single'
             ? (fileData ? fileData.filename : null)
             : ((fileData as Express.Multer.File[]).length > 0 ? (fileData as Express.Multer.File[]).map(f => f.filename) : []);
