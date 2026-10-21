@@ -44,9 +44,10 @@ const ROLE_NAV: Record<string, NavEntry[]> = {
     { to: '/reports', icon: 'M18 20V10 M12 20V4 M6 20v-6', label: 'Reports' },
   ],
   ADMIN: [
-    { section: 'Admin' },
+    // Its own icon, so phones fold Dashboard and All Requests into one Admin tab, as desktop does.
+    { section: 'Admin', short: 'Admin', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z' },
     { to: '/admin-dashboard', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z', label: 'Dashboard' },
-    { to: '/all-requests', icon: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01', label: 'All Requests', short: 'Requests' },
+    { to: '/all-requests', icon: 'M8 6h13 M8 12h13 M8 18h13 M3 6h.01 M3 12h.01 M3 18h.01', label: 'All Requests' },
     // One tab with a choice bubble on desktop and phones; each is still its own page.
     { section: 'Management', short: 'Manage', icon: 'M4 21v-7 M4 10V3 M12 21v-9 M12 8V3 M20 21v-5 M20 12V3 M1 14h6 M9 8h6 M17 16h6' },
     { to: '/users', icon: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2 M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M23 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75', label: 'Users' },
