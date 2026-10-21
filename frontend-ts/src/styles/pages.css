@@ -680,6 +680,34 @@ yt-channel-avatar.pm { background: #047857; }
   }
 }
 
+/* ========== TURNAROUND REPORT (components/TurnaroundReport.tsx) ========== */
+.app-main .turnaround {
+  display: grid;
+  gap: 28px;
+}
+
+.app-main .turnaround-note {
+  max-width: 72ch;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.app-main .turnaround-heading {
+  margin: 0 0 10px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.app-main .turnaround .history-table td strong {
+  color: var(--ink);
+}
+
 /* ========== REQUEST TICKETS (components/RequestTicket.tsx) ========== */
 /* On phones the request lists (clients' histories, staff dashboards) are stacks of tickets, drawn
    like the one on the landing page (landing.css, "The ticket"); wider screens keep the table. */

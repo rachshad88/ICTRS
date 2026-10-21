@@ -16,6 +16,7 @@ import { usePeriodFilter } from '../lib/periods';
 import Select from '../components/Select';
 import { isCompleted } from '../lib/status';
 import RequestTicket from '../components/RequestTicket';
+import TurnaroundReport from '../components/TurnaroundReport';
 
 interface Column {
   key: string;
@@ -248,6 +249,8 @@ function Reports() {
     });
   })();
   const [activeTab, setActiveTab] = useState<TabKey>(tabs[0]?.key || 'it');
+  // The Turnaround tab: how fast requests were handled, across the tabs this account has.
+  const [turnaround, setTurnaround] = useState(false);
   // Daily / Weekly / Monthly and their dates (lib/periods.ts); Weekly and Monthly are sent as filter=range.
   const period = usePeriodFilter('daily');
   // The print dialog's Weekly and Monthly pick their dates the same way.
@@ -281,12 +284,16 @@ function Reports() {
     queryFn: () => api.get<{ reports: Record<string, unknown>[]; total?: number }>('/reports/get_reports', { params }).then((r) => r.data),
     // Keep the current rows on screen while another page or filter loads.
     placeholderData: keepPreviousData,
-    enabled: !!user,
+    enabled: !!user && !turnaround,
   });
   const reports = data?.reports ?? [];
   const total = data?.total || 0;
 
   const exportToExcel = () => {
+    if (turnaround) {
+      window.location.href = `/api/reports/turnaround/export_excel?${new URLSearchParams(period.query)}`;
+      return;
+    }
     const params = new URLSearchParams({ type: activeTab, ...period.query, show_done: showDone });
     if (searchTerm.trim()) params.set('search', searchTerm.trim());
     window.location.href = `/api/reports/export_excel?${params}`;
@@ -479,19 +486,25 @@ function Reports() {
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
+  // A single day is too short to say much about turnaround, so the tab opens on the month.
+  const openTurnaround = () => {
+    if (period.period === 'daily') period.choosePeriod('monthly');
+    setTurnaround(true);
+  };
+
   return (
     <div className="page-wrap">
       <div className="page-header">
         <h2>Reports</h2>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button onClick={openPrintModal} className="btn-export btn-export-alt">
+          {!turnaround && <button onClick={openPrintModal} className="btn-export btn-export-alt">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
               <path d="M6 9V2h12v7" />
               <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
               <path d="M6 14h12v8H6z" />
             </svg>
             Download DOCX
-          </button>
+          </button>}
           <button onClick={exportToExcel} className="btn-export">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -508,11 +521,11 @@ function Reports() {
           {tabs.map(tab => (
             <button
               key={tab.key}
-              className={`reports-tab ${activeTab === tab.key ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.key)}
+              className={`reports-tab ${!turnaround && activeTab === tab.key ? 'active' : ''}`}
+              onClick={() => { setActiveTab(tab.key); setTurnaround(false); }}
             >
               {tab.label}
-              {activeTab === tab.key && (
+              {!turnaround && activeTab === tab.key && (
                 <motion.span
                   layoutId="reports-tab-indicator"
                   className="reports-tab-indicator"
@@ -521,10 +534,20 @@ function Reports() {
               )}
             </button>
           ))}
+          <button className={`reports-tab ${turnaround ? 'active' : ''}`} onClick={openTurnaround}>
+            Turnaround
+            {turnaround && (
+              <motion.span
+                layoutId="reports-tab-indicator"
+                className="reports-tab-indicator"
+                transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+              />
+            )}
+          </button>
         </div>
 
         <div className="filters-row">
-          <SearchBox placeholder="Search by code, description, name..." value={searchTerm} onSearch={setSearchTerm} />
+          {!turnaround && <SearchBox placeholder="Search by code, description, name..." value={searchTerm} onSearch={setSearchTerm} />}
 
           <Select value={period.period} aria-label="Period" onChange={(e) => period.choosePeriod(e.target.value)}>
             <option value="all">All</option>
@@ -535,14 +558,18 @@ function Reports() {
 
           <PeriodDates p={period} className="" />
 
-          <label>
-            <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
-            <span>Show Done</span>
-          </label>
+          {!turnaround && (
+            <label>
+              <input type="checkbox" checked={showDone === '1'} onChange={(e) => setShowDone(e.target.checked ? '1' : '0')} />
+              <span>Show Done</span>
+            </label>
+          )}
         </div>
       </div>
 
-      {loading ? (
+      {turnaround ? (
+        <TurnaroundReport query={period.query} />
+      ) : loading ? (
         <Skeleton variant="table" rows={5} />
       ) : reports.length === 0 ? (
         <div className="empty-state">
@@ -659,7 +686,7 @@ function Reports() {
         </div>
       )}
 
-      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+      {!turnaround && <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />}
     </div>
   );
 }
