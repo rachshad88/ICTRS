@@ -161,7 +161,8 @@ function FileViewer({ files, requestId, type }: FileViewerProps) {
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
-            <img src={previewImage.url} alt={previewImage.name} />
+            {/* A smaller copy (files.ts, ?size=preview); Download and Open in New Tab get the original. */}
+            <img src={`${previewImage.url}?size=preview`} alt={previewImage.name} />
             <div className="preview-actions">
               <button
                 className="btn-secondary"

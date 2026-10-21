@@ -11,3 +11,4 @@ backend-ts/uploads/
 realtime/node_modules/
 frontend-ts/dist/
 frontend-ts/node_modules/
+backend-ts/cache/

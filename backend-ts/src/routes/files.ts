@@ -1,9 +1,11 @@
 import { Router, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { ObjectId } from 'mongodb';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 import { getMultimediaRequestsCollection, getDigitalMediaRequestsCollection, getPrintMaterialsRequestsCollection, getRequestsCollection, isValidObjectId } from '../config/database';
+import sharp from 'sharp';
 import { MOV_DIR } from '../utils/movUpload';
 
 const router = Router();
@@ -41,6 +43,56 @@ function isImageFile(ext: string): boolean {
 function isInlineFile(ext: string): boolean {
   const inline = ext.toLowerCase();
   return isImageFile(inline) || inline === '.pdf' || inline === '.mp4' || inline === '.webm';
+}
+
+// Smaller WebP copies of photos for showing on screen: ?size=thumb for the MOV photo tiles,
+// ?size=preview for the image viewer. Without it the original is sent, which is what opens in a
+// new tab and what downloads. Each copy is made once (up to a few hundred ms), kept in
+// PREVIEW_CACHE (outside uploads/, so backups skip it; deleting it is safe), and cached by the browser.
+const PREVIEW_SIZES: Record<string, { edge: number; quality: number }> = {
+  thumb: { edge: 480, quality: 70 },
+  preview: { edge: 1400, quality: 75 },
+};
+const PREVIEWABLE = ['.jpg', '.jpeg', '.png', '.webp'];
+const PREVIEW_CACHE = path.join(__dirname, '../../cache/previews');
+// Browsers keep files for a day; the user's own cache only, since every file needs a login.
+const BROWSER_CACHE = 'private, max-age=86400';
+
+/** The saved copy of a file at one size, made now if missing or older than the file. */
+async function previewOf(filePath: string, size: string, spec: { edge: number; quality: number }): Promise<string> {
+  const key = crypto.createHash('sha1').update(`${filePath}|${size}|${spec.edge}|${spec.quality}`).digest('hex');
+  const cached = path.join(PREVIEW_CACHE, `${key}.webp`);
+  const [source, saved] = await Promise.all([fs.promises.stat(filePath), fs.promises.stat(cached).catch(() => null)]);
+  if (saved && saved.mtimeMs >= source.mtimeMs) return cached;
+  const image = await sharp(filePath)
+    .rotate()
+    .resize({ width: spec.edge, height: spec.edge, fit: 'inside', withoutEnlargement: true })
+    .webp({ quality: spec.quality })
+    .toBuffer();
+  await fs.promises.mkdir(PREVIEW_CACHE, { recursive: true });
+  // Written under a temporary name and renamed, so a request at the same moment never reads half a file.
+  const tmp = `${cached}.${process.pid}.${Date.now()}.tmp`;
+  await fs.promises.writeFile(tmp, image);
+  await fs.promises.rename(tmp, cached);
+  return cached;
+}
+
+/** Sends the preview asked for and returns true; false (send the original) if none was asked for or it can't be made. */
+async function sendPreview(req: AuthenticatedRequest, res: Response, filePath: string): Promise<boolean> {
+  const spec = PREVIEW_SIZES[String(req.query.size || '')];
+  if (!spec || !PREVIEWABLE.includes(path.extname(filePath).toLowerCase())) return false;
+  try {
+    const preview = await previewOf(filePath, String(req.query.size), spec);
+    res.setHeader('Content-Type', 'image/webp');
+    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Cache-Control', BROWSER_CACHE);
+    fs.createReadStream(preview).pipe(res);
+    return true;
+  } catch {
+    // Not an image sharp can read (a mislabeled file): the original is sent as before.
+    console.warn(`No preview for ${path.basename(filePath)}, sending the original`);
+    return false;
+  }
 }
 
 async function verifyAccess(requestId: string, userId: string, userRoles: string[], collection: 'multimedia' | 'digitalmedia' | 'printmaterials'): Promise<boolean> {
@@ -102,6 +154,8 @@ router.get('/requests/:requestId/:filename', isAuthenticated, async (req: Authen
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
+    if (await sendPreview(req, res, filePath)) return;
+    res.setHeader('Cache-Control', BROWSER_CACHE);
 
     res.setHeader('Content-Type', getMimeType(ext));
     res.setHeader('Content-Disposition', `inline; filename="${path.basename(filename)}"`);
@@ -141,6 +195,8 @@ router.get('/multimedia/:requestId/:filename', isAuthenticated, async (req: Auth
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
+    if (await sendPreview(req, res, filePath)) return;
+    res.setHeader('Cache-Control', BROWSER_CACHE);
 
     const mimeType = getMimeType(ext);
     const fileName = Buffer.from(safeFilename, 'latin1').toString('utf8');
@@ -187,6 +243,8 @@ router.get('/digitalmedia/:requestId/:filename', isAuthenticated, async (req: Au
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
+    if (await sendPreview(req, res, filePath)) return;
+    res.setHeader('Cache-Control', BROWSER_CACHE);
 
     const mimeType = getMimeType(ext);
     const fileName = Buffer.from(safeFilename, 'latin1').toString('utf8');
@@ -233,6 +291,8 @@ router.get('/printmaterials/:requestId/:filename', isAuthenticated, async (req: 
     if (!fs.existsSync(filePath)) {
       return res.status(404).json({ error: 'File not found' });
     }
+    if (await sendPreview(req, res, filePath)) return;
+    res.setHeader('Cache-Control', BROWSER_CACHE);
 
     const mimeType = getMimeType(ext);
     const fileName = Buffer.from(safeFilename, 'latin1').toString('utf8');

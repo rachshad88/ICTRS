@@ -1,8 +1,9 @@
 import { saveFile } from '../lib/download';
 
 // MOV (means of verification) photos of an IT request: what the technician sent when finishing it,
-// served by the backend's /api/files/requests route. Each opens full size in a new tab, and has a
-// download button that saves it under the request code ("IT-0042-photo-1.webp") rather than the stored name.
+// served by the backend's /api/files/requests route. The tiles show a small copy (?size=thumb); each
+// opens full size in a new tab, and has a download button that saves the original under the request
+// code ("IT-0042-photo-1.webp") rather than the stored name.
 
 export function movPhotoUrl(requestId: string, file: string): string {
   return `/api/files/requests/${requestId}/${encodeURIComponent(file)}`;
@@ -23,7 +24,7 @@ function MovPhotos({ requestId, files, code, heading = 'MOV photos' }: { request
         {files.map((file, i) => (
           <div key={file} className="mov-thumb">
             <a className="mov-open" href={movPhotoUrl(requestId, file)} target="_blank" rel="noopener noreferrer">
-              <img src={movPhotoUrl(requestId, file)} alt={`Photo ${i + 1} of the finished work`} loading="lazy" />
+              <img src={`${movPhotoUrl(requestId, file)}?size=thumb`} alt={`Photo ${i + 1} of the finished work`} loading="lazy" />
             </a>
             <a
               className="mov-download"
