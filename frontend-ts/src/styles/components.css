@@ -2234,6 +2234,11 @@
   justify-content: flex-start;
 }
 
+/* Delete sits apart from Close, on the far side, so it isn't pressed by habit. */
+.modal-actions .overview-delete {
+  margin-right: auto;
+}
+
 @media (max-width: 640px) {
   .overview-filters {
     grid-template-columns: 1fr 1fr;

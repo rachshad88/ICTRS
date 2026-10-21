@@ -5,7 +5,12 @@ import {
   getUsersCollection, getRequestsCollection, getMultimediaRequestsCollection, getDigitalMediaRequestsCollection,
   getPrintMaterialsRequestsCollection, isValidObjectId, Role
 } from '../config/database';
-import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
+import { AuthenticatedRequest, isAuthenticated, isAdmin } from '../middleware/auth';
+import { db, logAudit } from '../config/database';
+import { getIO } from '../config/socket';
+import { removeRequestFiles } from './files';
+import { removeCopy } from '../utils/ratingSync';
+import { LiveLane, liveRequestRemoved } from './live';
 import { PRIORITIES, OPEN_STATUSES, COMPLETED_STATUSES, priorityExpr, priorityRankExpr, overdueExpr, toDay } from '../utils/priority';
 
 // One combined, filterable list of every request type an admin is responsible for.
@@ -26,30 +31,40 @@ interface TypeDef {
   due: string;
   /** Files the client attached (served by routes/files.ts); IT requests have none, only MOV photos. */
   files: unknown;
+  /** Its folder under uploads/: the client's files, or for IT the MOV photos. */
+  uploads: 'requests' | 'multimedia' | 'digitalmedia' | 'printmaterials';
+  /** Where the screens hear about changes: IT's request_update, or the media services' `<prefix>_request_*`. */
+  socketPrefix: string | null;
+  lane: LiveLane;
+  auditEntity: string;
 }
 
 const TYPES: TypeDef[] = [
   {
     key: 'it', label: 'IT', collection: 'requests', getCollection: getRequestsCollection, adminRole: 'IT_ADMIN', staffRole: 'TECHNICIAN',
     title: '$issue', detail: '$unit', office: '$office', due: '$due_date',
-    files: { $literal: [] }
+    files: { $literal: [] },
+    uploads: 'requests', socketPrefix: null, lane: 'it', auditEntity: 'IT_REQUEST'
   },
   {
     key: 'multimedia', label: 'Event Documentation', collection: 'multimedia_requests', getCollection: getMultimediaRequestsCollection, adminRole: 'MULTIMEDIA_ADMIN', staffRole: 'MULTIMEDIA',
     title: '$event_title', detail: '$location_type', office: null, due: '$event_date',
-    files: { $cond: [{ $ifNull: ['$program_file', false] }, ['$program_file'], []] }
+    files: { $cond: [{ $ifNull: ['$program_file', false] }, ['$program_file'], []] },
+    uploads: 'multimedia', socketPrefix: 'multimedia', lane: 'multimedia', auditEntity: 'MULTIMEDIA'
   },
   {
     key: 'digital_media', label: 'Digital Media', collection: 'digital_media_requests', getCollection: getDigitalMediaRequestsCollection, adminRole: 'MULTIMEDIA_ADMIN', staffRole: 'MULTIMEDIA',
     title: '$description', detail: '$form_of_digital_media', office: null, due: '$target_date',
-    files: { $ifNull: ['$supporting_files', []] }
+    files: { $ifNull: ['$supporting_files', []] },
+    uploads: 'digitalmedia', socketPrefix: 'digital_media', lane: 'digital_media', auditEntity: 'DIGITAL_MEDIA'
   },
   {
     key: 'print_materials', label: 'Print Materials', collection: 'print_materials_requests', getCollection: getPrintMaterialsRequestsCollection, adminRole: 'MULTIMEDIA_ADMIN', staffRole: 'MULTIMEDIA',
     title: '$event_ppa_name',
     detail: { $concat: [{ $ifNull: ['$form_of_printed_media', ''] }, ' ', { $ifNull: ['$size_of_printed_media', ''] }] },
     office: null, due: '$target_date',
-    files: { $ifNull: ['$supporting_files', []] }
+    files: { $ifNull: ['$supporting_files', []] },
+    uploads: 'printmaterials', socketPrefix: 'print_materials', lane: 'print_materials', auditEntity: 'PRINT_MATERIALS'
   }
 ];
 
@@ -296,6 +311,52 @@ router.get('/requests', isAuthenticated, isOverviewAdmin, async (req: Authentica
   } catch (error) {
     console.error('Overview requests error:', error);
     res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+});
+
+// Deletes a request for good, with everything that belongs to it: its files (the client's uploads,
+// or an IT request's MOV photos) and their preview copies, its notifications, and its copy in the
+// rating database if it is still waiting to be rated (a row the CSF already marked RATED is the
+// CSF's record and stays). The audit log keeps an entry saying who deleted what. Super admin only.
+router.delete('/requests/:type/:id', isAuthenticated, isAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const t = TYPES.find((x) => x.key === req.params.type);
+    const { id } = req.params;
+    if (!t || !isValidObjectId(id)) return res.status(400).json({ error: 'Invalid request' });
+
+    const result = await t.getCollection().findOneAndDelete({ _id: new ObjectId(id) });
+    const doc = result?.value;
+    if (!doc) return res.status(404).json({ error: 'This request was already deleted. Refresh the list.' });
+
+    const code: string = doc.request_code || id;
+    const files = await removeRequestFiles(t.uploads, id).catch((error) => {
+      console.error(`Delete request: could not remove the files of ${code}:`, error);
+      return 0;
+    });
+    const notifications = doc.request_code
+      ? (await db.collection('notifications').deleteMany({ request_code: doc.request_code }).catch(() => ({ deletedCount: 0 }))).deletedCount
+      : 0;
+    void removeCopy(doc.request_code);
+    liveRequestRemoved(t.lane, id, 'CANCELLED');
+
+    await logAudit(
+      new ObjectId(req.user!.user_id), req.user!.username, req.user!.primary_role, 'DELETE_REQUEST', t.auditEntity, id,
+      `${req.user!.username} deleted ${t.label} request ${code} (${doc.status || 'no status'}) with ${files} file(s)`
+    );
+
+    const payload = { event: 'deleted', request_id: id, request_code: code, timestamp: new Date() };
+    const owner = doc.created_by ? [`user_${doc.created_by.toString()}`] : [];
+    const staff = doc.assigned_to ? [`user_${doc.assigned_to.toString()}`] : [];
+    try {
+      const io = getIO();
+      if (t.socketPrefix) io.to(['admins', 'multimedia_staff', ...owner, ...staff]).emit(`${t.socketPrefix}_request_deleted`, payload);
+      else io.to(['technicians', 'super_admins', ...owner]).emit('request_update', payload);
+    } catch { /* no socket server: the screens catch up on their next refresh */ }
+
+    res.json({ status: 'success', request_code: code, files, notifications });
+  } catch (error) {
+    console.error('Delete request error:', error);
+    res.status(500).json({ error: 'Failed to delete the request' });
   }
 });
 

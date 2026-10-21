@@ -77,6 +77,21 @@ async function previewOf(filePath: string, size: string, spec: { edge: number; q
   return cached;
 }
 
+/**
+ * Deletes a request's upload folder (uploads/<folder>/<requestId>) and the saved preview copies of
+ * the files in it. Returns how many files were removed; a folder that was never made is 0.
+ */
+export async function removeRequestFiles(folder: 'requests' | 'multimedia' | 'digitalmedia' | 'printmaterials', requestId: string): Promise<number> {
+  const dir = path.join(__dirname, `../../uploads/${folder}/${requestId}`);
+  const names = await fs.promises.readdir(dir).catch(() => [] as string[]);
+  await Promise.all(names.flatMap((name) => Object.entries(PREVIEW_SIZES).map(([size, spec]) => {
+    const key = crypto.createHash('sha1').update(`${path.join(dir, name)}|${size}|${spec.edge}|${spec.quality}`).digest('hex');
+    return fs.promises.rm(path.join(PREVIEW_CACHE, `${key}.webp`), { force: true });
+  })));
+  await fs.promises.rm(dir, { recursive: true, force: true });
+  return names.length;
+}
+
 /** Sends the preview asked for and returns true; false (send the original) if none was asked for or it can't be made. */
 async function sendPreview(req: AuthenticatedRequest, res: Response, filePath: string): Promise<boolean> {
   const spec = PREVIEW_SIZES[String(req.query.size || '')];

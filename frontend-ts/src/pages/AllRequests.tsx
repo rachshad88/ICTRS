@@ -15,6 +15,8 @@ import { DateRangeField } from '../components/DateField';
 import Select from '../components/Select';
 import RequestTicket from '../components/RequestTicket';
 import { useRequestActions } from '../components/RequestActions';
+import { useConfirm } from '../components/ConfirmDialog';
+import { refreshService, type Service } from '../services/queryClient';
 
 interface OverviewRequest {
   _id: string;
@@ -46,6 +48,9 @@ interface OverviewRequest {
 }
 
 /** The /api/files route of each media type, for its attached files. */
+// Which service's screens to refresh after a delete (services/queryClient.ts).
+const DELETE_SERVICE: Record<string, Service> = { it: 'it', multimedia: 'multimedia', digital_media: 'digitalMedia', print_materials: 'printMaterials' };
+
 const FILE_ROUTES: Record<string, 'multimedia' | 'digitalmedia' | 'printmaterials'> = {
   multimedia: 'multimedia',
   digital_media: 'digitalmedia',
@@ -170,6 +175,8 @@ function AllRequests() {
   const [actionError, setActionError] = useState('');
   // Assign, take, reassign and finish, for the types this admin manages (components/RequestActions.tsx).
   const actions = useRequestActions(setActionError);
+  const [confirm, confirmDialog] = useConfirm();
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(filters)); } catch { /* storage unavailable */ }
@@ -241,6 +248,30 @@ function AllRequests() {
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(DEFAULT_FILTERS);
   const manage = selected ? MANAGE_PAGES[selected.type] : null;
 
+
+  // Super admin only: removes the request and its files for good (DELETE /api/overview/requests).
+  const deleteRequest = async (r: OverviewRequest) => {
+    const what = r.type === 'it' ? 'its MOV photos' : 'the files the client uploaded';
+    const ok = await confirm({
+      title: `Delete ${r.request_code}?`,
+      message: `This removes the request, ${what} and its notifications for good. It can't be undone. The audit log keeps a note that you deleted it.`,
+      confirmLabel: 'Delete request',
+      danger: true,
+    });
+    if (!ok) return;
+    setDeleting(true);
+    setActionError('');
+    try {
+      await api.delete(`/overview/requests/${r.type}/${r._id}`);
+      setSelected(null);
+      await refreshService(DELETE_SERVICE[r.type] || 'it');
+    } catch (err) {
+      setSelected(null);
+      setActionError((err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Could not delete the request. Try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
   return (
     <div className="history-page">
       <div className="page-header">
@@ -440,6 +471,11 @@ function AllRequests() {
               <div className="overview-detail-actions">{actions.buttons(selected, () => setSelected(null))}</div>
             )}
             <div className="modal-actions">
+              {roles.includes('ADMIN') && (
+                <button type="button" className="btn-danger overview-delete" disabled={deleting} onClick={() => deleteRequest(selected)}>
+                  {deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              )}
               {manage && roles.includes(manage.role) && (
                 <Link to={manage.to} className="btn-primary">Open {manage.label}</Link>
               )}
@@ -450,6 +486,7 @@ function AllRequests() {
       )}
 
       {actions.dialogs}
+      {confirmDialog}
     </div>
   );
 }

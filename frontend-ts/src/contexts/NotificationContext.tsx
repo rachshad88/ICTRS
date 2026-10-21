@@ -160,7 +160,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       'my_request_accepted',
       'my_request_finished',
       'my_request_declined',
-      'request_note_added'
+      'request_note_added',
+      'multimedia_request_deleted', 'digital_media_request_deleted', 'print_materials_request_deleted'
     ];
 
     // These only keep the menu bar counts fresh; what the user is told arrives as 'notification:new'.
@@ -176,6 +177,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     };
     socket.on('notification:new', onNotification);
 
+    // A super admin deleted a request, and its notifications with it: reload the inbox so they go.
+    const deletedEvents = ['multimedia_request_deleted', 'digital_media_request_deleted', 'print_materials_request_deleted'];
+    const onDeleted = () => fetchInbox();
+    const onItUpdate = (p: { event?: string }) => { if (p?.event === 'deleted') fetchInbox(); };
+    for (const event of deletedEvents) socket.on(event, onDeleted);
+    socket.on('request_update', onItUpdate);
+
     // Catch up on anything sent while the connection was down.
     const onConnect = () => {
       fetchCounts();
@@ -188,6 +196,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         socket.off(event, fetchCounts);
       }
       socket.off('notification:new', onNotification);
+      for (const event of deletedEvents) socket.off(event, onDeleted);
+      socket.off('request_update', onItUpdate);
       socket.off('connect', onConnect);
     };
   }, [fetchCounts, fetchInbox, pushNotification, user]);
