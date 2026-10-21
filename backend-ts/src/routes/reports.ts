@@ -7,6 +7,7 @@ import {
 } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
 import { formatDateTime, todayString } from '../utils/dates';
+import { parseRange, getDateRange, periodOf } from '../utils/periods';
 
 const router = Router();
 
@@ -48,47 +49,6 @@ const TYPE_MAP: Record<string, () => TypeConfig> = {
 };
 
 const TYPE_LIST = ['it', 'multimedia', 'digital-media', 'print-materials'];
-
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-// filter=range: from/to calendar days (YYYY-MM-DD), both included; the Reports page sends these
-// for its Weekly and Monthly views. Undefined when they are missing or not dates.
-function parseRange(query: AuthenticatedRequest['query']): { from: string; to: string } | undefined {
-  const from = String(query.from || '');
-  const to = String(query.to || '');
-  if (!DAY.test(from) || !DAY.test(to)) return undefined;
-  return from <= to ? { from, to } : { from: to, to: from };
-}
-
-function getDateRange(filterType: string, selectedDate: string, range?: { from: string; to: string }): { startDate: Date; endDate: Date } {
-  if (filterType === 'range' && range) {
-    return { startDate: new Date(range.from + 'T00:00:00'), endDate: new Date(range.to + 'T23:59:59.999') };
-  }
-  if (filterType === 'all') {
-    return { startDate: new Date(0), endDate: new Date('2099-12-31T23:59:59') };
-  }
-  if (filterType === 'daily') {
-    return {
-      startDate: new Date(selectedDate + 'T00:00:00'),
-      endDate: new Date(selectedDate + 'T23:59:59'),
-    };
-  }
-  if (filterType === 'weekly') {
-    const date = new Date(selectedDate);
-    const day = date.getDay();
-    const startDate = new Date(date);
-    startDate.setDate(date.getDate() - day);
-    startDate.setHours(0, 0, 0, 0);
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-    endDate.setHours(23, 59, 59, 999);
-    return { startDate, endDate };
-  }
-  const date = new Date(selectedDate);
-  const startDate = new Date(date.getFullYear(), date.getMonth(), 1);
-  const endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-  return { startDate, endDate };
-}
 
 function buildFilter(
   dateFilter: Record<string, unknown>,
@@ -399,14 +359,6 @@ async function turnaround(roles: string[], userId: string, startDate: Date, endD
     .map(([id, p]) => ({ id, name: p.name, services: [...p.services], finished: p.finished, work: summarize(p.work), late: p.late, with_due: p.withDue, reopened: p.reopened, open_now: p.openNow }))
     .sort((a, b) => b.finished - a.finished || b.open_now - a.open_now || a.name.localeCompare(b.name));
   return { services, staff: people };
-}
-
-function periodOf(req: AuthenticatedRequest) {
-  const filterType = (req.query.filter as string) || 'monthly';
-  const selectedDate = (req.query.date as string) || todayString();
-  const range = parseRange(req.query);
-  if (filterType === 'range' && !range) return null;
-  return { filterType, selectedDate, range, ...getDateRange(filterType, selectedDate, range) };
 }
 
 router.get('/turnaround', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {

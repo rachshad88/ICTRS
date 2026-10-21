@@ -1,10 +1,13 @@
 import { Fragment } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../services/api';
 import Skeleton from '../components/Skeleton';
 import RequestTicket from '../components/RequestTicket';
 import { useAuth } from '../contexts/AuthContext';
+import Select from '../components/Select';
+import PeriodDates from '../components/PeriodDates';
+import { usePeriodFilter, type PeriodFilter } from '../lib/periods';
 
 interface StatsData {
   user_counts: Record<string, number>;
@@ -86,14 +89,34 @@ function shortTime(v: string | null | undefined): string {
     : d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+/** The period picker, as on the Reports page (lib/periods.ts). */
+function PeriodFilters({ period }: { period: PeriodFilter }) {
+  return (
+    <div className="filters-row">
+      <Select value={period.period} aria-label="Period" onChange={(e) => period.choosePeriod(e.target.value)}>
+        <option value="all">All</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="monthly">Monthly</option>
+      </Select>
+      <PeriodDates p={period} className="" />
+    </div>
+  );
+}
+
 function AdminDashboard() {
   const { user } = useAuth();
+  // Today by default. Request counts and lists cover requests made in the period, activity what
+  // happened in it; user counts are always everyone.
+  const period = usePeriodFilter('daily');
   // Counts across every service; any service's socket events refresh them (['overview'] in
   // services/queryClient.ts).
   const { data = null, isPending: loading, error: loadError } = useQuery({
-    queryKey: ['overview', 'admin-stats'],
-    queryFn: () => api.get<StatsData>('/dashboard/admin-stats').then((r) => r.data),
+    queryKey: ['overview', 'admin-stats', period.query],
+    queryFn: () => api.get<StatsData>('/dashboard/admin-stats', { params: period.query }).then((r) => r.data),
     enabled: !!user,
+    // Keep the last numbers on screen while another period loads.
+    placeholderData: keepPreviousData,
   });
   // Only a failed first load replaces the page; a failed background refresh keeps the last counts.
   const error = !data && loadError
@@ -104,6 +127,7 @@ function AdminDashboard() {
     return (
       <div className="page-wrap">
         <div className="page-header"><h2>Admin Dashboard</h2></div>
+        <PeriodFilters period={period} />
         <Skeleton variant="table" rows={8} />
       </div>
     );
@@ -113,6 +137,7 @@ function AdminDashboard() {
     return (
       <div className="page-wrap">
         <div className="page-header"><h2>Admin Dashboard</h2></div>
+        <PeriodFilters period={period} />
         <div className="error-message">{error}</div>
       </div>
     );
@@ -144,6 +169,7 @@ function AdminDashboard() {
       <div className="page-header">
         <h2>Admin Dashboard</h2>
       </div>
+      <PeriodFilters period={period} />
 
       <div className="adm-grid adm-grid--top">
         <section className="adm-panel hide-on-mobile" aria-labelledby="adm-services">
@@ -242,7 +268,7 @@ function AdminDashboard() {
             <Link to="/all-requests">View all</Link>
           </header>
           {data.recent_requests.length === 0 ? (
-            <p className="adm-empty">No requests yet.</p>
+            <p className="adm-empty">No requests in this period.</p>
           ) : (
             <ul className="adm-list">
               {data.recent_requests.map((r, i) => (
@@ -268,7 +294,7 @@ function AdminDashboard() {
             <Link to="/audit-logs">Audit log</Link>
           </header>
           {data.recent_audit.length === 0 ? (
-            <p className="adm-empty">No recent activity.</p>
+            <p className="adm-empty">No activity in this period.</p>
           ) : (
             <ul className="adm-list">
               {data.recent_audit.map((a, i) => (

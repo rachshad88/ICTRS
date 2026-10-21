@@ -6,6 +6,7 @@ import {
   getAuditLogsCollection
 } from '../config/database';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
+import { periodOf } from '../utils/periods';
 
 const router = Router();
 
@@ -14,6 +15,11 @@ router.get('/admin-stats', isAuthenticated, async (req: AuthenticatedRequest, re
     if (!req.user!.roles.includes('ADMIN')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
+    // The dashboard's period (Today by default): request counts and lists cover requests made in it,
+    // activity covers what happened in it. User counts are for everyone, whenever they signed up.
+    const period = periodOf(req, 'daily');
+    if (!period) return res.status(400).json({ error: 'from and to must be dates (YYYY-MM-DD)' });
+    const created = { created_at: { $gte: period.startDate, $lte: period.endDate } };
 
     const usersCol = getUsersCollection();
     const requestsCol = getRequestsCollection();
@@ -37,32 +43,36 @@ router.get('/admin-stats', isAuthenticated, async (req: AuthenticatedRequest, re
       ]).toArray(),
 
       requestsCol.aggregate([
+        { $match: created },
         { $group: { _id: '$status', count: { $sum: 1 } } },
         { $project: { _id: 0, status: '$_id', count: 1 } }
       ]).toArray(),
 
       multimediaCol.aggregate([
+        { $match: created },
         { $group: { _id: '$status', count: { $sum: 1 } } },
         { $project: { _id: 0, status: '$_id', count: 1 } }
       ]).toArray(),
 
       digitalCol.aggregate([
+        { $match: created },
         { $group: { _id: '$status', count: { $sum: 1 } } },
         { $project: { _id: 0, status: '$_id', count: 1 } }
       ]).toArray(),
 
       printCol.aggregate([
+        { $match: created },
         { $group: { _id: '$status', count: { $sum: 1 } } },
         { $project: { _id: 0, status: '$_id', count: 1 } }
       ]).toArray(),
 
-      // Last 10 requests across all types, each annotated with type label
+      // Last 10 requests made in the period across all types, each annotated with type label
       (async () => {
         const [it, multimedia, digital, print] = await Promise.all([
-          requestsCol.find().sort({ created_at: -1 }).limit(10).project({ request_code: 1, status: 1, created_at: 1, office: 1 }).toArray(),
-          multimediaCol.find().sort({ created_at: -1 }).limit(10).project({ request_code: 1, status: 1, created_at: 1, event_title: 1 }).toArray(),
-          digitalCol.find().sort({ created_at: -1 }).limit(10).project({ request_code: 1, status: 1, created_at: 1, description: 1 }).toArray(),
-          printCol.find().sort({ created_at: -1 }).limit(10).project({ request_code: 1, status: 1, created_at: 1, printed_media_description: 1 }).toArray(),
+          requestsCol.find(created).sort({ created_at: -1 }).limit(10).project({ request_code: 1, status: 1, created_at: 1, office: 1 }).toArray(),
+          multimediaCol.find(created).sort({ created_at: -1 }).limit(10).project({ request_code: 1, status: 1, created_at: 1, event_title: 1 }).toArray(),
+          digitalCol.find(created).sort({ created_at: -1 }).limit(10).project({ request_code: 1, status: 1, created_at: 1, description: 1 }).toArray(),
+          printCol.find(created).sort({ created_at: -1 }).limit(10).project({ request_code: 1, status: 1, created_at: 1, printed_media_description: 1 }).toArray(),
         ]);
         const all: Document[] = [
           ...it.map(r => Object.assign(r, { type: 'IT' })),
@@ -74,7 +84,7 @@ router.get('/admin-stats', isAuthenticated, async (req: AuthenticatedRequest, re
         return all.slice(0, 10);
       })(),
 
-      auditCol.find().sort({ timestamp: -1 }).limit(10).project({
+      auditCol.find({ timestamp: { $gte: period.startDate, $lte: period.endDate } }).sort({ timestamp: -1 }).limit(10).project({
         username: 1, action: 1, entity_type: 1, details: 1, timestamp: 1, _id: 0
       }).toArray(),
     ]);
