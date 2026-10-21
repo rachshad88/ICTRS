@@ -12,3 +12,5 @@ realtime/node_modules/
 frontend-ts/dist/
 frontend-ts/node_modules/
 backend-ts/cache/
+# Database dumps hold account data and never belong in git.
+atlas_backup/
