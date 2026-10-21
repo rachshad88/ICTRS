@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { saveFile } from '../lib/download';
+import CachedImg from './CachedImg';
 
 interface FileViewerProps {
   files: string[];
@@ -162,7 +163,7 @@ function FileViewer({ files, requestId, type }: FileViewerProps) {
               </svg>
             </button>
             {/* A smaller copy (files.ts, ?size=preview); Download and Open in New Tab get the original. */}
-            <img src={`${previewImage.url}?size=preview`} alt={previewImage.name} />
+            <CachedImg src={`${previewImage.url}?size=preview`} alt={previewImage.name} />
             <div className="preview-actions">
               <button
                 className="btn-secondary"

@@ -1,7 +1,9 @@
 import { saveFile } from '../lib/download';
+import CachedImg from './CachedImg';
 
 // MOV (means of verification) photos of an IT request: what the technician sent when finishing it,
-// served by the backend's /api/files/requests route. The tiles show a small copy (?size=thumb); each
+// served by the backend's /api/files/requests route. The tiles show a small copy (?size=thumb), kept
+// for the visit by CachedImg; each
 // opens full size in a new tab, and has a download button that saves the original under the request
 // code ("IT-0042-photo-1.webp") rather than the stored name.
 
@@ -24,7 +26,7 @@ function MovPhotos({ requestId, files, code, heading = 'MOV photos' }: { request
         {files.map((file, i) => (
           <div key={file} className="mov-thumb">
             <a className="mov-open" href={movPhotoUrl(requestId, file)} target="_blank" rel="noopener noreferrer">
-              <img src={`${movPhotoUrl(requestId, file)}?size=thumb`} alt={`Photo ${i + 1} of the finished work`} loading="lazy" />
+              <CachedImg src={`${movPhotoUrl(requestId, file)}?size=thumb`} alt={`Photo ${i + 1} of the finished work`} loading="lazy" />
             </a>
             <a
               className="mov-download"
