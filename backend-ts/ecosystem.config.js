@@ -18,7 +18,6 @@ module.exports = {
       error: './logs/err.log',
       out: './logs/out.log',
       log: './logs/combined.log',
-      cron: '0 5 * * * pm2 flush && pm2 save',
     }
   ]
 };

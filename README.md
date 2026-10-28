@@ -197,7 +197,7 @@ current database first and asks you to type `RESTORE` before changing anything. 
 <!-- 1. Create the rating system's login. The script asks you to choose a password of at least 12 characters:
 mongo admin -u <admin user> -p --authenticationDatabase admin deploy/rating-db-setup.js
 2. Rebuild and restart the backend:
-cd backend-ts && npm run build && sudo pm2 restart backend
+cd backend-ts && npm run build && sudo pm2 reload backend
    Within a minute, pm2 logs backend should show Rating sync: updated N request status record(s).
 3. Let the rating machine reach MongoDB:
 sudo ufw allow from 192.168.110.19 to any port 27017 proto tcp comment 'ITRS rating system'

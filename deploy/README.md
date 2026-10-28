@@ -16,8 +16,11 @@ in `frontend-ts/public/fonts/` and update `src/styles/fonts.css`, or returning v
 
 ## Backend (after any change under `backend-ts/`)
 ```
-cd backend-ts && npm run build && sudo pm2 restart backend
+cd backend-ts && npm run build && sudo pm2 reload backend
 ```
+`reload` replaces the cluster's processes one at a time, so the site stays up. If `sudo pm2 ls` shows the
+backend in `fork` mode, it was registered before `ecosystem.config.js` and is running as one process; switch it
+once with `sudo pm2 delete backend && sudo pm2 start ecosystem.config.js && sudo pm2 save` (about a minute down).
 
 ## Wall display (`/live`)
 `https://<server>/live` is a full-screen queue of requests waiting for assignment, meant for a TV in the

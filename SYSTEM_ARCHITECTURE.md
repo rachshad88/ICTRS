@@ -192,7 +192,7 @@ See `backend-ts/.env.example`. Required: `MONGO_URI`, `SESSION_SECRET`. Common o
 | Task | How |
 |---|---|
 | Deploy frontend changes | `./deploy/deploy-frontend.sh` |
-| Deploy backend changes | `cd backend-ts && npm run build && sudo pm2 restart backend` |
+| Deploy backend changes | `cd backend-ts && npm run build && sudo pm2 reload backend` |
 | Change nginx | `sudo ./deploy/install-nginx.sh` |
 | Back up now | `./deploy/backup.sh` (also nightly 2:30 AM; verified Mondays 3:00 AM) |
 | Restore | `./deploy/restore.sh [stamp]`, then `sudo pm2 restart backend` |
