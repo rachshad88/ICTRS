@@ -334,10 +334,8 @@ function UserManagement() {
                   {u.created_at && <time dateTime={u.created_at}>Signed up {new Date(u.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</time>}
                 </div>
                 <div className="history-actions">
-                  <button className="hbtn hbtn-assign" onClick={() => handleApprove(u)} disabled={approvingId !== null}>
-                    {approvingId === u._id ? 'Approving...' : 'Approve'}
-                  </button>
-                  <button className="hbtn hbtn-cancel" onClick={() => handleReject(u)} disabled={approvingId !== null}>Reject</button>
+                  <IconButton icon="done" label={approvingId === u._id ? 'Approving...' : 'Approve'} about={`${u.first_name} ${u.last_name}`} tone="hbtn-assign" onClick={() => handleApprove(u)} disabled={approvingId !== null} />
+                  <IconButton icon="decline" label="Reject" about={`${u.first_name} ${u.last_name}`} tone="hbtn-cancel" onClick={() => handleReject(u)} disabled={approvingId !== null} />
                 </div>
               </li>
             ))}

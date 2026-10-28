@@ -13,6 +13,7 @@ import RequestTicket from '../components/RequestTicket';
 import { RequestFlags } from '../components/Priority';
 import { EASE_OUT, staggerContainer, staggerItem } from '../lib/motion';
 import SearchBox from '../components/SearchBox';
+import IconButton from '../components/IconButton';
 import { DateField } from '../components/DateField';
 
 interface Request {
@@ -141,7 +142,7 @@ function Dashboard() {
       return <span className="td-sub">Waiting for the IT admin</span>;
     }
     if (req.status === 'IN_PROGRESS') {
-      return <button className="hbtn hbtn-view" onClick={() => setFinishTarget(req)}>{req.mov_return_reason ? 'Resend MOV' : 'Mark Done'}</button>;
+      return <IconButton icon="done" label={req.mov_return_reason ? 'Resend MOV' : 'Mark done'} about={req.request_code} onClick={() => setFinishTarget(req)} />;
     }
     if (req.status === 'PENDING' && !req.assigned_to) {
       return <span className="td-code">Pending</span>;

@@ -10,6 +10,7 @@ import { NotesList, RequestNote } from '../components/RequestNotes';
 import RequestTicket from '../components/RequestTicket';
 import { RequestFlags, priorityLabel } from '../components/Priority';
 import SearchBox from '../components/SearchBox';
+import IconButton from '../components/IconButton';
 
 interface PrintMaterialsRequest {
   _id: string;
@@ -127,13 +128,9 @@ function PrintMaterialsDashboard() {
                     </td>
                     <td className="col-actions">
                       <div className="history-actions">
-                        <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                          Files
-                        </button>
+                        <IconButton icon="view" label="View files" about={request.request_code} onClick={() => setSelectedRequest(request)} />
                         {request.status === 'IN_PROGRESS' && (
-                          <button className="hbtn hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
-                            Done
-                          </button>
+                          <IconButton icon="done" label="Mark done" about={request.request_code} tone="hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }} />
                         )}
                       </div>
                     </td>
@@ -174,13 +171,9 @@ function PrintMaterialsDashboard() {
                 )}
                 actions={(
                   <>
-                    <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-                      View Files
-                    </button>
+                    <IconButton icon="view" label="View files" about={request.request_code} onClick={() => setSelectedRequest(request)} />
                     {request.status === 'IN_PROGRESS' && (
-                      <button className="hbtn hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }}>
-                        Mark Done
-                      </button>
+                      <IconButton icon="done" label="Mark done" about={request.request_code} tone="hbtn-done" onClick={() => { setSelectedRequest(request); setShowCompleteModal(true); }} />
                     )}
                   </>
                 )}
