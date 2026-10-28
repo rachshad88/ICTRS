@@ -916,7 +916,8 @@
 }
 
 .top-nav-name {
-  max-width: 140px;
+  max-width: 200px;
+  font-size: 16px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
