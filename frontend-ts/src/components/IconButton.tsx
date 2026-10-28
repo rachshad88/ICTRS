@@ -158,6 +158,8 @@ function IconButton({ icon, label, about, tone = 'hbtn-view', onClick, disabled,
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
         {ICONS[icon]}
       </svg>
+      {/* Phones can't hover for the tooltip, so their cards show the name beside the icon (.hbtn-icon-label). */}
+      <span className="hbtn-icon-label" aria-hidden="true">{label}</span>
     </button>
   );
 }

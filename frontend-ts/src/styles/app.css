@@ -1697,6 +1697,20 @@
   font-size: 11px;
 }
 
+/* Approve / Reject show their names on phones, which have no hover for the tooltip. */
+@media (max-width: 640px) {
+  .app-main .approval-item .hbtn-icon {
+    gap: 6px;
+    width: auto;
+    height: 40px;
+    padding: 0 14px;
+  }
+
+  .app-main .approval-item .hbtn-icon-label {
+    display: inline;
+  }
+}
+
 /* ----- "Still not fixed" (RequestNotes ReopenForm) ----- */
 .app-main .reopen-prompt {
   display: flex;

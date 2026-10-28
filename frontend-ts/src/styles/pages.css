@@ -950,11 +950,18 @@ button.rq-ticket-code {
   white-space: nowrap;
 }
 
-/* Icon buttons stay round with a full-size touch target instead of stretching across the card */
+/* Icon buttons keep a full-size touch target instead of stretching across the card, and show their
+   name beside the icon, since phones have no hover for the tooltip */
 .rq-ticket-actions .hbtn-icon {
-  flex: 0 0 40px;
-  width: 40px;
+  flex: 0 0 auto;
+  gap: 6px;
+  width: auto;
   height: 40px;
+  padding: 0 14px;
+}
+
+.rq-ticket-actions .hbtn-icon-label {
+  display: inline;
 }
 
 .rq-ticket-actions a {

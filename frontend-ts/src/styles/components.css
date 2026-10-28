@@ -1256,6 +1256,10 @@
   padding: 0;
 }
 
+.hbtn-icon-label {
+  display: none;
+}
+
 .hbtn-view {
   border-color: var(--border-light);
   color: var(--text-secondary);
