@@ -9,6 +9,8 @@ interface UnassignedCounts {
   multimedia: number;
   digitalMedia: number;
   printMaterials: number;
+  /** IT requests: waiting on the IT admin (unassigned or a MOV to verify), or a technician's own open ones. */
+  it: number;
 }
 
 type Level = 'success' | 'info' | 'warning' | 'error';
@@ -50,7 +52,7 @@ interface NotificationContextType {
 }
 
 const NotificationContext = createContext<NotificationContextType>({
-  counts: { total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 },
+  counts: { total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0, it: 0 },
   notifications: [],
   dismissToast: () => {},
   inbox: [],
@@ -63,7 +65,7 @@ const NotificationContext = createContext<NotificationContextType>({
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [counts, setCounts] = useState<UnassignedCounts>({ total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 });
+  const [counts, setCounts] = useState<UnassignedCounts>({ total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0, it: 0 });
   const [notifications, setNotifications] = useState<LiveNotification[]>([]);
   const [inbox, setInbox] = useState<InboxNotification[]>([]);
   const [unread, setUnread] = useState(0);

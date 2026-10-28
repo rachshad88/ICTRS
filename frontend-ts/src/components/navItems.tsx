@@ -103,7 +103,12 @@ export function useNavItems(): NavEntry[] {
 /** Pending-work count shown beside a link, or null for links that have none. */
 export function useNavBadge(): (path: string) => number | null {
   const { counts } = useNotification();
+  const { user } = useAuth();
+  const roles = user?.roles || (user ? [user.role] : []);
+  // IT admins' count belongs on the IT dashboard; a technician's on their own.
+  const itPath = roles.includes('IT_ADMIN') || roles.includes('ADMIN') ? '/it-dashboard' : '/dashboard';
   return (path) => {
+    if (path === itPath) return counts.it;
     if (path.includes('multimedia')) return counts.multimedia;
     if (path.includes('digitalmedia')) return counts.digitalMedia;
     if (path.includes('print-materials')) return counts.printMaterials;

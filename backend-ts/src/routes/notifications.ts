@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import { AuthenticatedRequest, isAuthenticated } from '../middleware/auth';
-import { getMultimediaRequestsCollection, getDigitalMediaRequestsCollection, getPrintMaterialsRequestsCollection, getNotificationsCollection, isValidObjectId } from '../config/database';
+import { getRequestsCollection, getMultimediaRequestsCollection, getDigitalMediaRequestsCollection, getPrintMaterialsRequestsCollection, getNotificationsCollection, isValidObjectId } from '../config/database';
 import { toNotificationDTO } from '../utils/notify';
 
 const router = Router();
@@ -83,33 +83,33 @@ router.post('/:id/clear', isAuthenticated, async (req: AuthenticatedRequest, res
 
 router.get('/unassigned-count', isAuthenticated, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = req.user!.user_id;
+    const uid = new ObjectId(req.user!.user_id);
     const roles = req.user!.roles;
+    const zero = Promise.resolve(0);
 
-    // Multimedia admins (and the super admin) see how many requests are waiting to be assigned on the management pages.
-    if (roles.includes('MULTIMEDIA_ADMIN') || roles.includes('ADMIN')) {
-      const [multimedia, digitalMedia, printMaterials] = await Promise.all([
-        getMultimediaRequestsCollection().countDocuments({ status: 'UNASSIGNED' }),
-        getDigitalMediaRequestsCollection().countDocuments({ status: 'PENDING', assigned_to: null }),
-        getPrintMaterialsRequestsCollection().countDocuments({ status: 'PENDING', assigned_to: null }),
-      ]);
-      const total = multimedia + digitalMedia + printMaterials;
-      return res.json({ total, multimedia, digitalMedia, printMaterials });
-    }
+    // Multimedia admins (and the super admin) see how many requests are waiting to be assigned on the management pages;
+    // multimedia staff see how many of their assignments are still open.
+    const mediaAdmin = roles.includes('MULTIMEDIA_ADMIN') || roles.includes('ADMIN');
+    const mediaStaff = !mediaAdmin && roles.includes('MULTIMEDIA');
+    const mediaFilter = (unassigned: object) => (mediaAdmin ? unassigned : { assigned_to: uid, status: 'IN_PROGRESS' as const });
 
-    // Multimedia staff see how many of their assignments are still open (not done, cancelled or declined).
-    if (roles.includes('MULTIMEDIA')) {
-      const uid = new ObjectId(userId);
-      const [multimedia, digitalMedia, printMaterials] = await Promise.all([
-        getMultimediaRequestsCollection().countDocuments({ assigned_to: uid, status: 'IN_PROGRESS' }),
-        getDigitalMediaRequestsCollection().countDocuments({ assigned_to: uid, status: 'IN_PROGRESS' }),
-        getPrintMaterialsRequestsCollection().countDocuments({ assigned_to: uid, status: 'IN_PROGRESS' }),
-      ]);
-      const total = multimedia + digitalMedia + printMaterials;
-      return res.json({ total, multimedia, digitalMedia, printMaterials });
-    }
+    // IT admins (and the super admin) see the IT requests waiting on them: unassigned, or a MOV to verify.
+    // Technicians see their own open IT requests.
+    const itAdmin = roles.includes('IT_ADMIN') || roles.includes('ADMIN');
+    const technician = !itAdmin && roles.includes('TECHNICIAN');
+    const itFilter = itAdmin
+      ? { $or: [{ status: 'PENDING' as const, assigned_to: null }, { status: 'FOR_VERIFICATION' as const }] }
+      : { assigned_to: uid, status: 'IN_PROGRESS' as const };
 
-    res.json({ total: 0, multimedia: 0, digitalMedia: 0, printMaterials: 0 });
+    const media = mediaAdmin || mediaStaff;
+    const [multimedia, digitalMedia, printMaterials, it] = await Promise.all([
+      media ? getMultimediaRequestsCollection().countDocuments(mediaFilter({ status: 'UNASSIGNED' })) : zero,
+      media ? getDigitalMediaRequestsCollection().countDocuments(mediaFilter({ status: 'PENDING', assigned_to: null })) : zero,
+      media ? getPrintMaterialsRequestsCollection().countDocuments(mediaFilter({ status: 'PENDING', assigned_to: null })) : zero,
+      itAdmin || technician ? getRequestsCollection().countDocuments(itFilter) : zero,
+    ]);
+    const total = multimedia + digitalMedia + printMaterials + it;
+    res.json({ total, multimedia, digitalMedia, printMaterials, it });
   } catch (error) {
     console.error('Unassigned count error:', error);
     res.status(500).json({ error: 'Failed to get counts' });
