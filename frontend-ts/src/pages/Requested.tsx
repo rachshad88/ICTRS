@@ -10,6 +10,7 @@ import MovPhotos from '../components/MovPhotos';
 import { useConfirm } from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import RequestTicket from '../components/RequestTicket';
+import IconButton from '../components/IconButton';
 import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
 import { NotesList, DeclineReason, StaffReport, AddNoteForm, ReopenForm, canReopen, RequestNote } from '../components/RequestNotes';
@@ -131,29 +132,17 @@ function Requested() {
     return 'badge-' + status.toLowerCase().replace(/_/g, '-');
   };
 
-  const detailsButton = (req: MyRequest) => (
-    <button className="btn btn-sm btn-view" onClick={() => setSelectedRequest(req)}>
-      {OPEN_STATUSES.includes(req.status) ? 'Details / Add note' : 'Details'}
-    </button>
-  );
+  const detailsButton = (req: MyRequest) => (OPEN_STATUSES.includes(req.status)
+    ? <IconButton icon="note" label="Details / Add note" about={req.request_code} onClick={() => setSelectedRequest(req)} />
+    : <IconButton icon="view" label="Details" about={req.request_code} onClick={() => setSelectedRequest(req)} />);
 
   const cancelButton = (req: MyRequest) => req.status === 'PENDING' && user?.roles?.includes('CLIENT') && (
-    <button
-      onClick={() => handleCancel(req._id)}
-      className="btn btn-sm btn-cancel"
-    >
-      Cancel
-    </button>
+    <IconButton icon="cancel" label="Cancel" about={req.request_code} tone="hbtn-cancel" onClick={() => handleCancel(req._id)} />
   );
 
   // Once rated, the rating system won't take another, so the button goes.
   const rateButton = (req: MyRequest) => req.status === 'DONE' && (
-    <button
-      className="btn-rate"
-      onClick={() => openRating(req._id, req.request_code, 'it_request')}
-    >
-      Rate
-    </button>
+    <IconButton icon="rate" label="Rate" about={req.request_code} tone="hbtn-rate" onClick={() => openRating(req._id, req.request_code, 'it_request')} />
   );
 
   const resultLabel = (req: MyRequest) => (req.finished === 'repaired' ? 'Repaired' : 'Beyond Repair');
@@ -232,9 +221,8 @@ function Requested() {
                         <td className="date-cell" data-label="Created">{formatDate(req.created_at)}</td>
                         <td className="date-cell" data-label="Completed">{formatDate(req.completed_at)}</td>
                         <td className="col-actions">
+                          {/* Same order as the phone tickets and the other histories: Rate first, Details last. */}
                           <span className="req-actions">
-                          {detailsButton(req)}
-                          {cancelButton(req)}
                           {isCompleted(req.status) && (
                             <span className="req-actions">
                               <span className={`status-badge ${req.finished === 'repaired' ? 'badge-repaired' : 'badge-beyond-repair'}`}>
@@ -243,6 +231,8 @@ function Requested() {
                               {rateButton(req)}
                             </span>
                           )}
+                          {cancelButton(req)}
+                          {detailsButton(req)}
                           </span>
                         </td>
                       </tr>

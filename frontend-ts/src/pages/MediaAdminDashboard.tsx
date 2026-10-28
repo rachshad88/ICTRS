@@ -13,6 +13,7 @@ import SearchBox from '../components/SearchBox';
 import { DateField } from '../components/DateField';
 import Select from '../components/Select';
 import RequestTicket, { STAMP_ONLY } from '../components/RequestTicket';
+import IconButton from '../components/IconButton';
 
 /**
  * The multimedia admin's home: the IT admin dashboard's layout for the three media request types
@@ -258,19 +259,19 @@ function MediaAdminDashboard() {
       return <span className="hstatus rated"><span className="hstatus-dot rated" />Rated</span>;
     }
     if (r.status === 'DECLINED') {
-      return <button className="hbtn hbtn-view" onClick={() => setDetailTarget(r)}>View reason</button>;
+      return <IconButton icon="view" label="View reason" about={r.request_code} onClick={() => setDetailTarget(r)} />;
     }
     if (WAITING.includes(r.status) && !r.assigned_to) {
       return (
         <div className="history-actions">
-          <button className="hbtn hbtn-assign" onClick={() => openAssign(r)}>Assign</button>
-          <button className="hbtn hbtn-done" onClick={() => user && assign(r, user.user_id)} disabled={submitting}>Take</button>
-          <button className="hbtn hbtn-cancel" onClick={() => setDeclineTarget(r)}>Decline</button>
+          <IconButton icon="assign" label="Assign" about={r.request_code} tone="hbtn-assign" onClick={() => openAssign(r)} />
+          <IconButton icon="take" label="Take" about={r.request_code} tone="hbtn-done" onClick={() => user && assign(r, user.user_id)} disabled={submitting} />
+          <IconButton icon="decline" label="Decline" about={r.request_code} tone="hbtn-cancel" onClick={() => setDeclineTarget(r)} />
         </div>
       );
     }
     if (r.status === 'IN_PROGRESS') {
-      return <button className="hbtn hbtn-view" onClick={() => setManageTarget(r)}>Manage</button>;
+      return <IconButton icon="manage" label="Manage" about={r.request_code} onClick={() => setManageTarget(r)} />;
     }
     return null;
   };

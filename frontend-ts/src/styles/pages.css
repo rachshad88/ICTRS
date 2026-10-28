@@ -1951,6 +1951,10 @@ button.rq-ticket-code {
     padding: 4px 11px;
   }
 
+  .app-main .it-dash .history-table .hbtn-icon {
+    padding: 0;
+  }
+
   .app-main .it-dash .history-actions {
     flex-wrap: nowrap;
   }

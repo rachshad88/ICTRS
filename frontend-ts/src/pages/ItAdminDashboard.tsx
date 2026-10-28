@@ -16,6 +16,7 @@ import PeriodDates from '../components/PeriodDates';
 import { usePeriodFilter } from '../lib/periods';
 import { DateField } from '../components/DateField';
 import Select from '../components/Select';
+import IconButton from '../components/IconButton';
 
 interface Request {
   _id: string;
@@ -262,27 +263,27 @@ function ItAdminDashboard() {
       return <span className="hstatus rated"><span className="hstatus-dot rated" />Rated</span>;
     }
     if (req.status === 'DECLINED') {
-      return <button className="hbtn hbtn-view" onClick={() => setViewTarget(req)}>View reason</button>;
+      return <IconButton icon="view" label="View reason" about={req.request_code} onClick={() => setViewTarget(req)} />;
     }
     if (!req.assigned_to) {
       return (
         <div className="history-actions">
-          <button className="hbtn hbtn-assign" onClick={() => openAssignModal(req)}>Assign</button>
-          <button className="hbtn hbtn-done" onClick={() => takeRequest(req)} disabled={submitting}>Take</button>
-          <button className="hbtn hbtn-cancel" onClick={() => setDeclineTarget(req)}>Decline</button>
+          <IconButton icon="assign" label="Assign" about={req.request_code} tone="hbtn-assign" onClick={() => openAssignModal(req)} />
+          <IconButton icon="take" label="Take" about={req.request_code} tone="hbtn-done" onClick={() => takeRequest(req)} disabled={submitting} />
+          <IconButton icon="decline" label="Decline" about={req.request_code} tone="hbtn-cancel" onClick={() => setDeclineTarget(req)} />
         </div>
       );
     }
     if (req.status === 'FOR_VERIFICATION') {
-      return <button className="hbtn hbtn-assign" onClick={() => setVerifyTarget(req)}>Verify MOV</button>;
+      return <IconButton icon="verify" label="Verify MOV" about={req.request_code} tone="hbtn-assign" onClick={() => setVerifyTarget(req)} />;
     }
     if (req.status === 'IN_PROGRESS') {
       return (
         <div className="history-actions">
           {req.assigned_to === user?.user_id && (
-            <button className="hbtn hbtn-assign" onClick={() => setFinishTarget(req)}>Mark Done</button>
+            <IconButton icon="done" label="Mark Done" about={req.request_code} tone="hbtn-assign" onClick={() => setFinishTarget(req)} />
           )}
-          <button className="hbtn hbtn-view" onClick={() => openManageModal(req)}>Manage</button>
+          <IconButton icon="manage" label="Manage" about={req.request_code} onClick={() => openManageModal(req)} />
         </div>
       );
     }

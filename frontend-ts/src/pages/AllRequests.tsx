@@ -16,6 +16,7 @@ import Select from '../components/Select';
 import RequestTicket from '../components/RequestTicket';
 import { useRequestActions } from '../components/RequestActions';
 import { useConfirm } from '../components/ConfirmDialog';
+import IconButton from '../components/IconButton';
 import { refreshService, type Service } from '../services/queryClient';
 
 interface OverviewRequest {
@@ -427,7 +428,7 @@ function AllRequests() {
                   { label: 'Due', value: r.due ? formatDay(r.due) : '-' },
                 ]}
                 rows={[{ label: 'Assigned to', value: r.assignee_name || 'Not assigned yet' }]}
-                actions={actions.buttons(r) || <button type="button" className="hbtn hbtn-view" onClick={() => setSelected(r)}>Details</button>}
+                actions={actions.buttons(r) || <IconButton icon="view" label="Details" about={r.request_code} onClick={() => setSelected(r)} />}
               />
             ))}
           </div>

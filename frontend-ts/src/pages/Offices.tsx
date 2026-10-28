@@ -5,6 +5,7 @@ import { queryClient } from '../services/queryClient';
 import SearchBox from '../components/SearchBox';
 import Skeleton from '../components/Skeleton';
 import RequestTicket from '../components/RequestTicket';
+import IconButton from '../components/IconButton';
 
 interface Office {
   _id: string;
@@ -124,17 +125,15 @@ function Offices() {
       {/* Keyed apart, so the Rename click never lands on the Save button that replaces it. */}
       {editingId === office._id ? (
         <>
-          <button key="save" type="submit" form={`${formId}-${office._id}`} className="hbtn hbtn-assign" disabled={busyId !== null || editName.trim().length < 2}>
-            {busyId === office._id ? 'Saving...' : 'Save'}
-          </button>
-          <button key="cancel" type="button" className="hbtn hbtn-view" onClick={() => setEditingId(null)}>Cancel</button>
+          <IconButton key="save" icon="save" label={busyId === office._id ? 'Saving...' : 'Save'} about={office.name} tone="hbtn-assign" submitFor={`${formId}-${office._id}`} disabled={busyId !== null || editName.trim().length < 2} />
+          <IconButton key="cancel" icon="close" label="Cancel" about={office.name} onClick={() => setEditingId(null)} />
         </>
       ) : (
         <>
-          <button key="rename" type="button" className="hbtn hbtn-view" onClick={() => startRename(office)} disabled={busyId !== null}>Rename</button>
+          <IconButton key="rename" icon="edit" label="Rename" about={office.name} onClick={() => startRename(office)} disabled={busyId !== null} />
           {office.active
-            ? <button type="button" className="hbtn hbtn-cancel" onClick={() => handleSetActive(office, false)} disabled={busyId !== null}>Hide</button>
-            : <button type="button" className="hbtn hbtn-assign" onClick={() => handleSetActive(office, true)} disabled={busyId !== null}>Show</button>}
+            ? <IconButton icon="hide" label="Hide" about={office.name} tone="hbtn-cancel" onClick={() => handleSetActive(office, false)} disabled={busyId !== null} />
+            : <IconButton icon="view" label="Show" about={office.name} tone="hbtn-assign" onClick={() => handleSetActive(office, true)} disabled={busyId !== null} />}
         </>
       )}
     </div>

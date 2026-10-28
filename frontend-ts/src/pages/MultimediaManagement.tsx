@@ -11,6 +11,7 @@ import { RequestFlags, PriorityForm, ReassignForm, CompleteForm } from '../compo
 import SearchBox from '../components/SearchBox';
 import Select from '../components/Select';
 import RequestTicket from '../components/RequestTicket';
+import IconButton from '../components/IconButton';
 
 interface MultimediaRequest {
   _id: string;
@@ -133,17 +134,13 @@ function MultimediaManagement() {
     <div className="history-actions">
       {request.status === 'UNASSIGNED' ? (
         <>
-          <button className="hbtn hbtn-assign" onClick={() => { setSelectedRequest(request); setSelectedTechnician(''); }}>
-            Assign
-          </button>
-          <button className="hbtn hbtn-done" onClick={() => user && handleAssign(request, user.user_id)} disabled={assigning}>
-            Take
-          </button>
+          <IconButton icon="assign" label="Assign" about={request.request_code} tone="hbtn-assign" onClick={() => { setSelectedRequest(request); setSelectedTechnician(''); }} />
+          <IconButton icon="take" label="Take" about={request.request_code} tone="hbtn-done" onClick={() => user && handleAssign(request, user.user_id)} disabled={assigning} />
         </>
       ) : (
-        <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-          {request.status === 'IN_PROGRESS' ? 'Manage' : 'View'}
-        </button>
+        request.status === 'IN_PROGRESS'
+          ? <IconButton icon="manage" label="Manage" about={request.request_code} onClick={() => setSelectedRequest(request)} />
+          : <IconButton icon="view" label="View" about={request.request_code} onClick={() => setSelectedRequest(request)} />
       )}
     </div>
   );

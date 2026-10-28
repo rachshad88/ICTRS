@@ -12,6 +12,7 @@ import RequestProgress from './RequestProgress';
 import { useConfirm } from './ConfirmDialog';
 import Pagination from './Pagination';
 import RequestTicket from './RequestTicket';
+import IconButton from './IconButton';
 import { truncateCell } from '../lib/truncate';
 import { openRating } from '../services/rating';
 import { NotesList, DeclineReason, AddNoteForm, RequestNote, StaffReport } from './RequestNotes';
@@ -144,18 +145,14 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
   const rowActions = (request: any) => (
     <div className="history-actions">
       {request.status === config.cancelStatus && (
-        <button className="hbtn hbtn-cancel" onClick={() => handleCancel(request._id)}>
-          Cancel
-        </button>
+        <IconButton icon="cancel" label="Cancel" about={request.request_code} tone="hbtn-cancel" onClick={() => handleCancel(request._id)} />
       )}
       {request.status === 'DONE' && (
-        <button className="hbtn hbtn-rate" onClick={() => openRating(request._id, request.request_code, config.rateType)}>
-          Rate
-        </button>
+        <IconButton icon="rate" label="Rate" about={request.request_code} tone="hbtn-rate" onClick={() => openRating(request._id, request.request_code, config.rateType)} />
       )}
-      <button className="hbtn hbtn-view" onClick={() => setSelectedRequest(request)}>
-        {canAddNote(request.status) ? 'View / Add note' : 'View'}
-      </button>
+      {canAddNote(request.status)
+        ? <IconButton icon="note" label="View / Add note" about={request.request_code} onClick={() => setSelectedRequest(request)} />
+        : <IconButton icon="view" label="View" about={request.request_code} onClick={() => setSelectedRequest(request)} />}
     </div>
   );
 

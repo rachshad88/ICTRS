@@ -8,6 +8,7 @@ import { ReassignForm, PriorityForm, CompleteForm, PRIORITY_OPTIONS, priorityLab
 import FinishRequestModal from './FinishRequestModal';
 import { DateField } from './DateField';
 import Select from './Select';
+import IconButton, { type IconName } from './IconButton';
 
 // Assign, take, decline, reassign and finish for the All Requests list (pages/AllRequests.tsx), for whoever
 // manages the request's type: the super admin every type, IT and multimedia admins their own. Each
@@ -143,26 +144,31 @@ export function useRequestActions(onError: (message: string) => void) {
     setManageTarget(null);
   };
 
-  /** The buttons for one request, or null when there is nothing to do. `before` runs first (to close a details dialog). */
+  /**
+   * The buttons for one request, or null when there is nothing to do. Table rows and tickets get icons;
+   * the details dialog passes `before` (run first, to close it) and keeps the words, as it has the room.
+   */
   const buttons = (r: ActionRequest, before?: () => void): ReactNode => {
     if (!canManage(r)) return null;
     const run = (fn: () => void) => () => { before?.(); fn(); };
+    const action = (icon: IconName, label: string, tone: string, fn: () => void, disabled?: boolean) =>
+      before
+        ? <button type="button" className={`hbtn ${tone}`} onClick={run(fn)} disabled={disabled}>{label}</button>
+        : <IconButton icon={icon} label={label} about={r.request_code} tone={tone} onClick={run(fn)} disabled={disabled} />;
     if (isWaiting(r)) {
       return (
         <div className="history-actions">
-          <button type="button" className="hbtn hbtn-assign" onClick={run(() => openAssign(r))}>Assign</button>
-          <button type="button" className="hbtn hbtn-done" onClick={run(() => take(r))} disabled={submitting}>Take</button>
-          <button type="button" className="hbtn hbtn-cancel" onClick={run(() => setDeclineTarget(r))}>Decline</button>
+          {action('assign', 'Assign', 'hbtn-assign', () => openAssign(r))}
+          {action('take', 'Take', 'hbtn-done', () => take(r), submitting)}
+          {action('decline', 'Decline', 'hbtn-cancel', () => setDeclineTarget(r))}
         </div>
       );
     }
     if (r.status === 'IN_PROGRESS') {
       return (
         <div className="history-actions">
-          {isMine(r) && r.type === 'it' && (
-            <button type="button" className="hbtn hbtn-done" onClick={run(() => setFinishTarget(r))}>Mark Done</button>
-          )}
-          <button type="button" className="hbtn hbtn-view" onClick={run(() => setManageTarget(r))}>Manage</button>
+          {isMine(r) && r.type === 'it' && action('done', 'Mark Done', 'hbtn-done', () => setFinishTarget(r))}
+          {action('manage', 'Manage', 'hbtn-view', () => setManageTarget(r))}
         </div>
       );
     }
