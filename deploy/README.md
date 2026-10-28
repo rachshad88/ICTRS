@@ -185,7 +185,7 @@ For when this machine is gone. You need a backup set (from the office PC or USB)
 (`git@github.com:rachshad88/ICTRS.git`). **The code on GitHub is only as new as the last push: commit and push
 after every change**, or the rebuild brings back old code.
 
-1. Install Ubuntu, MongoDB 4.4, Node.js 20, nginx (plus `libnginx-mod-http-brotli-filter` and
+1. Install Ubuntu, MongoDB 4.4, Node.js 26 (NodeSource `node_26.x`), nginx (plus `libnginx-mod-http-brotli-filter` and
    `libnginx-mod-http-brotli-static`), and PM2 (`sudo npm i -g pm2`).
 2. Create the database user with the password from the saved `itrs-env-<stamp>` (`MONGO_URI`):
    ```
