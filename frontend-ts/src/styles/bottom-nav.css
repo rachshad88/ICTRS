@@ -782,7 +782,7 @@
   flex: 0 1 auto;
   display: flex;
   align-items: stretch;
-  gap: 2px;
+  gap: 6px;
   height: 100%;
 }
 
@@ -814,6 +814,10 @@
   background: rgba(12, 31, 74, 0.05);
 }
 
+.top-nav.docking .top-nav-item[data-dock]:hover {
+  background: none;
+}
+
 .top-nav-item.lensed,
 .top-nav-item.lensed:hover {
   color: var(--ink);
@@ -831,38 +835,75 @@
   place-items: center;
   width: 24px;
   height: 24px;
+  /* The Mac dock (TopNav useDock) sets this icon's scale. It grows from its centre, so it stays in
+     the middle of the glass lens. (scale, not transform: JellyIcon's press squash owns the transform.) */
 }
 
-/* One lens for the whole bar, sized and placed by TopNav (not inset: 0 like the phone's) */
-.top-nav-lens {
-  inset: auto;
+/* Tabs are icons only, as in the Mac dock: round, and named by their tip */
+.top-nav-tabs .top-nav-item {
+  width: 52px;
+  padding: 0;
+  justify-content: center;
+}
+
+/* The name under a hovered icon, as the Mac dock shows an app's name over it */
+.top-nav-tip {
+  position: absolute;
+  top: calc(100% + 16px);
+  left: 50%;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(12, 31, 74, 0.9);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px -8px rgba(12, 31, 74, 0.6);
+  opacity: 0;
+  translate: -50% -4px;
+  pointer-events: none;
+  transition: opacity 120ms ease, translate 160ms var(--ease-spring);
+}
+
+.top-nav-item:hover .top-nav-tip,
+.top-nav-item:focus-visible .top-nav-tip {
+  opacity: 1;
+  translate: -50% 0;
+}
+
+/* Out of the way of an open bubble or the notifications */
+.top-nav.menu-open .top-nav-tip {
+  opacity: 0;
+}
+
+/* One lens for the whole bar, sized and placed by TopNav on its track (not inset: 0 like the
+   phone's); the glass fills the track */
+.top-nav-lens-track {
+  position: absolute;
   top: 0;
   left: 0;
   will-change: transform;
 }
 
-.top-nav-item.lensed .bottom-nav-glyph {
+/* The current page stays blue while the lens is off visiting the item under the mouse */
+.top-nav-item.lensed .bottom-nav-glyph,
+.top-nav-item.current .bottom-nav-glyph {
   color: var(--cobalt);
 }
 
-.top-nav-label,
-.top-nav-caret {
+/* Logout keeps its red under the lens */
+.top-nav-logout.lensed,
+.top-nav-logout.lensed:hover {
+  color: var(--danger-red);
+}
+
+.top-nav-logout.lensed .bottom-nav-glyph {
+  color: inherit;
+}
+
+.top-nav-label {
   position: relative;
-}
-
-.top-nav-caret {
-  margin-left: -3px;
-  opacity: 0.55;
-  transition: transform 420ms var(--ease-spring), opacity 220ms ease;
-}
-
-.top-nav-item:hover .top-nav-caret,
-.top-nav-caret.open {
-  opacity: 0.9;
-}
-
-.top-nav-caret.open {
-  transform: rotate(180deg);
 }
 
 .top-nav .bottom-nav-badge {
@@ -956,28 +997,7 @@
   }
 }
 
-/* Narrower screens: the brand and name go first, then (with many tabs) the tab labels */
-@media (max-width: 1439px) {
-  .top-nav.crowded .top-nav-brand-text,
-  .top-nav.crowded .top-nav-name {
-    display: none;
-  }
-
-  .top-nav.crowded .top-nav-profile {
-    padding: 0 7px;
-  }
-}
-
-@media (max-width: 1199px) {
-  .top-nav.crowded .top-nav-tabs .top-nav-label {
-    display: none;
-  }
-
-  .top-nav.crowded .top-nav-tabs .top-nav-item {
-    padding: 0 15px;
-  }
-}
-
+/* Narrower screens: the brand and name give way */
 @media (max-width: 1099px) {
   .top-nav-brand-text,
   .top-nav-name {
@@ -986,16 +1006,6 @@
 
   .top-nav-profile {
     padding: 0 7px;
-  }
-}
-
-@media (max-width: 899px) {
-  .top-nav-tabs .top-nav-label {
-    display: none;
-  }
-
-  .top-nav-tabs .top-nav-item {
-    padding: 0 15px;
   }
 }
 
