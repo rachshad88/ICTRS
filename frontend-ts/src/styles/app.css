@@ -2155,6 +2155,178 @@
   background: var(--card);
 }
 
+/* A file that can be previewed: its card opens the preview (FilePreview) */
+.app-main .file-card-open {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin: -4px;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-main .file-card-open:hover .file-card-name {
+  color: var(--cobalt);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-main .file-card-open:focus-visible {
+  outline: 2px solid var(--cobalt);
+  outline-offset: 1px;
+}
+
+.app-main .file-card-hint {
+  color: var(--cobalt);
+  font-weight: 600;
+}
+
+/* "Click" with a mouse, "Tap" on touch screens, as the drop zone says */
+.app-main .file-card-hint-touch {
+  display: none;
+}
+
+@media (hover: none) {
+  .app-main .file-card-hint-pointer {
+    display: none;
+  }
+
+  .app-main .file-card-hint-touch {
+    display: inline;
+  }
+}
+
+/* A picked image in place of its type tile */
+.app-main .file-card-thumb {
+  display: block;
+  object-fit: cover;
+  background: var(--paper-2);
+}
+
+/* The preview dialog: wider than the app's others, the file filling the space between its title and
+   its buttons, scrolling within when it is taller (pages of a PDF or Word file) */
+.app-main .file-preview-dialog {
+  display: flex;
+  flex-direction: column;
+  max-width: 880px;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.app-main .file-preview-dialog .modal-header {
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.app-main .file-preview-heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.app-main .file-preview-heading h3 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 17px;
+}
+
+.app-main .file-preview-size {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.app-main .file-preview-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-height: 200px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--paper-2);
+}
+
+.app-main .file-preview-dialog .modal-actions {
+  margin-top: 16px;
+}
+
+.app-main .file-preview-media {
+  display: block;
+  max-width: 100%;
+  max-height: calc(100dvh - 260px);
+  object-fit: contain;
+}
+
+.app-main video.file-preview-media {
+  width: 100%;
+  background: #000;
+}
+
+/* Pages of documents: sheets of paper on the grey */
+.app-main .file-preview-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.app-main .file-preview-page,
+.app-main .file-preview-docx section.docx {
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(12, 31, 74, 0.12), 0 6px 16px -8px rgba(12, 31, 74, 0.35);
+}
+
+.app-main canvas.file-preview-page {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* A Word file is laid out full size, then shrunk (FilePreview) to the dialog's width */
+.app-main .file-preview-docx {
+  width: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.app-main .file-preview-docx-body {
+  transform-origin: 0 0;
+}
+
+.app-main .file-preview-docx section.docx {
+  margin: 0 0 16px;
+}
+
+.app-main .file-preview-state {
+  margin: auto 0;
+  max-width: 420px;
+  font-size: 13.5px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
+.app-main .file-preview-state.is-failed {
+  color: var(--ink);
+}
+
+.app-main .file-preview-pages + .file-preview-state,
+.app-main .file-preview-media + .file-preview-state {
+  margin: 0;
+}
+
 .app-main .file-card-ext {
   display: grid;
   place-items: center;

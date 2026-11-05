@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type DragEvent } from 'react';
+import { FilePreviewDialog, hasPreview, isImage, useObjectUrl } from './FilePreview';
 
 // The file field of the request forms, in place of the browser's "Choose File / No file chosen"
 // box: a drop zone that opens the file picker on a click or tap and takes files dragged onto it,
@@ -14,6 +15,16 @@ export const fileSize = (bytes: number) =>
 
 const extOf = (name: string) => (name.includes('.') ? name.split('.').pop()!.toLowerCase() : '');
 const sameFile = (a: File, b: File) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+
+const keyOf = (f: File) => `${f.name}-${f.size}-${f.lastModified}`;
+
+/** A picked image's card shows the picture itself, small, in place of its type. */
+function CardThumb({ file }: { file: File }) {
+  const url = useObjectUrl(file);
+  const [broken, setBroken] = useState(false);
+  if (!url || broken) return <span className="file-card-ext" aria-hidden="true">{extOf(file.name).slice(0, 4)}</span>;
+  return <img className="file-card-ext file-card-thumb" src={url} alt="" onError={() => setBroken(true)} />;
+}
 
 const UploadIcon = () => (
   <svg className="file-drop-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -38,6 +49,9 @@ function FileDrop({ label, files, onChange, accept, multiple = false, maxFiles =
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
+  // The file open in the preview dialog (FilePreview), by its key.
+  const [viewing, setViewing] = useState<string | null>(null);
+  const cards = useRef<HTMLUListElement>(null);
   const allowed = accept.split(',').map((e) => e.trim().replace(/^\./, '').toLowerCase());
 
   const add = (list: FileList | null) => {
@@ -72,6 +86,14 @@ function FileDrop({ label, files, onChange, accept, multiple = false, maxFiles =
     onChange(files.filter((_, k) => k !== i));
     input.current?.focus();
   };
+
+  const closePreview = () => {
+    const key = viewing;
+    setViewing(null);
+    // Back to the card it opened from.
+    cards.current?.querySelector<HTMLElement>(`[data-file="${CSS.escape(key ?? '')}"]`)?.focus();
+  };
+  const viewed = files.find((f) => keyOf(f) === viewing);
 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
@@ -112,20 +134,52 @@ function FileDrop({ label, files, onChange, accept, multiple = false, maxFiles =
         </label>
       )}
       {files.length > 0 && (
-        <ul className="file-cards" aria-label="Attached files">
-          {files.map((f, i) => (
-            <li key={`${f.name}-${f.size}-${f.lastModified}`} className="file-card">
-              <span className="file-card-ext" aria-hidden="true">{extOf(f.name).slice(0, 4) || 'FILE'}</span>
-              <span className="file-card-text">
-                <span className="file-card-name" title={f.name}>{f.name}</span>
-                <span className="file-card-size">{fileSize(f.size)}</span>
-              </span>
-              <button type="button" className="file-card-remove" onClick={() => remove(i)} aria-label={`Remove ${f.name}`}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-              </button>
-            </li>
-          ))}
+        <ul ref={cards} className="file-cards" aria-label="Attached files">
+          {files.map((f, i) => {
+            const info = (
+              <>
+                {isImage(f.name) ? <CardThumb file={f} /> : <span className="file-card-ext" aria-hidden="true">{extOf(f.name).slice(0, 4) || 'FILE'}</span>}
+                <span className="file-card-text">
+                  <span className="file-card-name" title={f.name}>{f.name}</span>
+                  <span className="file-card-size">
+                    {fileSize(f.size)}
+                    {hasPreview(f.name) && (
+                      <>
+                        <span className="file-card-hint file-card-hint-pointer"> · Click to preview</span>
+                        <span className="file-card-hint file-card-hint-touch"> · Tap to preview</span>
+                      </>
+                    )}
+                  </span>
+                </span>
+              </>
+            );
+            return (
+              <li key={keyOf(f)} className="file-card">
+                {hasPreview(f.name) ? (
+                  <button type="button" className="file-card-open" data-file={keyOf(f)} aria-haspopup="dialog" onClick={() => setViewing(keyOf(f))}>
+                    {info}
+                  </button>
+                ) : (
+                  info
+                )}
+                <button type="button" className="file-card-remove" onClick={() => remove(i)} aria-label={`Remove ${f.name}`}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+              </li>
+            );
+          })}
         </ul>
+      )}
+      {viewed && (
+        <FilePreviewDialog
+          file={viewed}
+          size={fileSize(viewed.size)}
+          onClose={closePreview}
+          onRemove={() => {
+            setViewing(null);
+            remove(files.indexOf(viewed));
+          }}
+        />
       )}
       {errors.map((e) => <p key={e} className="field-error" role="alert">{e}</p>)}
       <small>{multiple ? `${files.length} of ${maxFiles} files. ` : ''}{hint}</small>
