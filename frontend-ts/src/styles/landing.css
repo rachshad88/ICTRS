@@ -1372,6 +1372,339 @@
   color: var(--lp-ink-soft);
 }
 
+/* The client guide video, framed as the queue screen in the hall: a cobalt-to-navy bezel (the
+   dispenser's colours) with a strip that names the part now showing, and the chapter list beside
+   it on a paper card. */
+.lp-watch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  margin-top: 64px;
+}
+
+.lp-screen {
+  padding: 10px;
+  border-radius: 26px;
+  background: var(--lp-navy);
+  background: linear-gradient(180deg, var(--lp-cobalt) 0%, var(--lp-navy) 100%);
+  box-shadow: 0 50px 80px -46px rgba(11, 58, 140, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.lp-screen-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px 8px 12px;
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #dfe7f7;
+}
+
+.lp-screen-bar img {
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+.lp-screen-name {
+  flex: none;
+  white-space: nowrap;
+}
+
+.lp-screen-now {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--lp-yellow);
+}
+
+.lp-screen-now i {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+}
+
+.lp-screen-now.is-on i {
+  opacity: 1;
+  animation: lpOnAir 1.6s ease-in-out infinite;
+}
+
+@keyframes lpOnAir {
+  50% { opacity: 0.25; }
+}
+
+.lp-screen-glass {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #0c1f4a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.lp-screen-glass video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #0c1f4a;
+}
+
+.lp-screen-glass video:focus-visible {
+  outline: 3px solid var(--lp-yellow);
+  outline-offset: -3px;
+}
+
+/* The cover over the poster: one big yellow button, a ring breathing around it. */
+.lp-screen-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0;
+  border: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(12, 31, 74, 0.1) 0%, rgba(12, 31, 74, 0.38) 100%);
+  color: #f4f7fc;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lp-screen-play.is-ended {
+  background: rgba(12, 31, 74, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+.lp-screen-play-disc {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: var(--lp-yellow);
+  color: var(--lp-ink);
+  box-shadow: 0 22px 40px -14px rgba(0, 0, 0, 0.55);
+  transition: transform 0.3s var(--ease-out);
+}
+
+.lp-screen-play-disc svg {
+  margin-left: 4px;
+}
+
+.lp-screen-play.is-ended .lp-screen-play-disc svg {
+  margin-left: 0;
+}
+
+.lp-screen-play-disc::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border: 2px solid rgba(255, 217, 26, 0.55);
+  border-radius: 50%;
+  animation: lpRing 2.4s var(--ease-out) infinite;
+}
+
+@keyframes lpRing {
+  0% { transform: scale(0.82); opacity: 1; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+
+.lp-screen-play:active .lp-screen-play-disc {
+  transform: scale(0.95);
+}
+
+.lp-screen-play:focus-visible {
+  outline: none;
+}
+
+.lp-screen-play:focus-visible .lp-screen-play-disc {
+  outline: 3px solid #f4f7fc;
+  outline-offset: 6px;
+}
+
+.lp-screen-play-label {
+  font-family: var(--lp-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* The chapters: paper card, one row per part; the playing one turns seal yellow and its bar fills. */
+.lp-chapters {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 18px 10px 10px;
+  border: 1px solid rgba(12, 31, 74, 0.08);
+  border-radius: 22px;
+  background: var(--lp-card);
+  box-shadow: 0 30px 50px -38px rgba(12, 31, 74, 0.5);
+}
+
+.lp-chapters-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px 10px;
+  font-family: var(--lp-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+}
+
+.lp-chapters-head b {
+  font-family: var(--lp-display);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-transform: none;
+  color: var(--lp-ink);
+}
+
+.lp-chapters ol {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lp-chapters li {
+  display: flex;
+  flex: 1;
+  min-height: 44px;
+}
+
+.lp-chapter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 8px 12px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--lp-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lp-chapter:focus-visible {
+  outline: 3px solid var(--lp-cobalt);
+  outline-offset: -3px;
+}
+
+.lp-chapter-time {
+  flex: none;
+  min-width: 4ch;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--lp-cobalt);
+}
+
+.lp-chapter-title {
+  font-family: var(--lp-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.lp-chapter-bar {
+  position: absolute;
+  right: 12px;
+  bottom: 5px;
+  left: 12px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: rgba(12, 31, 74, 0.07);
+}
+
+.lp-chapter-bar i {
+  display: block;
+  height: 100%;
+  background: var(--lp-cobalt);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+.lp-chapter.is-past .lp-chapter-bar i {
+  background: rgba(20, 82, 201, 0.35);
+}
+
+.lp-chapter.is-on {
+  background: var(--lp-yellow);
+}
+
+.lp-chapter.is-on .lp-chapter-time {
+  color: var(--lp-ink);
+}
+
+.lp-chapter.is-on .lp-chapter-bar {
+  background: rgba(12, 31, 74, 0.14);
+}
+
+.lp-chapter.is-on .lp-chapter-bar i {
+  background: var(--lp-ink);
+}
+
+@media (hover: hover) {
+  .lp-screen-play:hover .lp-screen-play-disc {
+    transform: scale(1.07);
+  }
+
+  .lp-chapter:not(.is-on):hover {
+    background: var(--lp-paper-2);
+  }
+}
+
+/* Between the video and the stubs: a ruled label, like a divider in a printed guide. */
+.lp-how-or {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 96px;
+  font-family: var(--lp-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--lp-ink-soft);
+}
+
+.lp-how-or::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(12, 31, 74, 0.16);
+}
+
+.lp-how-or + .lp-roll {
+  margin-top: 40px;
+}
+
 .lp-roll {
   display: grid;
   grid-template-columns: 150px 1fr;
@@ -1684,6 +2017,63 @@
 
 /* Up to 1100px the roll hangs down instead: dispenser on top, stubs below it */
 @media (max-width: 1100px) {
+  .lp-watch {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    margin-top: 40px;
+  }
+
+  .lp-chapters {
+    padding: 14px 0 12px;
+  }
+
+  .lp-chapters-head {
+    padding: 0 18px 10px;
+  }
+
+  .lp-chapters ol {
+    flex-direction: row;
+    gap: 8px;
+    padding: 0 12px 2px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scroll-padding: 0 12px;
+    scrollbar-width: none;
+  }
+
+  .lp-chapters ol::-webkit-scrollbar {
+    display: none;
+  }
+
+  .lp-chapters li {
+    flex: none;
+    scroll-snap-align: start;
+  }
+
+  .lp-chapter {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    min-width: 136px;
+    padding: 10px 14px 14px;
+    box-shadow: inset 0 0 0 1px rgba(12, 31, 74, 0.1);
+  }
+
+  .lp-chapter.is-on {
+    box-shadow: none;
+  }
+
+  .lp-chapter-title {
+    font-size: 15px;
+    white-space: nowrap;
+  }
+
+  .lp-how-or {
+    margin-top: 72px;
+  }
+
   .lp-how-head {
     flex-direction: column;
     align-items: flex-start;
@@ -1916,7 +2306,9 @@
   .lp-notes li.is-active .lp-marker,
   .lp-notes li.is-active::after,
   .lp-live i,
-  .lp-caret {
+  .lp-caret,
+  .lp-screen-now.is-on i,
+  .lp-screen-play-disc::after {
     animation: none;
   }
 }
@@ -2085,6 +2477,51 @@
 
   .lp-how {
     padding: 90px 16px;
+  }
+
+  .lp-screen {
+    padding: 6px;
+    border-radius: 18px;
+  }
+
+  .lp-screen-bar {
+    padding: 4px 6px 8px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+  }
+
+  .lp-screen-bar img {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Once it plays, the part now showing needs the room more than the name. */
+  .lp-screen-bar.is-started .lp-screen-name {
+    display: none;
+  }
+
+  .lp-screen-glass {
+    border-radius: 12px;
+  }
+
+  .lp-screen-play-disc {
+    width: 68px;
+    height: 68px;
+  }
+
+  .lp-screen-play-disc svg {
+    width: 26px;
+    height: 26px;
+  }
+
+  .lp-screen-play-label {
+    font-size: 15px;
+  }
+
+  .lp-how-or {
+    margin-top: 56px;
+    font-size: 11px;
+    letter-spacing: 0.12em;
   }
 
   .lp-guide-link {

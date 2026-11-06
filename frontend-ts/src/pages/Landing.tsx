@@ -3,6 +3,9 @@ import { TransitionLink } from '../components/PageCurtain';
 import { AnimatePresence, MotionConfig, motion, useInView, useReducedMotion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { EASE_OUT } from '../lib/motion';
+import guideWebm from '../assets/itrs-client-guide.webm';
+import guideMp4 from '../assets/itrs-client-guide.mp4';
+import guidePoster from '../assets/itrs-client-guide-poster.jpg';
 
 // Public front page at "/". The idea: ITRS turns scattered requests (calls, notes, chats) into one
 // ticket with a code, a status and a record. Sign-in lives at /login.
@@ -69,6 +72,22 @@ const STEPS = [
   { verb: 'Submit', body: 'Set the priority, attach files if they help, and submit. Keep the request code you get.' },
   { verb: 'Track', body: 'Watch the status on your History page. Add notes, cancel while pending, rate when done.' },
 ];
+
+// The client guide video (58.5 s, music only: everything it says is on screen). Each chapter starts
+// where the video's yellow wipe brings in its title card.
+const GUIDE_LENGTH = 58.5;
+const GUIDE_CHAPTERS = [
+  { at: 0, title: 'Welcome' },
+  { at: 6, title: 'The big picture' },
+  { at: 13.5, title: 'Sign in' },
+  { at: 21, title: 'Pick a request type' },
+  { at: 28.5, title: 'Fill in the form' },
+  { at: 37, title: 'Track it on History' },
+  { at: 45, title: 'Rate the service' },
+  { at: 51, title: 'You’re ready' },
+];
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 function Icon({ d, size = 20, className }: { d: string; size?: number; className?: string }) {
   return (
@@ -267,6 +286,168 @@ function WhyStatic() {
 }
 
 /* ---------- Page ---------- */
+
+/* ---------- How to use it: the guide on the hall's screen ---------- */
+
+const PLAY = 'M8 5.5v13l11-6.5z';
+const REPLAY = 'M3 12a9 9 0 1 0 3-6.7 M3 4v5h5';
+
+// The client guide, shown like the queue screen at the Municipal Hall. It loads only when played
+// (the poster stands in until then). The chapter list beside it jumps to a part and fills in as it
+// plays; on narrow screens it becomes a strip under the video that keeps the current part in view.
+function GuideVideo() {
+  const reduce = useReducedMotion();
+  const video = useRef<HTMLVideoElement>(null);
+  const rail = useRef<HTMLOListElement>(null);
+  const focusPlayer = useRef(false);
+  const [started, setStarted] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [ended, setEnded] = useState(false);
+  const [time, setTime] = useState(0);
+  const [length, setLength] = useState(GUIDE_LENGTH);
+
+  // Follow the playhead every frame while it plays; the chapter bars fill smoothly from it.
+  useEffect(() => {
+    if (!playing) return;
+    let id = 0;
+    const tick = () => {
+      if (video.current) setTime(video.current.currentTime);
+      id = requestAnimationFrame(tick);
+    };
+    id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(id);
+  }, [playing]);
+
+  let active = 0;
+  GUIDE_CHAPTERS.forEach((c, i) => { if (time + 0.05 >= c.at) active = i; });
+
+  // The strip (narrow screens) scrolls itself, sideways only, to keep the current chapter in view.
+  useEffect(() => {
+    const r = rail.current;
+    if (!r || !started || r.scrollWidth <= r.clientWidth + 1) return;
+    const li = r.children[active] as HTMLElement | undefined;
+    if (!li) return;
+    r.scrollTo({ left: li.offsetLeft - (r.clientWidth - li.offsetWidth) / 2, behavior: reduce ? 'auto' : 'smooth' });
+  }, [active, started, reduce]);
+
+  const play = (at?: number, fromCover = false) => {
+    const v = video.current;
+    if (!v) return;
+    if (at !== undefined) {
+      v.currentTime = at;
+      setTime(at);
+    }
+    // The cover button goes away; keep the keyboard on the player instead of dropping to the page.
+    if (fromCover) focusPlayer.current = true;
+    setStarted(true);
+    setEnded(false);
+    v.play().catch(() => setPlaying(false));
+  };
+
+  // The player can take focus only once its controls are on, a render after the cover is pressed.
+  useEffect(() => {
+    if (started && !ended && focusPlayer.current) {
+      focusPlayer.current = false;
+      video.current?.focus();
+    }
+  }, [started, ended]);
+
+  const cover = !started || ended;
+  const now = GUIDE_CHAPTERS[active];
+
+  return (
+    <motion.div
+      className="lp-watch"
+      initial={reduce ? false : { opacity: 0, y: 48 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.25 }}
+      transition={{ type: 'spring', stiffness: 90, damping: 18 }}
+    >
+      <div className="lp-screen">
+        <div className={`lp-screen-bar${started ? ' is-started' : ''}`}>
+          <img src="/solano-logo.png" alt="" />
+          <span className="lp-screen-name">Client guide</span>
+          <span className={`lp-screen-now${playing ? ' is-on' : ''}`} aria-hidden="true">
+            {started ? <><i />Now showing · {now.title}</> : <>{clock(length)} · with music</>}
+          </span>
+        </div>
+        <div className="lp-screen-glass">
+          <video
+            ref={video}
+            poster={guidePoster}
+            preload="none"
+            playsInline
+            controls={started}
+            aria-label="ITRS client guide video, about one minute"
+            onPlay={() => { setPlaying(true); setEnded(false); setStarted(true); }}
+            onPause={() => setPlaying(false)}
+            onEnded={() => { setPlaying(false); setEnded(true); }}
+            onSeeked={(e) => setTime(e.currentTarget.currentTime)}
+            onTimeUpdate={(e) => { if (!playing) setTime(e.currentTarget.currentTime); }}
+            onLoadedMetadata={(e) => { if (Number.isFinite(e.currentTarget.duration)) setLength(e.currentTarget.duration); }}
+          >
+            {/* WebM (VP9) is about a quarter smaller; browsers that can't play it, such as older
+                iPhones, take the MP4. */}
+            <source src={guideWebm} type='video/webm; codecs="vp9, opus"' />
+            <source src={guideMp4} type="video/mp4" />
+          </video>
+          <AnimatePresence>
+            {cover && (
+              <motion.button
+                type="button"
+                className={`lp-screen-play${ended ? ' is-ended' : ''}`}
+                onClick={() => play(ended ? 0 : undefined, true)}
+                aria-label={ended ? 'Watch the client guide again' : `Play the client guide video, ${clock(length)}`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <span className="lp-screen-play-disc">
+                  {ended ? (
+                    <Icon d={REPLAY} size={30} />
+                  ) : (
+                    <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d={PLAY} fill="currentColor" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" /></svg>
+                  )}
+                </span>
+                {ended && <span className="lp-screen-play-label">Watch again</span>}
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <nav className="lp-chapters" aria-label="Video chapters">
+        <div className="lp-chapters-head">
+          <b>Chapters</b>
+          <span>{GUIDE_CHAPTERS.length} parts · {clock(length)}</span>
+        </div>
+        <ol ref={rail}>
+          {GUIDE_CHAPTERS.map((c, i) => {
+            const end = GUIDE_CHAPTERS[i + 1]?.at ?? length;
+            const done = started ? Math.min(1, Math.max(0, (time - c.at) / (end - c.at))) : 0;
+            const on = started && i === active;
+            return (
+              <li key={c.at}>
+                <button
+                  type="button"
+                  className={`lp-chapter${on ? ' is-on' : ''}${started && i < active ? ' is-past' : ''}`}
+                  aria-current={on ? 'true' : undefined}
+                  aria-label={`${c.title}, at ${clock(c.at)}`}
+                  onClick={() => play(c.at)}
+                >
+                  <span className="lp-chapter-time">{clock(c.at)}</span>
+                  <span className="lp-chapter-title">{c.title}</span>
+                  <span className="lp-chapter-bar" aria-hidden="true"><i style={{ transform: `scaleX(${done})` }} /></span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </nav>
+    </motion.div>
+  );
+}
 
 /* ---------- How to use it: the queue roll ---------- */
 
@@ -964,15 +1145,17 @@ function Landing() {
         {/* ----- Benefits: the ticket, working ----- */}
         <BenefitsSection />
 
-        {/* ----- How: queue stubs from a take-a-number dispenser ----- */}
+        {/* ----- How: the guide video on the hall's screen, then queue stubs from a take-a-number dispenser ----- */}
         <section id="how" className="lp-how">
           <div className="lp-how-head">
             <h2 className="lp-display-md">How to use it</h2>
             <p>
-              Like taking a number at the Municipal Hall, except you do it from your own desk. Four steps, and the office
-              takes it from there.
+              Like taking a number at the Municipal Hall, except you do it from your own desk. Watch the one-minute guide,
+              or read the steps below.
             </p>
           </div>
+          <GuideVideo />
+          <p className="lp-how-or"><span>Prefer to read? The steps, one by one</span></p>
           <QueueRoll />
           <TransitionLink to="/guide" className="lp-guide-link">Read the client guide<Icon d={ARROW} size={18} /></TransitionLink>
         </section>
