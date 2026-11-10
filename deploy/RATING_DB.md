@@ -78,11 +78,14 @@ ITRS never reads or writes here. The CSF decides its shape, for example
    `Rating sync: copied N completed request(s)`.
 3. **Let the CSF reach MongoDB**, once you know where it runs:
    - Same server as ITRS: nothing to do; it connects to `127.0.0.1:27017`.
-   - Another machine, e.g. `192.168.110.19`:
+   - Another machine: add its address to `ALLOWED` in `deploy/itrs-mongo-firewall.sh` and install it:
      ```
-     sudo ufw allow from 192.168.110.19 to any port 27017 proto tcp comment 'ITRS rating system'
+     sudo cp deploy/itrs-mongo-firewall.sh /usr/local/sbin/ && sudo systemctl restart itrs-mongo-firewall
+     sudo iptables -S ITRS-MONGO    # the address should be listed before the final DROP
      ```
-     Like the admin access in `deploy/README.md`, the connection is not encrypted, so keep it on the office LAN.
+     MongoDB runs in Docker, which publishes the port past ufw, so a `ufw allow` rule has no effect on it
+     (see "Remote admin access to MongoDB" in `deploy/README.md`). Allowed now: `192.168.110.19` (rating
+     system) and `192.168.3.16` (CSF developer). The connection is not encrypted, so keep it on the office LAN.
 4. **Point the Rate button at the CSF** if it is not `http://192.168.110.19/`: set
    `VITE_RATING_SYSTEM_URL=http://<host>/<path>` in `frontend-ts/.env` and redeploy the frontend.
 

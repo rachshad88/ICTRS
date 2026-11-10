@@ -210,8 +210,8 @@ the developer guide: [`RATING_DB.md`](RATING_DB.md).
 ## Remote admin access to MongoDB
 `mongod` runs in Docker with port 27017 published on all addresses. **ufw does not control this port:** Docker
 publishes it through its own iptables chains, which are evaluated before ufw's rules. The restriction lives in
-the `DOCKER-USER` chain instead: only the rating system (`192.168.110.19`) and the admin workstation
-(`192.168.110.41`) may open connections to it. It is applied at boot by `itrs-mongo-firewall.service`:
+the `DOCKER-USER` chain instead: only the rating system (`192.168.110.19`), the CSF developer
+(`192.168.3.16`) and the admin workstation (`192.168.110.41`) may open connections to it. It is applied at boot by `itrs-mongo-firewall.service`:
 
 ```
 sudo cp deploy/itrs-mongo-firewall.sh /usr/local/sbin/ && sudo chmod 755 /usr/local/sbin/itrs-mongo-firewall.sh
@@ -239,10 +239,8 @@ Notes:
 - Only `readWrite` on `itrs` is granted to `itrs_app`, so it cannot read server config (`serverStatus`,
   `hostInfo`, `getCmdLineOpts`) or touch any other database.
 
-To revoke access:
-```
-sudo ufw delete allow from 192.168.110.41 to any port 27017 proto tcp
-```
+To revoke access, remove the address from `ALLOWED` in the script, copy it to `/usr/local/sbin/` again and
+`sudo systemctl restart itrs-mongo-firewall`. (A `ufw` rule for port 27017 has no effect either way.)
 
 The firewall state as it was before this rule was added is saved in
 `~/backups/itrs/firewall-state-<date>/` (`ufw-status-numbered.txt`, `iptables-save.txt`, `mongod.conf`).
