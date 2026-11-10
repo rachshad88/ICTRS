@@ -253,7 +253,7 @@ export function HistoryTable({ config }: { config: HistoryTableConfig }) {
             })}
           </div>
 
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} scrollToTop />
         </>
       )}
 

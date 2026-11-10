@@ -269,7 +269,7 @@ function Requested() {
           </>
         )}
 
-        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} scrollToTop />
 
         {selectedRequest && (
           <div className="modal" role="dialog" aria-modal="true">

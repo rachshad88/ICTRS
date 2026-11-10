@@ -6,9 +6,13 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   /** Names this set of pages for screen readers, where a page has more than one. */
   label?: string;
+  /** On phones, return to the top of the page when the page number changes. */
+  scrollToTop?: boolean;
 }
 
-export default function Pagination({ currentPage, totalPages, onPageChange, label }: PaginationProps) {
+const MOBILE_QUERY = '(max-width: 768px)';
+
+export default function Pagination({ currentPage, totalPages, onPageChange, label, scrollToTop }: PaginationProps) {
   const [jump, setJump] = useState(String(currentPage));
 
   useEffect(() => {
@@ -17,11 +21,16 @@ export default function Pagination({ currentPage, totalPages, onPageChange, labe
 
   if (totalPages <= 1) return null;
 
+  const changeTo = (page: number) => {
+    onPageChange(page);
+    if (scrollToTop && page !== currentPage && window.matchMedia(MOBILE_QUERY).matches) window.scrollTo(0, 0);
+  };
+
   const applyJump = () => {
     const parsed = parseInt(jump, 10);
     if (!isNaN(parsed)) {
       const page = Math.min(Math.max(parsed, 1), totalPages);
-      onPageChange(page);
+      changeTo(page);
       setJump(String(page));
     } else {
       setJump(String(currentPage));
@@ -29,7 +38,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange, labe
   };
 
   const goTo = (page: number) => {
-    onPageChange(page);
+    changeTo(page);
     setJump(String(page));
   };
 
