@@ -19,6 +19,7 @@ import NotificationPanel, { BellIcon } from './components/NotificationPanel';
 import { useNotification } from './contexts/NotificationContext';
 import Landing from './pages/Landing';
 import { PUBLIC_PAGES, PRIVATE_PAGES, PAGE_TITLES, canOpen, homeFor, preloadInOrder } from './routes';
+import { useSheetDismiss } from './lib/dialogSheet';
 
 function ProtectedRoute({ children, allowedRoles, isMobile }: { children: React.ReactNode; allowedRoles?: string[]; isMobile: boolean }) {
   const { user, loading } = useAuth();
@@ -109,9 +110,11 @@ function useModalEscape() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || e.defaultPrevented) return;
-      const modals = document.querySelectorAll<HTMLElement>('.modal');
+      // A dialog still animating out is marked data-genie-ghost and can't be closed again.
+      const open = '.modal:not([data-genie-ghost])';
+      const modals = document.querySelectorAll<HTMLElement>(open);
       if (modals.length === 0) return;
-      const top = document.querySelector<HTMLElement>('.modal.confirm-modal') ?? modals[modals.length - 1];
+      const top = document.querySelector<HTMLElement>(`${open}.confirm-modal`) ?? modals[modals.length - 1];
       const dismiss = top.querySelector<HTMLButtonElement>('[data-modal-dismiss]:not(:disabled)');
       if (!dismiss) return;
       e.preventDefault();
@@ -127,6 +130,7 @@ const MOBILE_QUERY = '(max-width: 768px)';
 function AppRoutes() {
   useDocumentTitle();
   useModalEscape();
+  useSheetDismiss();
   const [isMobile, setIsMobile] = useState(() => window.matchMedia(MOBILE_QUERY).matches);
 
   useEffect(() => {
