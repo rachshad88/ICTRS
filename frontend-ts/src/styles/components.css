@@ -928,6 +928,16 @@
   flex: 1;
 }
 
+/* The media requests' details end in a lone Close, outside a .modal-actions row. On phones it
+   fills the width and keeps the row's spacing, like the Close on an IT request's details. */
+@media (max-width: 768px) {
+  .modal-content > .btn-secondary[data-modal-dismiss] {
+    display: block;
+    width: 100%;
+    margin-top: 24px;
+  }
+}
+
 .modal-body {
   padding: 16px 0;
   font-size: 13px;
