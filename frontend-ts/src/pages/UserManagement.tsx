@@ -37,6 +37,8 @@ const NO_USERS: User[] = [];
 
 function UserManagement() {
   const [currentPage, setCurrentPage] = useState(1);
+  // The sign-ups waiting for approval page separately, so a long queue doesn't push the list down.
+  const [pendingPage, setPendingPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [officeFilter, setOfficeFilter] = useState('');
   useEffect(() => { setCurrentPage(1); }, [searchTerm, officeFilter]);
@@ -255,7 +257,17 @@ function UserManagement() {
 
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.ceil(shownUsers.length / ITEMS_PER_PAGE);
-  const paginatedUsers = shownUsers.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  // Held to the last page there is: approving or rejecting the only one on the last page shortens the list.
+  const page = Math.min(currentPage, Math.max(1, totalPages));
+  const paginatedUsers = shownUsers.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+  const pendingPages = Math.ceil(pending.length / ITEMS_PER_PAGE);
+  const pendingOn = Math.min(pendingPage, Math.max(1, pendingPages));
+  const pendingShown = pending.slice((pendingOn - 1) * ITEMS_PER_PAGE, pendingOn * ITEMS_PER_PAGE);
+  // Keep the stored pages in step, so the list doesn't jump to a later page when it grows again.
+  useEffect(() => {
+    if (pendingPage !== pendingOn) setPendingPage(pendingOn);
+    if (currentPage !== page) setCurrentPage(page);
+  }, [pendingPage, pendingOn, currentPage, page]);
 
   // In pairs, staff role then its admin, so the grid reads across: IT, multimedia, then the rest.
   const ROLES = [
@@ -326,7 +338,7 @@ function UserManagement() {
           <h3 id="approval-queue-title">Waiting for approval ({pending.length})</h3>
           <p className="approval-queue-hint">These people signed up themselves. They can't sign in until you approve them. Reject anything that looks fake.</p>
           <ul>
-            {pending.map((u) => (
+            {pendingShown.map((u) => (
               <li key={u._id} className="approval-item">
                 <div className="approval-who">
                   <strong>{u.first_name} {u.middle_name} {u.last_name}</strong>
@@ -340,6 +352,7 @@ function UserManagement() {
               </li>
             ))}
           </ul>
+          <Pagination currentPage={pendingOn} totalPages={pendingPages} onPageChange={setPendingPage} label="Pages of sign-ups waiting for approval" />
         </section>
       )}
 
@@ -438,7 +451,7 @@ function UserManagement() {
         </>
       )}
 
-      <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+      <Pagination currentPage={page} totalPages={totalPages} onPageChange={setCurrentPage} label="Pages of users" />
 
       {showModal && (
         <div className="modal">
