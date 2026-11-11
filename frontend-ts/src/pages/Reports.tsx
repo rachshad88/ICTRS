@@ -33,37 +33,6 @@ interface TabConfig {
   label: string;
 }
 
-interface PrintableColumn {
-  key: string;
-  label: string;
-  render?: (val: unknown) => string;
-}
-
-interface PrintableRow {
-  type: string;
-  request_code: string;
-  office?: string;
-  client_name?: string;
-  technician_name?: string;
-  status?: string;
-  created_at?: string;
-  summary?: string;
-  event_date?: string;
-  event_start_time?: string;
-  event_end_time?: string;
-  specific_location?: string;
-  form_of_digital_media?: string;
-  event_ppa_name?: string;
-  target_date?: string;
-  requestor_name?: string;
-  form_of_printed_media?: string;
-  size_of_printed_media?: string;
-  unit?: string;
-  issue?: string;
-  finished?: string;
-  completed_at?: string;
-}
-
 const ALL_TABS: TabConfig[] = [
   { key: 'it', label: 'IT Requests' },
   { key: 'multimedia', label: 'Event Documentation' },
@@ -94,48 +63,6 @@ const REPORT_TYPE_LABELS: Record<TabKey, string> = {
   'print-materials': 'Print Materials',
 };
 
-const PRINT_TYPE_COLUMNS: Record<TabKey, PrintableColumn[]> = {
-  it: [
-    { key: 'request_code', label: 'Code' },
-    { key: 'office', label: 'Office' },
-    { key: 'unit', label: 'Unit' },
-    { key: 'issue', label: 'Issue', render: truncateCell },
-    { key: 'client_name', label: 'Client' },
-    { key: 'technician_name', label: 'Technician' },
-    { key: 'status', label: 'Status' },
-    { key: 'completed_at', label: 'Finished', render: fmtDateTime },
-  ],
-  multimedia: [
-    { key: 'request_code', label: 'Code' },
-    { key: 'event_date', label: 'Event Date', render: fmt },
-    { key: 'event_start_time', label: 'Start Time' },
-    { key: 'event_end_time', label: 'End Time' },
-    { key: 'specific_location', label: 'Specific Location' },
-    { key: 'client_name', label: 'Client' },
-    { key: 'status', label: 'Status' },
-    { key: 'completed_at', label: 'Completed', render: fmtDateTime },
-  ],
-  'digital-media': [
-    { key: 'request_code', label: 'Code' },
-    { key: 'form_of_digital_media', label: 'Form of Media' },
-    { key: 'event_ppa_name', label: 'Event/PPA' },
-    { key: 'target_date', label: 'Target Date', render: fmt },
-    { key: 'requestor_name', label: 'Requestor' },
-    { key: 'status', label: 'Status' },
-    { key: 'completed_at', label: 'Completed', render: fmtDateTime },
-  ],
-  'print-materials': [
-    { key: 'request_code', label: 'Code' },
-    { key: 'form_of_printed_media', label: 'Form of Media' },
-    { key: 'size_of_printed_media', label: 'Size' },
-    { key: 'event_ppa_name', label: 'Event/PPA' },
-    { key: 'target_date', label: 'Target Date', render: fmt },
-    { key: 'requestor_name', label: 'Requestor' },
-    { key: 'status', label: 'Status' },
-    { key: 'completed_at', label: 'Completed', render: fmtDateTime },
-  ],
-};
-
 function truncateCell(v: unknown): string {
   const s = fmt(v);
   return s.length > 33 ? s.slice(0, 30) + '...' : s;
@@ -146,22 +73,6 @@ function fmtDateTime(v: unknown): string {
   const d = new Date(v as string);
   if (isNaN(d.getTime())) return String(v);
   return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function escapeHtml(value: unknown): string {
-  return String(value ?? '-')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function renderPrintableCell(row: PrintableRow, col: PrintableColumn): string {
-  const raw = row[col.key as keyof PrintableRow];
-  if (col.render) return col.render(raw);
-  if (raw === undefined || raw === null || raw === '') return '-';
-  return String(raw);
 }
 
 const COLUMNS: Record<TabKey, Column[]> = {

@@ -84,22 +84,6 @@ function hasRole(req: AuthenticatedRequest, role: Role): boolean {
   return req.user?.roles?.includes(role) || false;
 }
 
-export function isTechnicianOrAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (!hasRole(req, 'TECHNICIAN') && !hasRole(req, 'ADMIN')) {
-    res.status(403).json({ error: 'Forbidden' });
-    return;
-  }
-  next();
-}
-
-export function isTechnicianOnly(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  if (!hasRole(req, 'TECHNICIAN')) {
-    res.status(403).json({ error: 'Only technicians can accept requests' });
-    return;
-  }
-  next();
-}
-
 export function isAdmin(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   if (!hasRole(req, 'ADMIN')) {
     res.status(403).json({ error: 'Forbidden' });

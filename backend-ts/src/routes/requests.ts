@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { ObjectId } from 'mongodb';
 import { Server } from 'socket.io';
 import { getRequestsCollection, getUsersCollection, generateRequestCode, logAudit, sanitizeInput, USER_NAME_FIELDS, STAFF_LIST_FIELDS } from '../config/database';
-import { AuthenticatedRequest, isAuthenticated, isTechnicianOrAdmin, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
+import { AuthenticatedRequest, isAuthenticated, isItAdmin, isItAdminOrTechnician } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { createRequestSchema, acceptRequestSchema, finishRequestSchema, cancelRequestSchema, sharedAccessSchema, declineRequestSchema, addNoteSchema, reassignRequestSchema, setPrioritySchema, reopenRequestSchema, verifyMovSchema, returnMovSchema } from '../middleware/validation';
 import { receiveMovPhotos, uploadedMovPhotos, discardMovPhotos, invalidMovPhoto, keepMovPhotos, removeKeptMovPhotos, UnreadableMovPhoto, MOV_MIN_FILES } from '../utils/movUpload';

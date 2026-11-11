@@ -4,20 +4,11 @@
   padding: clamp(20px, 2vw, 30px) clamp(16px, 2vw, 24px);
 }
 
-.app-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
 .app-main {
   padding: 24px 24px 40px;
   flex: 1;
   min-width: 0;
   background: transparent;
-}
-
-.mobile-menu-toggle {
-  display: none;
 }
 
 .page-wrap {
@@ -206,32 +197,6 @@
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--border-light);
-  }
-
-  .mobile-menu-toggle {
-    width: 40px;
-    height: 40px;
-    margin-right: 2px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-light);
-    background: var(--glass-bg);
-    color: var(--text-primary);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    cursor: pointer;
-    transition: background-color 150ms ease, var(--tr-press);
-  }
-
-  .mobile-menu-toggle:active {
-    background: var(--sidebar-hover);
-    transform: scale(0.94);
-  }
-
-  .mobile-menu-toggle:focus-visible {
-    outline: 2px solid var(--purple);
-    outline-offset: 2px;
   }
 
   .mobile-topbar-logo {

@@ -73,14 +73,6 @@ function parseLocalDay(value: string): Date {
   return new Date(`${value}T00:00:00`);
 }
 
-const GRAY: [number, number, number] = [110, 110, 110];
-
-// New / corrected constants to match the docx letterhead exactly
-const HEADER_BLUE: [number, number, number] = [13, 43, 77];
-const DIVIDER_GRAY: [number, number, number] = [150, 150, 150];
-const GRAD_TOP: [number, number, number] = [255, 255, 255];
-const GRAD_BOTTOM: [number, number, number] = [188, 224, 244];
-
 const DAR_ADDRESS = 'National Highway, Barangay Roxas, Solano, Nueva Vizcaya, 3709';
 const DAR_UNIT =
   'SYSTEM, NETWORK AND DATABASE MANAGEMENT UNIT AND EQUIPMENT OPERATIONS AND HARDWARE MAINTENANCE UNIT';
@@ -217,7 +209,6 @@ interface DarImages {
 const GDL_CLUSTER =
   'GOVERNANCE INNOVATION, DIGITAL TRANSFORMATION and LEGAL AFFAIRS (GDL) CLUSTER';
 
-const mmToDxa = (mm: number): number => Math.round((mm / 25.4) * 1440);
 const mmToPx = (mm: number): number => Math.round((mm / 25.4) * 96);
 const mmToEmu = (mm: number): number => Math.round(mm * 36000);
 

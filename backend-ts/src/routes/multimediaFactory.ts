@@ -9,7 +9,7 @@ import { assignMultimediaSchema, assignWithPrioritySchema, completeMultimediaSch
 import { normalizePriority, priorityExpr, overdueExpr, toDay, COMPLETED_STATUSES } from '../utils/priority';
 import { watchOverdue } from '../utils/overdueAlerts';
 import { formatDateTime } from '../utils/dates';
-import { generateRequestCode, logAudit, sanitizeInput, getUsersCollection, isValidObjectId, USER_NAME_FIELDS, STAFF_LIST_FIELDS } from '../config/database';
+import { generateRequestCode, logAudit, getUsersCollection, isValidObjectId, USER_NAME_FIELDS, STAFF_LIST_FIELDS } from '../config/database';
 import { getIO } from '../config/socket';
 import * as XLSX from 'xlsx';
 import { ZodIssue, ZodTypeAny } from 'zod';

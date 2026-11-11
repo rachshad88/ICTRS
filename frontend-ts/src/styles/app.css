@@ -221,7 +221,6 @@
 }
 
 /* Rating is a star, and stars are yellow on the landing page */
-.app-main .btn-rate,
 .app-main .hbtn-rate {
   background: var(--seal-yellow);
   border-color: var(--seal-yellow);
@@ -236,14 +235,12 @@
 }
 
 .app-main .hbtn,
-.app-main .btn-view,
 .app-main .hp-btn {
   border-width: 1.5px;
   font-weight: 700;
 }
 
-.app-main .hbtn-view:hover,
-.app-main .btn-view:hover {
+.app-main .hbtn-view:hover {
   background: var(--ink);
   border-color: var(--ink);
   color: #f4f7fc;
@@ -307,11 +304,6 @@
   font-weight: 700;
   font-size: 14px;
   color: var(--ink);
-}
-
-.app-main .file-selected {
-  font-family: var(--font-mono);
-  font-size: 12.5px;
 }
 
 /* The request forms are drawn as the ITRS ticket: navy head, perforation before submitting */
@@ -458,101 +450,6 @@
 }
 
 /* ----- Stats: ticket stubs ----- */
-.app-main .stats-container {
-  gap: 18px;
-}
-
-.app-main .stat-card {
-  position: relative;
-  overflow: hidden;
-  padding: 0 0 20px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: var(--card);
-  text-align: left;
-  box-shadow: var(--shadow-medium);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  transition: transform 220ms var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .app-main .stat-card:hover {
-    transform: translateY(-3px) rotate(-0.5deg);
-  }
-}
-
-.app-main .stat-label {
-  margin: 0 0 16px;
-  padding: 10px 18px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  background: var(--navy);
-  background: var(--accent-grad);
-  color: #f4f7fc;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-}
-
-.app-main .stat-number {
-  padding: 0 18px;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 54px;
-  line-height: 0.95;
-  letter-spacing: -0.04em;
-  color: var(--ink);
-}
-
-.app-main .stat-note {
-  position: relative;
-  margin: 18px 0 0;
-  padding: 12px 18px 0;
-  border-top: 2px dashed rgba(12, 31, 74, 0.18);
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--ink-soft);
-}
-
-.app-main .stat-note::before,
-.app-main .stat-note::after {
-  content: '';
-  position: absolute;
-  top: -12px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--paper);
-}
-
-.app-main .stat-note::before {
-  left: -11px;
-}
-
-.app-main .stat-note::after {
-  right: -11px;
-}
-
-.app-main .stat-card-sm {
-  border-radius: var(--radius-md);
-  background: var(--card);
-  box-shadow: var(--shadow-soft);
-}
-
-.app-main .stat-card-sm h4 {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
-}
-
-.app-main .stat-card-sm .stat-num {
-  font-family: var(--font-display);
-  font-size: 30px;
-  letter-spacing: -0.035em;
-  color: var(--ink);
-}
 
 .app-main .overview-stat {
   border-radius: var(--radius-md);
@@ -591,7 +488,6 @@
 /* ----- Tables: navy ticket heads, ledger rows ----- */
 .app-main .history-table-wrap,
 .app-main .table-container,
-.app-main .users-table-container,
 .app-main .skeleton-table {
   border: none;
   border-radius: var(--radius-md);
@@ -600,9 +496,7 @@
 }
 
 .app-main .history-table th,
-.app-main .requests-table th,
-.app-main .reports-table th,
-.app-main .users-table th {
+.app-main .requests-table th {
   border-bottom: none;
   background: var(--navy);
   color: rgba(244, 247, 252, 0.9);
@@ -613,32 +507,24 @@
 }
 
 .app-main .history-table td,
-.app-main .requests-table td,
-.app-main .reports-table td,
-.app-main .users-table td {
+.app-main .requests-table td {
   border-bottom: 1px dashed rgba(12, 31, 74, 0.14);
 }
 
 .app-main .history-table tbody tr:hover,
 .app-main .requests-table tbody tr:hover,
-.app-main .reports-table tbody tr:hover,
-.app-main .users-table tbody tr:hover,
 .app-main .overview-row:hover td {
   background: rgba(255, 217, 26, 0.14);
 }
 
 .app-main .request-code,
 .app-main .td-code,
-.app-main .code-link,
-.app-main .yt-card-code,
-.app-main .youtube-card-code {
+.app-main .code-link {
   font-family: var(--font-mono);
   letter-spacing: -0.01em;
 }
 
-.app-main .requests-table,
-.app-main .reports-table,
-.app-main .users-table {
+.app-main .requests-table {
   border-collapse: collapse;
 }
 
@@ -785,14 +671,12 @@
   background: var(--paper-2);
 }
 
-.app-main .mgmt-tab,
-.app-main .yt-tab {
+.app-main .mgmt-tab {
   border-radius: var(--radius-full);
   font-weight: 700;
 }
 
-.app-main .mgmt-tab.active,
-.app-main .yt-tab.active {
+.app-main .mgmt-tab.active {
   background: var(--ink);
   border-color: var(--ink);
   color: #f4f7fc;
@@ -996,10 +880,7 @@
 .app-main .card,
 .app-main .profile-sidebar,
 .app-main .profile-content,
-.app-main .profile-info,
-.app-main .skeleton-card,
-.app-main .yt-card,
-.app-main .youtube-card {
+.app-main .skeleton-card {
   border: none;
   border-radius: var(--radius-md);
   background: var(--card);
@@ -1007,9 +888,7 @@
 }
 
 .app-main .profile-sidebar .profile-avatar-large,
-.app-main .profile-avatar-large,
-.app-main .profile-avatar,
-.app-main .avatar-preview-large {
+.app-main .profile-avatar-large {
   background: var(--navy);
   background: var(--accent-grad);
   font-family: var(--font-display);
@@ -1057,11 +936,6 @@
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.app-main .info-row,
-.app-main .detail-row {
-  border-bottom-color: rgba(12, 31, 74, 0.12);
 }
 
 .app-main .file-item {
@@ -1169,17 +1043,6 @@
     }
   }
 
-  .mobile-menu-toggle {
-    border: none;
-    border-radius: 50%;
-    background: var(--ink);
-    color: #f4f7fc;
-  }
-
-  .mobile-menu-toggle:active {
-    background: var(--cobalt);
-  }
-
   .mobile-topbar-bell {
     border: none;
     border-radius: 50%;
@@ -1200,10 +1063,6 @@
 
   .app-main .page-header .page-subtitle {
     font-size: 21px;
-  }
-
-  .app-main .stat-number {
-    font-size: 40px;
   }
 
   .app-main .detail-section > p > strong:first-child {

@@ -208,7 +208,6 @@ function Requested() {
                 </thead>
                 <tbody>
                   {requests.map((req) => {
-                    const isAssigned = req.assigned_to !== null;
                     return (
                       <tr key={req._id}>
                         <td className="request-code" data-label="Request ID">{req.request_code}</td>

@@ -52,8 +52,6 @@ export function genieFrame(p: number, g: GenieGeometry, rows = 24): GenieFrame {
   const release = smoother(clamp01((q - 0.5) / 0.25));
   // Where the outline ends at the neck side: the neck, then the panel's resting edge plus margin.
   const near = g.neckY + (g.height + g.margin - g.neckY) * release;
-  // And the panel's own near edge: the neck, then its resting place.
-  const nearEdge = g.neckY + (g.height - g.neckY) * release;
 
   // Screen-space outline (relative to the panel's resting box).
   const lead = g.neckY + (top - g.neckY) * front;

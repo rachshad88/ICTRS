@@ -158,8 +158,6 @@ const toLocalDay = (iso: string) => {
 };
 const statusClass = (s: string) => s.toLowerCase().replace(/_/g, '-');
 const statusText = (s: string) => s.replace(/_/g, ' ');
-const formatDateTime = (d?: string | null) =>
-  d ? new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '-';
 
 // Date inputs are local calendar days; send the matching instants so the server's timezone doesn't matter.
 function dayBoundary(day: string, end: boolean) {
