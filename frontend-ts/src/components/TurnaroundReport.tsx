@@ -1,62 +1,16 @@
+import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { api } from '../services/api';
 import Skeleton from './Skeleton';
 import RequestTicket from './RequestTicket';
+import { ServiceCharts, StaffChart, TurnaroundSummary } from './TurnaroundCharts';
+import { formatDuration, lateText, sinceText, type Times, type TurnaroundData } from '../lib/turnaround';
 
 // The Turnaround view of the Reports page (pages/Reports.tsx): how fast requests are handled in the
 // chosen period, per service and per staff member. Built by GET /api/reports/turnaround
-// (backend-ts/src/routes/reports.ts), which also explains what each number counts.
-
-interface Times {
-  median: number | null;
-  average: number | null;
-  count: number;
-}
-
-interface ServiceRow {
-  key: string;
-  label: string;
-  finished: number;
-  wait: Times;
-  work: Times;
-  check: Times | null;
-  total: Times;
-  late: number;
-  with_due: number;
-  reopened: number;
-  open_now: number;
-  waiting_now: number;
-  oldest_waiting: string | null;
-}
-
-interface StaffRow {
-  id: string;
-  name: string;
-  services: string[];
-  finished: number;
-  work: Times;
-  late: number;
-  with_due: number;
-  reopened: number;
-  open_now: number;
-}
-
-interface TurnaroundData {
-  services: ServiceRow[];
-  staff: StaffRow[];
-}
-
-const HOUR = 3600000;
-
-/** A duration as people say it: "under 1 min", "45 min", "3.5 h", "2.1 days". */
-export function formatDuration(ms: number | null): string {
-  if (ms === null) return '-';
-  if (ms < 60000) return 'under 1 min';
-  if (ms < HOUR) return `${Math.round(ms / 60000)} min`;
-  const trim = (n: number) => String(Math.round(n * 10) / 10);
-  if (ms < 48 * HOUR) return `${trim(ms / HOUR)} h`;
-  return `${trim(ms / (24 * HOUR))} days`;
-}
+// (backend-ts/src/routes/reports.ts), which also explains what each number counts. Charts first
+// (components/TurnaroundCharts.tsx), then the same figures as tables; on phones the tables'
+// tickets fold away behind a button, since the charts already carry their numbers.
 
 /** The median shown in the cell; the average and how many requests it covers in the tooltip. */
 function TimeCell({ t }: { t: Times }) {
@@ -64,17 +18,10 @@ function TimeCell({ t }: { t: Times }) {
   return <span title={`Average ${formatDuration(t.average)}, from ${t.count} ${t.count === 1 ? 'request' : 'requests'}`}>{formatDuration(t.median)}</span>;
 }
 
-const lateText = (late: number, withDue: number) => (withDue ? `${late} (${Math.round((late / withDue) * 100)}%)` : '-');
-
-const sinceText = (iso: string | null) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
 function TurnaroundReport({ query }: { query: Record<string, string> }) {
   // ['overview', ...]: any request event refreshes it (services/queryClient.ts).
-  const { data, isPending, isError } = useQuery({
+  const [figures, setFigures] = useState({ services: false, staff: false });
+  const { data, isPending, isError, isPlaceholderData } = useQuery({
     queryKey: ['overview', 'turnaround', query],
     queryFn: () => api.get<TurnaroundData>('/reports/turnaround', { params: query }).then((r) => r.data),
     placeholderData: keepPreviousData,
@@ -84,16 +31,25 @@ function TurnaroundReport({ query }: { query: Record<string, string> }) {
   if (isError || !data) return <div className="error-message">Could not load the turnaround report. Try again in a moment.</div>;
 
   const { services, staff } = data;
+  const toggle = (part: 'services' | 'staff', count: number) => (
+    <button type="button" className="ta-figures-toggle" aria-expanded={figures[part]} onClick={() => setFigures((f) => ({ ...f, [part]: !f[part] }))}>
+      {figures[part] ? 'Hide the figures' : `Show the figures for each ${part === 'services' ? 'service' : 'person'} (${count})`}
+    </button>
+  );
 
   return (
-    <div className="turnaround">
+    // Held at reduced opacity while another period loads, instead of flashing a skeleton.
+    <div className={`turnaround${isPlaceholderData ? ' is-stale' : ''}`} aria-busy={isPlaceholderData}>
       <p className="turnaround-note">
         Times are typical (the median): half of the requests took less, half took longer. The Excel export also has the averages.
         They are calendar time, so nights and weekends count. Late means finished after the due, event or target date.
       </p>
 
+      <TurnaroundSummary services={services} />
+
       <section aria-labelledby="turnaround-services">
         <h3 id="turnaround-services" className="turnaround-heading">By service</h3>
+        <ServiceCharts services={services} />
         <div className="history-table-wrap hide-on-mobile">
           <table className="history-table">
             <thead>
@@ -136,7 +92,8 @@ function TurnaroundReport({ query }: { query: Record<string, string> }) {
             </tbody>
           </table>
         </div>
-        <div className="rq-ticket-list">
+        {toggle('services', services.length)}
+        <div className={`rq-ticket-list ta-figures${figures.services ? ' is-open' : ''}`}>
           {services.map((s, idx) => (
             <RequestTicket
               key={s.key}
@@ -167,6 +124,7 @@ function TurnaroundReport({ query }: { query: Record<string, string> }) {
           <div className="history-empty">Nobody finished or holds a request in this period.</div>
         ) : (
           <>
+            <StaffChart staff={staff} />
             <div className="history-table-wrap hide-on-mobile">
               <table className="history-table">
                 <thead>
@@ -196,7 +154,8 @@ function TurnaroundReport({ query }: { query: Record<string, string> }) {
                 </tbody>
               </table>
             </div>
-            <div className="rq-ticket-list">
+            {toggle('staff', staff.length)}
+            <div className={`rq-ticket-list ta-figures${figures.staff ? ' is-open' : ''}`}>
               {staff.map((p, idx) => (
                 <RequestTicket
                   key={p.id}

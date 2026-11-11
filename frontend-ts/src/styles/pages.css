@@ -98,10 +98,7 @@
   background: var(--border-light);
 }
 
-.back-btn:active,
-.yt-btn-files:active,
-.yt-btn-cancel:active,
-.yt-btn-done:active {
+.back-btn:active {
   transform: scale(0.96);
 }
 
@@ -115,29 +112,6 @@
   font-size: 20px;
   font-weight: 600;
   color: var(--text-primary);
-}
-
-.profile-avatar {
-  width: 88px;
-  height: 88px;
-  border-radius: 50%;
-  background: var(--primary-color);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  font-weight: 700;
-  margin-bottom: 24px;
-  box-shadow: 0 8px 24px rgba(44, 111, 187, 0.25);
-  animation: avatarPop 300ms var(--ease-out);
-  overflow: hidden;
-}
-
-.profile-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .profile-avatar-section {
@@ -171,63 +145,6 @@
   object-fit: cover;
 }
 
-.avatar-loading-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 12px;
-}
-
-.avatar-hint {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 8px;
-  text-align: center;
-}
-
-.avatar-upload-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 24px;
-  padding: 20px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-md);
-}
-
-.avatar-preview-large {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  background: var(--primary-color);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-  font-weight: 700;
-  margin-bottom: 12px;
-  overflow: hidden;
-}
-
-.avatar-preview-large img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.avatar-upload-section .btn-secondary,
-.avatar-upload-section .btn-danger {
-  margin-top: 8px;
-}
-
 @keyframes avatarPop {
   0% {
     opacity: 0;
@@ -239,101 +156,7 @@
   }
 }
 
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid #f0f0f5;
-  animation: slideInRight 300ms var(--ease-out) backwards;
-}
-
-.info-row:nth-child(1) { animation-delay: 0.04s; }
-.info-row:nth-child(2) { animation-delay: 0.08s; }
-.info-row:nth-child(3) { animation-delay: 0.12s; }
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-.info-row:last-child {
-  border-bottom: none;
-}
-
-.info-label {
-  color: var(--text-secondary);
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.info-value {
-  font-weight: 600;
-  color: var(--text-primary);
-  font-size: 15px;
-}
-
-.profile-info {
-  background: var(--bg-card);
-  padding: 24px;
-  border-radius: var(--radius-lg);
-  margin-bottom: 20px;
-  box-shadow: var(--shadow-soft);
-}
-
 /* ========== MULTIMEDIA CARDS (YouTube-style) ========== */
-.yt-card-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 1200px) {
-  .yt-card-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .yt-card-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.yt-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  transition: transform 200ms var(--ease-out), var(--tr-shadow);
-  border: 1px solid transparent;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .yt-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-medium);
-    border-color: var(--border-light);
-  }
-}
-
-.yt-card-header {
-  position: relative;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.yt-card-header.mm {
-  background: rgba(255,255,255,0.04);
-  border-bottom: 2px solid rgba(212, 175, 55, 0.27);
-}
 
 yt-card-header.dm {
   background: rgba(255,255,255,0.04);
@@ -345,333 +168,11 @@ yt-card-header.pm {
   border-bottom: 2px solid rgba(5, 150, 105, 0.27);
 }
 
-.yt-card-icon {
-  width: 28px;
-  height: 28px;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.yt-card-type-badge {
-  position: absolute;
-  bottom: 6px;
-  right: 8px;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.yt-card-type-badge.mm { background: var(--badge-mm); color: #fff; }
-.yt-card-type-badge.dm { background: var(--badge-dm); color: #fff; }
-.yt-card-type-badge.pm { background: var(--badge-pm); color: #fff; }
-
-.yt-status-dot {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.yt-status-dot.pending { background: #f59e0b; box-shadow: 0 0 4px #f59e0b; }
-.yt-status-dot.in-progress { background: var(--purple); box-shadow: 0 0 4px var(--purple); }
-.yt-status-dot.done, .yt-status-dot.rated { background: #10b981; box-shadow: 0 0 4px #10b981; }
-.yt-status-dot.cancelled { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
-
-.yt-card-body {
-  padding: 10px 12px 0;
-}
-
-.yt-card-meta-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.yt-channel-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 12px;
-  color: #fff;
-}
-
 yt-channel-avatar.mm { background: #B8962F; }
 yt-channel-avatar.dm { background: #1A3A5C; }
 yt-channel-avatar.pm { background: #047857; }
 
-.yt-card-title-block {
-  flex: 1;
-  min-width: 0;
-}
-
-.yt-card-title {
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.3;
-  margin-bottom: 1px;
-  display: -webkit-box;
-  /* -webkit-line-clamp: 1; */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  color: var(--text-primary);
-}
-
-.yt-card-code {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.yt-card-details {
-  margin-top: 8px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding-bottom: 6px;
-}
-
-.yt-detail-label {
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--text-secondary);
-  margin-bottom: 0;
-}
-
-.yt-detail-value {
-  font-size: 12px;
-  color: var(--text-primary);
-  font-weight: 400;
-}
-
-.yt-card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  padding: 0 12px 8px;
-}
-
-.yt-tag {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  font-weight: 500;
-}
-
-.yt-tag.mm { background: rgba(108, 92, 231, 0.12); color: var(--purple); }
-.yt-tag.dm { background: #0f1f3a; color: #5BA3E6; }
-.yt-tag.pm { background: #064e3b; color: #6ee7b7; }
-
-.yt-card-footer {
-  border-top: 1px solid var(--border-light);
-  padding: 8px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.yt-timestamp {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.yt-btn-files {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-light);
-  color: var(--text-primary);
-  border-radius: var(--radius-lg);
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  transition: var(--tr-press), var(--tr-colors);
-}
-
-.yt-btn-files:hover {
-  background: var(--border-light);
-}
-
-.yt-btn-files.mm:hover { border-color: var(--badge-mm); color: var(--purple); }
-.yt-btn-files.dm:hover { border-color: var(--badge-dm); color: var(--mint); }
-.yt-btn-files.pm:hover { border-color: var(--badge-pm); color: var(--green); }
-
-.yt-btn-files svg {
-  width: 14px;
-  height: 14px;
-}
-
-.yt-file-count {
-  font-size: 10px;
-  color: var(--text-secondary);
-}
-
-.yt-card-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.yt-btn-cancel {
-  background: transparent;
-  border: 1px solid #ef4444;
-  color: #ef4444;
-  border-radius: var(--radius-lg);
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  transition: var(--tr-press), var(--tr-colors);
-}
-
-.yt-btn-cancel:hover {
-  background: #ef4444;
-  color: #fff;
-}
-
-.yt-btn-done {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: #059669;
-  border: none;
-  color: #fff;
-  border-radius: var(--radius-lg);
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  font-family: inherit;
-  transition: var(--tr-press), var(--tr-shadow);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .yt-btn-done:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
-  }
-}
-
 /* ========== YOUTUBE CARDS (legacy) ========== */
-.youtube-card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  padding: 20px 24px;
-  box-shadow: var(--shadow-soft);
-  border: 1px solid var(--border-light);
-  transition: transform 200ms var(--ease-out), var(--tr-shadow);
-  animation: fadeInUp 250ms var(--ease-out) backwards;
-}
-
-.youtube-card:nth-child(1) { animation-delay: 0.04s; }
-.youtube-card:nth-child(2) { animation-delay: 0.08s; }
-.youtube-card:nth-child(3) { animation-delay: 0.12s; }
-.youtube-card:nth-child(4) { animation-delay: 0.16s; }
-.youtube-card:nth-child(5) { animation-delay: 0.2s; }
-
-@media (hover: hover) and (pointer: fine) {
-  .youtube-card:hover {
-    box-shadow: var(--shadow-medium);
-    transform: translateY(-2px);
-  }
-}
-
-.youtube-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.youtube-card-title {
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--text-primary);
-  flex: 1;
-  margin-right: 12px;
-}
-
-.youtube-card-code {
-  font-family: 'SF Mono', Monaco, 'Courier New', monospace;
-  font-size: 12px;
-  color: var(--purple);
-  font-weight: 700;
-  background: rgba(108, 92, 231, 0.1);
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-
-.youtube-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 12px;
-}
-
-.youtube-card-meta span {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.youtube-card-meta .dot {
-  color: #d1d5db;
-}
-
-.youtube-card-actions {
-  display: flex;
-  gap: 10px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-light);
-  margin-top: 4px;
-}
-
-.youtube-card-actions .btn-sm {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.youtube-card-actions .btn-files {
-  background: rgba(108, 92, 231, 0.08);
-  color: var(--purple);
-  border: 1px solid rgba(108, 92, 231, 0.2);
-}
-
-.youtube-card-actions .btn-files:hover {
-  background: rgba(108, 92, 231, 0.15);
-}
-
-.youtube-card-actions .btn-files svg {
-  width: 16px;
-  height: 16px;
-}
-
-.youtube-card-actions .file-count {
-  background: var(--purple);
-  color: white;
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  font-weight: 700;
-  margin-left: 2px;
-}
 
 /* Tables that a phone replaces with request tickets (below) */
 @media (max-width: 640px) {
@@ -706,6 +207,410 @@ yt-channel-avatar.pm { background: #047857; }
 
 .app-main .turnaround .history-table td strong {
   color: var(--ink);
+}
+
+/* While another period loads, the old figures stay in place, dimmed. */
+.app-main .turnaround {
+  transition: opacity 200ms ease;
+}
+
+.app-main .turnaround.is-stale {
+  opacity: 0.55;
+}
+
+/* ----- Turnaround charts (components/TurnaroundCharts.tsx) ----- */
+/* Gold: waiting for assignment (gold is low contrast on the card, so every gold bar has its value
+   printed beside it). Cobalt: with staff. Late is the danger red, always with the word "late". */
+.app-main .turnaround {
+  --ta-wait: #e0a800;
+  --ta-work: var(--cobalt);
+  --ta-ontime: #c4d2ee;
+  --ta-late: var(--danger-red);
+  --ta-rule: rgba(12, 31, 74, 0.08);
+}
+
+/* The headline numbers: the dashboards' counter strip, four across */
+.app-main .tech-stats.ta-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.app-main .ta-summary-note {
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+  opacity: 0.85;
+}
+
+.app-main .ta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+/* The times chart across the top, on time and open now side by side under it */
+.app-main .ta-card--times {
+  grid-column: 1 / -1;
+}
+
+/* Long enough a bar to tell the services apart, short enough a line to read across */
+.app-main .ta-card--times .ta-row {
+  grid-template-columns: minmax(150px, 24%) minmax(0, 1fr);
+}
+
+.app-main .ta-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0;
+  padding: 20px 22px 16px;
+  border-radius: var(--radius-md);
+  background: var(--card);
+  box-shadow: var(--shadow-soft);
+}
+
+.app-main .ta-card--staff {
+  margin-bottom: 18px;
+}
+
+.app-main .ta-card-head {
+  display: grid;
+  gap: 3px;
+}
+
+.app-main .ta-card-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.app-main .ta-card-sub {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.app-main .ta-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.app-main .ta-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.app-main .ta-key {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* One row per service or person: its name, then its bars */
+.app-main .ta-rows {
+  position: relative;
+  display: grid;
+}
+
+.app-main .ta-row {
+  display: grid;
+  grid-template-columns: minmax(118px, 34%) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin: 0 -10px;
+  padding: 11px 10px;
+  border-radius: 10px;
+  outline: none;
+  transition: background-color 150ms ease;
+}
+
+.app-main .ta-row + .ta-row {
+  box-shadow: inset 0 1px 0 var(--ta-rule);
+}
+
+.app-main .ta-row[tabindex]:hover {
+  background: var(--bg-secondary);
+  box-shadow: none;
+}
+
+.app-main .ta-row[tabindex]:hover + .ta-row {
+  box-shadow: none;
+}
+
+.app-main .ta-row[tabindex]:focus-visible {
+  background: var(--bg-secondary);
+  box-shadow: 0 0 0 2px var(--cobalt);
+}
+
+.app-main .ta-row-label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.app-main .ta-row-label strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.app-main .ta-row-label span,
+.app-main .ta-row-empty {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.app-main .ta-row-bars {
+  display: grid;
+  gap: 5px;
+}
+
+/* A bar and its value. A fill's length is its share of the longest bar in the chart, out of the
+   line's width less room for the value printed after it (--ta-gutter). */
+.app-main .ta-line {
+  --ta-gutter: 78px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  height: 14px;
+}
+
+.app-main .ta-fill {
+  display: block;
+  flex: none;
+  width: max(3px, calc((100% - var(--ta-gutter)) * var(--share)));
+  height: 10px;
+  transform-origin: left center;
+}
+
+.app-main .ta-fill.is-end {
+  border-radius: 0 4px 4px 0;
+}
+
+.app-main .ta-fill + .ta-fill {
+  margin-left: 2px;
+}
+
+.app-main .ta-fill--wait { background: var(--ta-wait); }
+.app-main .ta-fill--work { background: var(--ta-work); }
+.app-main .ta-fill--ontime { background: var(--ta-ontime); }
+.app-main .ta-fill--late { background: var(--ta-late); }
+
+.app-main .ta-value {
+  margin-left: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+/* On time: one thin bar per service, the whole being its requests with a due date */
+.app-main .ta-split {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.app-main .ta-split-bar {
+  --ta-gutter: 2px;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  height: 8px;
+}
+
+.app-main .ta-split-bar .ta-fill {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.app-main .ta-value--lead {
+  min-width: 3.1em;
+  margin-left: 0;
+  font-size: 14px;
+  text-align: right;
+}
+
+/* Staff: name, bar, then their typical work time and late count */
+.app-main .ta-rows--staff .ta-row {
+  grid-template-columns: minmax(140px, 28%) minmax(0, 1fr) auto;
+}
+
+.app-main .ta-row-meta {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+  color: var(--ink-soft);
+}
+
+.app-main .ta-row-meta .is-late {
+  font-weight: 600;
+  color: var(--danger-red);
+}
+
+.app-main .ta-more {
+  justify-self: start;
+  align-self: flex-start;
+  padding: 7px 14px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cobalt);
+  cursor: pointer;
+  transition: var(--tr-colors);
+}
+
+.app-main .ta-more:hover {
+  background: var(--bg-secondary);
+}
+
+/* The readout for the row under the pointer or keyboard focus: values first, then what they are */
+.app-main .ta-tip {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  gap: 4px;
+  min-width: 170px;
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--ink);
+  box-shadow: var(--elevation-2);
+  font-size: 12px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.78);
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 6px));
+}
+
+.app-main .ta-tip-title {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--seal-yellow);
+}
+
+.app-main .ta-tip-line strong {
+  font-size: 13px;
+  color: #fff;
+}
+
+/* The tickets with every figure: folded away on phones, where the charts come first */
+.app-main .ta-figures-toggle {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .app-main .ta-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+}
+
+/* The dashboards' strip loses its padding below 1024px (its rows pad themselves); this one is a
+   single row, so it keeps the strip's own. */
+@media (max-width: 1024px) {
+  .app-main .tech-stats.ta-summary {
+    padding: 12px 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-main .tech-stats.ta-summary {
+    display: grid;
+  }
+
+  .app-main .ta-figures-toggle {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px dashed rgba(12, 31, 74, 0.25);
+    border-radius: var(--radius-md);
+    background: transparent;
+    font: inherit;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--cobalt);
+    cursor: pointer;
+  }
+
+  .app-main .rq-ticket-list.ta-figures {
+    margin-top: 14px;
+  }
+
+  .app-main .rq-ticket-list.ta-figures:not(.is-open) {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Four counters as two rows of two; the tear line stays between the pair in each row. Shown on
+     phones, unlike the dashboards' strip: here the numbers are the report. */
+  .app-main .tech-stats.ta-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 18px;
+  }
+
+  .app-main .ta-summary .tech-stat {
+    padding: 2px 16px;
+  }
+
+  .app-main .ta-summary .tech-stat:nth-child(3)::before,
+  .app-main .ta-summary .tech-stat:nth-child(3)::after {
+    content: none;
+  }
+
+  .app-main .ta-card {
+    padding: 18px 16px 14px;
+  }
+
+  .app-main .ta-row,
+  .app-main .ta-card--times .ta-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+    margin: 0 -8px;
+    padding: 12px 8px;
+  }
+
+  /* Staff: name and figures on one line, the bar under them */
+  .app-main .ta-rows--staff .ta-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .app-main .ta-rows--staff .ta-line {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .app-main .ta-line {
+    --ta-gutter: 70px;
+  }
 }
 
 /* ========== REQUEST TICKETS (components/RequestTicket.tsx) ========== */
@@ -1112,15 +1017,6 @@ button.rq-ticket-code {
 }
 
 /* ========== LIGHT THEME OVERRIDES ========== */
-[data-theme='light'] .yt-card-header.mm,
-[data-theme='light'] .yt-card-header.dm,
-[data-theme='light'] .yt-card-header.pm {
-  background: rgba(24, 34, 53, 0.04);
-}
-
-[data-theme='light'] .yt-card-icon {
-  color: rgba(24, 34, 53, 0.6);
-}
 
 [data-theme='light'] .summary-card {
   background: var(--bg-secondary);
@@ -1996,11 +1892,6 @@ button.rq-ticket-code {
     white-space: nowrap;
   }
 
-  .app-main .it-dash .requests-table .btn-sm,
-  .app-main .it-dash .requests-table .btn-rate {
-    padding: 3px 10px;
-  }
-
   /* Actions stay on one line; the issue column (already cut to 25 characters) doesn't take the
      spare width from them. */
   .app-main .it-dash .requests-table .req-actions {
@@ -2018,11 +1909,6 @@ button.rq-ticket-code {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-}
-
-.app-main .req-actions .btn-rate {
-  padding: 6px 12px;
-  font-size: 11px;
 }
 
 /* ========== CLIENT: IT REQUEST FORM (pages/Request.tsx) ==========
