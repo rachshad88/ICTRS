@@ -3,7 +3,9 @@
    accent. Request types are tickets, statuses are rubber stamps, the tip is a sticky note.
    Status stamps keep their meaning colours. Corners: notes 3px, stamps 6px, cards and tickets
    14px, anything you can press is a pill. Layers: nav 30, progress 35, grain 40.
-   Overflow is clipped per section, never on .gd, so the sticky contents list keeps working.
+   Sections clip their own overflow. .gd only uses overflow-x: clip (not hidden, which would make
+   it a scroll container and break the sticky contents list), so elements that start off to the side
+   for their entrance (the tickets) can't widen the page and make phones zoom out.
    Fonts come from fonts.css. */
 
 .gd {
@@ -24,6 +26,7 @@
 
   position: relative;
   min-height: 100vh;
+  overflow-x: clip;
   background: var(--gd-paper);
   color: var(--gd-ink);
 }
