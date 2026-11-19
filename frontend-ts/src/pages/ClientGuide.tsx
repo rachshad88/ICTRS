@@ -6,106 +6,94 @@ import { EASE_OUT } from '../lib/motion';
 import { CountUp, useRevealDelay } from '../components/Entrance';
 
 // Public client guide at /guide, styled like the landing page: paper, ink, tickets and stamps.
+// Laid out as an infographic: pictures and a few words each, not paragraphs to read.
 
 const GEAR_PATH = 'M77.8 -18.7 L98.8 -15.6 L98.8 15.6 L77.8 18.7 L68.2 41.8 L80.9 58.8 L58.8 80.9 L41.8 68.2 L18.7 77.8 L15.6 98.8 L-15.6 98.8 L-18.7 77.8 L-41.8 68.2 L-58.8 80.9 L-80.9 58.8 L-68.2 41.8 L-77.8 18.7 L-98.8 15.6 L-98.8 -15.6 L-77.8 -18.7 L-68.2 -41.8 L-80.9 -58.8 L-58.8 -80.9 L-41.8 -68.2 L-18.7 -77.8 L-15.6 -98.8 L15.6 -98.8 L18.7 -77.8 L41.8 -68.2 L58.8 -80.9 L80.9 -58.8 L68.2 -41.8 Z';
-const ARROW = 'M5 12h14 M13 6l6 6-6 6';
 
-const SECTIONS = [
-  { id: 'sign-in', label: 'Signing in' },
-  { id: 'request-types', label: 'Request types' },
-  { id: 'submit', label: 'Submitting a request' },
-  { id: 'track', label: 'Tracking your requests' },
-  { id: 'notes', label: 'Adding details later' },
-  { id: 'cancel-rate', label: 'Cancelling and rating' },
-  { id: 'account', label: 'Your account' },
-  { id: 'faq', label: 'Common questions' },
+const I = {
+  arrow: 'M5 12h14 M13 6l6 6-6 6',
+  signin: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4 M10 17l5-5-5-5 M15 12H3',
+  grid: 'M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z',
+  form: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M9 13h6 M9 17h4',
+  eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z',
+  camera: 'M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z M12 17a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  alert: 'M12 9v4 M12 17h.01 M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z',
+  note: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z M8 9h8 M8 13h5',
+  user: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+  check: 'M20 6L9 17l-5-5',
+  lock: 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4',
+  pointer: 'M4 3l7 17 2.5-7.5L21 10z',
+  exit: 'M15 10l5 5-5 5 M4 4v7a4 4 0 0 0 4 4h12',
+  x: 'M18 6L6 18 M6 6l12 12',
+  it: 'M2 3h20v14H2z M8 21h8 M12 17v4',
+  event: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z',
+  digital: 'M3 3h18v18H3z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 21',
+  print: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z',
+};
+
+const STEPS = [
+  { icon: I.signin, title: 'Sign in', text: 'Username and password.' },
+  { icon: I.grid, title: 'Pick a type', text: 'From the menu bar.' },
+  { icon: I.form, title: 'Fill in & submit', text: 'You get a request code.' },
+  { icon: I.eye, title: 'Track & rate', text: 'Follow it in History.' },
 ];
 
 const REQUEST_TYPES = [
   {
+    ask: 'Computer or network trouble?',
     name: 'IT Request',
-    icon: 'M2 3h20v14H2z M8 21h8 M12 17v4',
-    use: 'Repairs and troubleshooting for office computers and network.',
-    fields: [
-      'Unit: Desktop, Laptop, Network or Others (say what it is)',
-      'Issue: a short description, up to 100 characters',
-    ],
-    note: 'Your office is filled in automatically from your account, and the semester from the date you submit.',
+    icon: I.it,
+    fields: ['Unit', 'Issue'],
     history: 'IT History',
   },
   {
-    name: 'Event Documentation Request',
-    icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z',
-    use: 'Photo and video coverage of an event.',
-    fields: [
-      'Event title, date, start time and estimated end time',
-      'Location type (inside the LGU Solano compound, elsewhere in Solano, elsewhere in Nueva Vizcaya, or outside Nueva Vizcaya) and the specific location',
-      'Program or schedule of the event (optional): one PDF, Word or image file, up to 10MB',
-    ],
-    note: 'Your contact number is filled in automatically from your account. Change it on your Profile page.',
+    ask: 'Need an event covered?',
+    name: 'Event Documentation',
+    icon: I.event,
+    fields: ['Event & date', 'Time', 'Location', 'Program (optional)'],
     history: 'Event Documentation History',
   },
   {
-    name: 'Digital Media Request',
-    icon: 'M3 3h18v18H3z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 21',
-    use: 'Social media posts, digital posters, PowerPoint or video presentations.',
-    fields: [
-      'Title and form of digital media',
-      'Description of what you need',
-      'Name of the related event or PPA',
-      'Target date and time of posting or use',
-      'Supporting files (optional): up to 10 files, 100MB total (PDF, Word, images, PowerPoint, MP4, WebM)',
-    ],
-    note: 'Your name and contact number are filled in automatically from your account. Change them on your Profile page.',
+    ask: 'Need a post, poster or presentation?',
+    name: 'Digital Media',
+    icon: I.digital,
+    fields: ['Title & form', 'Description', 'Event / PPA', 'Target date', 'Files (optional)'],
     history: 'Digital Media History',
   },
   {
-    name: 'Print Materials Request',
-    icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z',
-    use: 'Design and production of tarpaulins, brochures, flyers and other printed materials.',
-    fields: [
-      'Form of printed media and its size',
-      'Description of what you need',
-      'Name of the related event or PPA',
-      'Target date and time of posting or use',
-      'Reference files (optional): up to 10 files, 100MB total (PDF, Word, images, PowerPoint)',
-    ],
-    note: 'Your name and contact number are filled in automatically from your account. Change them on your Profile page.',
+    ask: 'Need a tarp, flyer or brochure?',
+    name: 'Print Materials',
+    icon: I.print,
+    fields: ['Form & size', 'Description', 'Event / PPA', 'Target date', 'Files (optional)'],
     history: 'Print Materials History',
   },
 ];
 
-const STATUSES = [
-  { status: 'PENDING', meaning: 'Received and waiting for a technician or staff member to be assigned. You can still cancel it.' },
-  { status: 'UNASSIGNED', meaning: 'Same as Pending. Event documentation requests use this label before someone is assigned.' },
-  { status: 'IN_PROGRESS', meaning: 'Someone has been assigned and is working on it. The Assigned To column shows who; if the team moves it to another staff member, the name updates on its own.' },
-  { status: 'DONE', meaning: 'Finished. On IT History this shows as Completed, along with whether the unit was Repaired or is Beyond Repair.' },
-  { status: 'RATED', meaning: 'Done, and you have rated it. Thank you for your feedback. A rated request cannot be rated again or reopened.' },
-  { status: 'DECLINED', meaning: 'The team could not take this request, for example because of a schedule conflict or because it is outside what they handle. Open the request to read the reason.' },
-  { status: 'CANCELLED', meaning: 'You cancelled the request. No further action will be taken.' },
+// The happy path, left to right, with what you can do at each stage as chips in its card.
+const CANCEL = { label: 'Cancel', icon: I.x, tone: 'cancel' };
+const NOTE = { label: 'Add a note', icon: I.note, tone: 'note' };
+const RATE = { label: 'Rate', icon: I.star, tone: 'rate' };
+const TRACK = [
+  { status: 'PENDING', text: 'Waiting for staff', can: [CANCEL, NOTE] },
+  { status: 'IN_PROGRESS', text: 'Being worked on', can: [NOTE] },
+  { status: 'DONE', text: 'Finished', can: [RATE] },
+  { status: 'RATED', text: 'You rated it. Thanks!', can: [] },
+];
+
+const TIPS = [
+  { icon: I.camera, title: 'Keep your code', text: 'Screenshot it. It finds your request fast.', art: 'code' },
+  { icon: I.alert, title: 'Urgent = emergencies', text: 'Work stopped, or due within 2 days.', art: 'priority' },
+  { icon: I.note, title: 'Forgot something?', text: 'Add a note while it is still open.', art: 'note' },
+  { icon: I.user, title: 'Your Profile', text: 'Change your name or password.', art: 'profile' },
 ];
 
 const FAQ = [
-  {
-    q: 'I forgot my password. What do I do?',
-    a: 'Contact the IT office and ask them to reset it. Password reset is not available from the sign-in page yet.',
-  },
-  {
-    q: 'Can I edit a request after submitting it?',
-    a: 'You cannot change the original form, but you can add a note with corrections or extra details while the request is Pending, Unassigned or In Progress. If the details are completely wrong, cancel it while it is still Pending and submit a new one.',
-  },
-  {
-    q: 'Why can I not cancel my request?',
-    a: 'Cancelling is only possible before someone is assigned. Once it is In Progress, contact the office handling it.',
-  },
-  {
-    q: 'My request was declined. What now?',
-    a: 'Read the reason on the request, then contact the office that declined it if you need clarification. If the reason can be fixed, such as a different date, submit a new request.',
-  },
-  {
-    q: 'I was signed out on my own.',
-    a: 'Sessions expire after a period of inactivity. Sign in again and continue where you left off; submitted requests are saved.',
-  },
+  { q: 'I forgot my password.', a: 'Ask the IT office to reset it.' },
+  { q: 'Can I edit a request?', a: 'Add a note with the correction. If it is all wrong, cancel it while Pending and submit a new one.' },
+  { q: 'Why is there no Cancel button?', a: 'Someone is already working on it. Contact the office handling it.' },
+  { q: 'My request was declined.', a: 'Open it to read the reason. If you can fix it (a new date, say), submit a new request.' },
+  { q: 'I was signed out on my own.', a: 'Sessions end after a while idle. Sign in again; your requests are saved.' },
 ];
 
 const STATS = [
@@ -131,34 +119,90 @@ function Gear({ className }: { className: string }) {
   );
 }
 
-function Stamp({ status }: { status: string }) {
-  return <span className={`gd-stamp gd-stamp-${status.toLowerCase()}`}>{status.replace(/_/g, ' ')}</span>;
+function Stamp({ status, small }: { status: string; small?: boolean }) {
+  return <span className={`gd-stamp gd-stamp-${status.toLowerCase()}${small ? ' gd-stamp-sm' : ''}`}>{status.replace(/_/g, ' ')}</span>;
 }
 
-// A numbered guide section that rises in once as it scrolls into view; its number flips over
-// like an index tab as it arrives.
-function Section({ id, n, title, tag, children }: { id: string; n: number; title: string; tag?: string; children: React.ReactNode }) {
+// Little drawings of the real screens, one per step. Decorative: the caption says it in words.
+function StepArt({ n }: { n: number }) {
+  if (n === 0) {
+    return (
+      <div className="gd-mock">
+        <div className="gd-mock-field"><Icon d={I.user} size={13} /><span>username</span></div>
+        <div className="gd-mock-field"><Icon d={I.lock} size={13} /><span>••••••••</span></div>
+        <div className="gd-mock-btn">Sign In</div>
+      </div>
+    );
+  }
+  if (n === 1) {
+    return (
+      <div className="gd-mock gd-mock-menu">
+        {[['IT', I.it], ['Events', I.event], ['Digital', I.digital], ['Print', I.print]].map(([label, d], i) => (
+          <div key={label} className={`gd-mock-pill${i === 0 ? ' is-on' : ''}`}>
+            <Icon d={d} size={14} />
+            <span>{label}</span>
+            {i === 0 && <span className="gd-mock-cursor"><Icon d={I.pointer} size={18} /></span>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (n === 2) {
+    return (
+      <div className="gd-mock">
+        <div className="gd-mock-line" style={{ width: '40%' }} />
+        <div className="gd-mock-box" />
+        <div className="gd-mock-line" style={{ width: '55%' }} />
+        <div className="gd-mock-box" />
+        <div className="gd-mock-code"><Icon d={I.check} size={14} />IT-2026-0042</div>
+      </div>
+    );
+  }
+  return (
+    <div className="gd-mock">
+      <div className="gd-mock-row">
+        <span className="gd-mock-mono">IT-2026-0042</span>
+        <Stamp status="DONE" small />
+      </div>
+      <div className="gd-mock-rate"><Icon d={I.star} size={14} />Rate</div>
+    </div>
+  );
+}
+
+function TipArt({ art }: { art: string }) {
+  if (art === 'code') return <div className="gd-tip-code">IT-2026-0042</div>;
+  if (art === 'priority') {
+    return (
+      <div className="gd-tip-prio">
+        <span>Low</span>
+        <span className="is-on">Normal</span>
+        <span className="is-hot">Urgent</span>
+      </div>
+    );
+  }
+  if (art === 'note') return <div className="gd-tip-bubble">Wrong room, it is 2B<em>up to 500 characters</em></div>;
+  return (
+    <div className="gd-tip-profile">
+      <span className="gd-tip-avatar">JD</span>
+      <span className="gd-tip-menu"><span>Profile</span><span>Logout</span></span>
+    </div>
+  );
+}
+
+// A guide block: a small kicker, a big short title, and the picture. Rises in once on scroll.
+function Block({ id, kicker, title, children }: { id: string; kicker: string; title: string; children: React.ReactNode }) {
   return (
     <motion.section
       id={id}
-      className="gd-section"
+      className="gd-block"
+      aria-labelledby={`${id}-title`}
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, amount: 0.08 }}
       variants={{ hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0, transition: { duration: 0.55, ease: EASE_OUT } } }}
     >
-      <h2>
-        <motion.span
-          className="gd-num"
-          aria-hidden="true"
-          style={{ transformPerspective: 400 }}
-          variants={{ hidden: { rotateY: -180 }, visible: { rotateY: 0, transition: { type: 'spring', stiffness: 160, damping: 14, delay: 0.15 } } }}
-        >
-          {n}
-        </motion.span>
-        {title}
-        {tag && <span className="gd-tag">{tag}</span>}
-      </h2>
+      <p className="gd-kicker">{kicker}</p>
+      <h2 id={`${id}-title`}>{title}</h2>
       {children}
     </motion.section>
   );
@@ -170,6 +214,13 @@ const SILK = [0.22, 1, 0.36, 1] as const;
 const flipDown = {
   hidden: { rotateX: -100, opacity: 0 },
   visible: (delay: number) => ({ rotateX: 0, opacity: 1, transition: { duration: 0.95, delay, ease: SILK } }),
+};
+
+// Children that pop in one after another when their parent scrolls into view.
+const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.12 } } };
+const pop = {
+  hidden: { opacity: 0, y: 26, scale: 0.96 },
+  visible: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring' as const, stiffness: 150, damping: 17 } },
 };
 
 // Answer height animates through grid rows (0fr -> 1fr); a native <details> can't ease closed.
@@ -194,7 +245,6 @@ function ClientGuide() {
   const reduce = useReducedMotion();
   // Waits for the page turn to open before the entrance plays.
   const d = useRevealDelay('guide');
-  const [active, setActive] = useState(SECTIONS[0].id);
 
   // Reading progress. Function form keeps framer from handing this to a native scroll timeline.
   const { scrollYProgress } = useScroll();
@@ -208,26 +258,6 @@ function ClientGuide() {
     html.style.scrollBehavior = 'smooth';
     return () => { html.style.scrollBehavior = prev; };
   }, [reduce]);
-
-  // Highlight the section being read in the table of contents.
-  useEffect(() => {
-    if (!('IntersectionObserver' in window)) return;
-    // Sections crossing a band near the top of the screen; the latest one in reading order wins.
-    const inBand = new Set<string>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => (e.isIntersecting ? inBand.add(e.target.id) : inBand.delete(e.target.id)));
-        const current = [...SECTIONS].reverse().find((s) => inBand.has(s.id));
-        if (current) setActive(current.id);
-      },
-      { rootMargin: '-20% 0px -65% 0px' },
-    );
-    SECTIONS.forEach((s) => {
-      const el = document.getElementById(s.id);
-      if (el) io.observe(el);
-    });
-    return () => io.disconnect();
-  }, []);
 
   let home = '/login';
   if (user) {
@@ -280,13 +310,9 @@ function ClientGuide() {
             animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
             transition={{ duration: 0.8, delay: d + 0.5, ease: EASE_OUT }}
           >
-            <p>
-              ITRS is how LGU Solano offices ask the IT and multimedia teams for help: computer and network
-              repairs, event coverage, digital media, and print materials. This page walks you through
-              submitting a request and following it until it is done.
-            </p>
+            <p>Repairs, event coverage, digital media and print, all from one place.</p>
             <div className="gd-hero-actions">
-              <a href="#submit" className="gd-btn gd-btn-ink">See how it works<Icon d={ARROW} size={18} /></a>
+              <a href="#steps" className="gd-btn gd-btn-ink">See how it works<Icon d={I.arrow} size={18} /></a>
               <TransitionLink to={home} className="gd-btn gd-btn-line">{primaryLabel}</TransitionLink>
             </div>
           </motion.div>
@@ -312,135 +338,106 @@ function ClientGuide() {
         </div>
       </section>
 
-      {/* ----- Body: contents + sections ----- */}
-      <div className="gd-wrap gd-body">
-        <nav className="gd-toc" aria-label="On this page">
-          <p className="gd-toc-title">On this page</p>
-          <ol>
-            {SECTIONS.map((s, i) => (
-              <li key={s.id}>
-                <a href={`#${s.id}`} className={active === s.id ? 'is-active' : ''} aria-current={active === s.id ? 'location' : undefined}>
-                  <span className="gd-toc-n">{i + 1}</span>
-                  {s.label}
-                </a>
-              </li>
+      <main className="gd-wrap gd-info">
+        {/* ----- 1. The four steps ----- */}
+        <Block id="steps" kicker="How it works" title="Four steps, start to finish">
+          <motion.ol className="gd-flow" variants={stagger}>
+            {STEPS.map((s, i) => (
+              <motion.li key={s.title} className="gd-step" variants={pop}>
+                <span className="gd-step-n" aria-hidden="true">{i + 1}</span>
+                <div className="gd-step-art" aria-hidden="true"><StepArt n={i} /></div>
+                <h3><Icon d={s.icon} size={20} />{s.title}</h3>
+                <p>{s.text}</p>
+                {i < STEPS.length - 1 && <span className="gd-step-arrow" aria-hidden="true"><Icon d={I.arrow} size={22} /></span>}
+              </motion.li>
             ))}
-          </ol>
-        </nav>
+          </motion.ol>
+        </Block>
 
-        <main className="gd-main">
-          <Section id="sign-in" n={1} title="Signing in">
-            <ol className="gd-steps">
-              <li>Open ITRS and enter your <strong>username</strong> and <strong>password</strong>. If you signed up yourself, wait until the IT office approves your account first; until then, signing in says it is waiting for approval.</li>
-              <li>Select <strong>Sign In</strong>. You will land on the IT Request page.</li>
-              <li>If you are still using the default password, the system will remind you to change it. Go to <strong>Profile</strong> and set a new one before continuing.</li>
-            </ol>
-          </Section>
+        {/* ----- 2. Which request ----- */}
+        <Block id="types" kicker="Step 2" title="Which one do I pick?">
+          <motion.div className="gd-types" variants={stagger}>
+            {REQUEST_TYPES.map((t) => (
+              <motion.article key={t.name} className="gd-type" variants={pop}>
+                <span className="gd-type-icon" aria-hidden="true"><Icon d={t.icon} size={30} /></span>
+                <p className="gd-type-ask">{t.ask}</p>
+                <h3>{t.name}</h3>
+                <ul className="gd-chips" aria-label="You will fill in">
+                  {t.fields.map((f) => <li key={f}>{f}</li>)}
+                </ul>
+                <p className="gd-type-track"><Icon d={I.eye} size={14} />{t.history}</p>
+              </motion.article>
+            ))}
+          </motion.div>
+          <p className="gd-footnote">Your name, office and contact number fill in on their own, from your Profile.</p>
+        </Block>
 
-          <Section id="request-types" n={2} title="Request types">
-            <p>The menu bar (along the top on a computer, the bottom on a phone) lists four kinds of requests. Each one has its own form and its own history page.</p>
-            <div className="gd-tickets">
-              {/* Dealt onto the table one after another, each landing from its own angle */}
-              {REQUEST_TYPES.map((t, i) => (
-                <motion.article
-                  key={t.name}
-                  className="gd-ticket"
-                  initial={{ opacity: 0, y: 60, x: (i % 2 ? 1 : -1) * 30, rotate: (i % 2 ? 1 : -1) * 7 }}
-                  whileInView={{ opacity: 1, y: 0, x: 0, rotate: 0 }}
-                  viewport={{ once: true, amount: 0.3 }}
-                  transition={{ type: 'spring', stiffness: 120, damping: 16, delay: (i % 2) * 0.1 }}
-                >
-                  <div className="gd-ticket-head">
-                    <Icon d={t.icon} size={16} />
-                    <h3>{t.name}</h3>
-                  </div>
-                  <div className="gd-ticket-body">
-                    <p className="gd-ticket-use">{t.use}</p>
-                    <p className="gd-ticket-label">What you will fill in</p>
-                    <ul>
-                      {t.fields.map((f) => <li key={f}>{f}</li>)}
-                    </ul>
-                    {t.note && <p className="gd-ticket-note">{t.note}</p>}
-                  </div>
-                  <div className="gd-ticket-tear" aria-hidden="true" />
-                  <p className="gd-ticket-stub">Track it under <strong>{t.history}</strong></p>
-                </motion.article>
-              ))}
-            </div>
-          </Section>
-
-          <Section id="submit" n={3} title="Submitting a request">
-            <ol className="gd-steps">
-              <li>Choose the request type from the menu bar, then <strong>New request</strong>.</li>
-              <li>Fill in the form. Fields marked with <strong>*</strong> are required.</li>
-              <li>Set the <strong>Priority</strong> (IT, Digital Media and Print Materials; event documentation requests start at Normal and the media admin sets their priority). Leave it at Normal unless work has stopped or your deadline is within two days. Keeping Urgent for real emergencies means they get handled first.</li>
-              <li>Attach files if the form allows it and they will help the team.</li>
-              <li>Select <strong>Submit</strong>. A confirmation shows your <strong>request code</strong>.</li>
-            </ol>
-            <aside className="gd-sticky">
-              <p className="gd-sticky-title">Keep your code</p>
-              <p>Write down or screenshot your request code. It is the fastest way to find your request and to refer to it when you talk to the IT office.</p>
-            </aside>
-          </Section>
-
-          <Section id="track" n={4} title="Tracking your requests">
-            <p>
-              Open the request type in the menu bar and choose <strong>History</strong>. Each row shows the request code, its
-              status and who it is assigned to. The list refreshes on its own when your request is accepted or
-              finished, so there is no need to reload. Use the search box to find a request by code or keyword,
-              and <strong>View</strong> to see its full details and attachments.
-            </p>
-            <dl className="gd-statuses">
-              {STATUSES.map((s) => (
-                <div key={s.status}>
-                  <dt><Stamp status={s.status} /></dt>
-                  <dd>{s.meaning}</dd>
+        {/* ----- 3. Statuses ----- */}
+        <Block id="status" kicker="Step 4" title="Where is my request?">
+          <div className="gd-track">
+            <motion.span
+              className="gd-track-line"
+              aria-hidden="true"
+              variants={{ hidden: { scaleX: 0, scaleY: 0 }, visible: { scaleX: 1, scaleY: 1, transition: { duration: 1.1, delay: 0.2, ease: SILK } } }}
+            />
+            {TRACK.map((t, i) => (
+              <div key={t.status} className="gd-node" style={{ '--i': i + 1 } as React.CSSProperties}>
+                <Stamp status={t.status} />
+                <p>{t.text}</p>
+                <div className="gd-can">
+                  {t.can.length > 0 ? (
+                    <>
+                      <span className="gd-can-label">You can</span>
+                      {t.can.map((c) => (
+                        <span key={c.label} className={`gd-band gd-band-${c.tone}`}>
+                          <Icon d={c.icon} size={14} />
+                          {c.label}
+                        </span>
+                      ))}
+                    </>
+                  ) : (
+                    <span className="gd-can-label">All done</span>
+                  )}
                 </div>
-              ))}
-            </dl>
-          </Section>
-
-          <Section id="notes" n={5} title="Adding details later" tag="Bonus">
-            <p>
-              Forgot something, or did something change? While a request is Pending, Unassigned or In Progress, open it
-              from its History page (<strong>Details / Add note</strong> on IT History, <strong>View / Add note</strong> on the
-              others) and write a note of up to 500 characters. The assigned staff member is notified right away, and your
-              notes stay attached to the request.
-            </p>
-            <p>Notes cannot be added after a request is Done, Declined or Cancelled.</p>
-          </Section>
-
-          <Section id="cancel-rate" n={6} title="Cancelling and rating">
-            <div className="gd-two">
-              <div>
-                <h3>Cancel</h3>
-                <p>A <strong>Cancel</strong> button appears on a request while it is Pending or Unassigned. Confirm when asked. After someone is assigned, the request can no longer be cancelled from ITRS.</p>
               </div>
-              <div>
-                <h3>Rate</h3>
-                <p>When a request is Done, select <strong>Rate</strong> to open the client satisfaction feedback form in a new tab. Your rating helps the team improve its service. Once you have rated it, the request shows as Rated and the button goes away.</p>
-              </div>
-            </div>
-          </Section>
+            ))}
+          </div>
 
-          <Section id="account" n={7} title="Your account">
-            <p>Open <strong>Profile</strong> (your initials at the right of the menu bar; under More on a phone) to:</p>
-            <ul className="gd-list">
-              <li>Update your first, middle and last name.</li>
-              <li>Change your password (at least 8 characters). You will need your current password.</li>
-            </ul>
-            <p>The menu bar also has <strong>Logout</strong> to end your session on shared computers.</p>
-          </Section>
+          <div className="gd-offramp">
+            <span className="gd-offramp-lead"><Icon d={I.exit} size={18} />Can also end as</span>
+            <div><Stamp status="DECLINED" small /><span>The team can&apos;t take it. Open it to see why.</span></div>
+            <div><Stamp status="CANCELLED" small /><span>You cancelled it.</span></div>
+          </div>
 
-          <Section id="faq" n={8} title="Common questions">
-            <div className="gd-faq">
-              {FAQ.map((item, i) => (
-                <FaqItem key={item.q} id={`faq-a-${i}`} q={item.q} a={item.a} />
-              ))}
-            </div>
-          </Section>
-        </main>
-      </div>
+          <div className="gd-live">
+            <span className="gd-live-dot" aria-hidden="true" />
+            Updates on its own. No need to reload.
+          </div>
+          <p className="gd-footnote">Event requests say <strong>Unassigned</strong> instead of Pending.</p>
+        </Block>
+
+        {/* ----- 4. Tips ----- */}
+        <Block id="tips" kicker="Good to know" title="Four quick tips">
+          <motion.div className="gd-tips" variants={stagger}>
+            {TIPS.map((t) => (
+              <motion.article key={t.title} className="gd-tip" variants={pop}>
+                <div className="gd-tip-art" aria-hidden="true"><TipArt art={t.art} /></div>
+                <h3><Icon d={t.icon} size={18} />{t.title}</h3>
+                <p>{t.text}</p>
+              </motion.article>
+            ))}
+          </motion.div>
+        </Block>
+
+        {/* ----- 5. FAQ ----- */}
+        <Block id="faq" kicker="Still stuck?" title="Quick answers">
+          <div className="gd-faq">
+            {FAQ.map((item, i) => (
+              <FaqItem key={item.q} id={`faq-a-${i}`} q={item.q} a={item.a} />
+            ))}
+          </div>
+        </Block>
+      </main>
 
       {/* ----- Finale ----- */}
       <footer className="gd-finale">
@@ -454,7 +451,7 @@ function ClientGuide() {
               No account yet? Visit the Information and Technology Section (Mayor&apos;s Office), 2nd floor of the
               Municipal Hall.
             </p>
-            <TransitionLink to={home} className="gd-btn gd-btn-yellow">{primaryLabel}<Icon d={ARROW} size={18} /></TransitionLink>
+            <TransitionLink to={home} className="gd-btn gd-btn-yellow">{primaryLabel}<Icon d={I.arrow} size={18} /></TransitionLink>
           </div>
           <div className="gd-credits">
             <TransitionLink to="/" className="gd-credits-brand">
