@@ -361,6 +361,45 @@
   margin-top: 30px;
 }
 
+/* What you can request: four icon tiles under the one-line intro */
+.lp-hero-services {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 520px;
+  margin-top: 22px;
+}
+
+.lp-hero-services li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 6px 12px;
+  border-radius: 14px;
+  background: var(--lp-card);
+  box-shadow: 0 16px 30px -22px rgba(11, 58, 140, 0.5);
+  font-family: var(--lp-display);
+  font-weight: 700;
+  font-size: 13.5px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--lp-ink);
+}
+
+.lp-hero-service-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--lp-navy);
+  background: linear-gradient(135deg, var(--lp-navy), var(--lp-cobalt));
+  color: var(--lp-yellow);
+}
+
 .lp-hero-ticket {
   grid-column: 8 / 13;
   grid-row: 3;
@@ -2411,6 +2450,20 @@
 
   .lp-hero-actions .lp-btn {
     flex: 1 1 100%;
+  }
+
+  .lp-hero-services {
+    gap: 8px;
+  }
+
+  .lp-hero-services li {
+    padding: 12px 4px 10px;
+    font-size: 12px;
+  }
+
+  .lp-hero-service-icon {
+    width: 38px;
+    height: 38px;
   }
 
   .lp-ticker {

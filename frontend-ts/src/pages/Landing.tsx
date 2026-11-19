@@ -14,6 +14,14 @@ const GEAR_PATH = 'M77.8 -18.7 L98.8 -15.6 L98.8 15.6 L77.8 18.7 L68.2 41.8 L80.
 const STAR = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z';
 const ARROW = 'M5 12h14 M13 6l6 6-6 6';
 
+// The four request types, shown as tiles under the hero headline.
+const HERO_SERVICES = [
+  { label: 'IT repairs', icon: 'M2 3h20v14H2z M8 21h8 M12 17v4' },
+  { label: 'Event coverage', icon: 'M23 7l-7 5 7 5V7z M1 5h15v14H1z' },
+  { label: 'Digital media', icon: 'M3 3h18v18H3z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 21' },
+  { label: 'Print', icon: 'M6 9V2h12v7 M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2 M6 14h12v8H6z' },
+];
+
 const SERVICES = ['Computer repairs', 'Network problems', 'Event photo and video', 'Social media posts', 'Presentations', 'Tarpaulins', 'Brochures and flyers'];
 
 // The ticker's bottom row, under the services: what every request gets, scrolling the other way.
@@ -57,20 +65,20 @@ const SCRAPS: Array<{ kind: ScrapKind; x: number; y: number; r: number }> = [
 ];
 
 const BENEFITS = [
-  { n: 1, title: 'A code for every request', body: 'Quote it when you call the office, or search for it on your History page.' },
-  { n: 2, title: 'Urgent goes first', body: 'Keep Urgent for work that has stopped or deadlines within two days, and it gets handled first.' },
-  { n: 3, title: 'Always know where it stands', body: 'Your History page shows the status and who is assigned. It updates by itself.' },
-  { n: 4, title: 'Add details later', body: 'Write a note while the request is open. The assigned staff member is notified right away.' },
-  { n: 5, title: 'Rate the service', body: 'Rate any finished request. Your feedback helps the team improve.' },
+  { n: 1, title: 'A code for every request', body: 'Quote it, or search for it.' },
+  { n: 2, title: 'Urgent goes first', body: 'For stopped work or 2-day deadlines.' },
+  { n: 3, title: 'Always know where it stands', body: 'Live status, and who is on it.' },
+  { n: 4, title: 'Add details later', body: 'Staff are notified right away.' },
+  { n: 5, title: 'Rate the service', body: 'Your feedback improves it.' },
 ];
 
 // How to use it: four queue stubs fed out of a "take a number" dispenser, like the counter at the
 // Municipal Hall. Each stub carries a small sketch of what that step looks like in ITRS.
 const STEPS = [
-  { verb: 'Sign up', body: 'Create a client account with your office and position, or sign in if you already have one. New accounts are approved by the IT office before they can sign in.' },
-  { verb: 'Choose', body: 'Pick IT, Event Documentation, Digital Media or Print Materials from the menu bar and fill in the form.' },
-  { verb: 'Submit', body: 'Set the priority, attach files if they help, and submit. Keep the request code you get.' },
-  { verb: 'Track', body: 'Watch the status on your History page. Add notes, cancel while pending, rate when done.' },
+  { verb: 'Sign up', body: 'Once. The IT office approves it.' },
+  { verb: 'Choose', body: 'Pick a type, fill in the form.' },
+  { verb: 'Submit', body: 'Keep the code you get.' },
+  { verb: 'Track', body: 'Watch it, then rate it.' },
 ];
 
 // The client guide video (58.5 s, music only: everything it says is on screen). Each chapter starts
@@ -232,8 +240,8 @@ function MovingScrap({ scrap, index, progress }: { scrap: (typeof SCRAPS)[number
   );
 }
 
-const WHY_BEFORE = 'Without a shared system, requests arrive however they can: a call, a sticky note, a message in a group chat. Easy to send, easy to lose, and hard to follow up.';
-const WHY_AFTER = 'ITRS turns each one into a single ticket with a code, a status and a record, so nothing depends on someone remembering.';
+const WHY_BEFORE = 'Calls, sticky notes, group chats. Easy to send, easy to lose.';
+const WHY_AFTER = 'ITRS makes each one a ticket: a code, a status, a record.';
 
 function WhyStory() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -1079,8 +1087,22 @@ function Landing() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: d + 0.55, ease: EASE_OUT }}
               >
-                The request system for LGU Solano offices. IT repairs, event coverage, digital media and print, all in one place.
+                The request system for LGU Solano offices.
               </motion.p>
+              {/* What you can request, as four tiles instead of a sentence */}
+              <ul className="lp-hero-services" aria-label="What you can request">
+                {HERO_SERVICES.map((sv, i) => (
+                  <motion.li
+                    key={sv.label}
+                    initial={{ opacity: 0, y: 16, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 20, delay: d + 0.62 + i * 0.07 }}
+                  >
+                    <span className="lp-hero-service-icon" aria-hidden="true"><Icon d={sv.icon} size={22} /></span>
+                    {sv.label}
+                  </motion.li>
+                ))}
+              </ul>
               <motion.div
                 className="lp-hero-actions"
                 initial={{ opacity: 0, y: 24, scale: 0.96 }}
@@ -1150,8 +1172,7 @@ function Landing() {
           <div className="lp-how-head">
             <h2 className="lp-display-md">How to use it</h2>
             <p>
-              Like taking a number at the Municipal Hall, except you do it from your own desk. Watch the one-minute guide,
-              or read the steps below.
+              Like taking a number at the Municipal Hall, from your own desk. One-minute video.
             </p>
           </div>
           <GuideVideo />
@@ -1170,8 +1191,8 @@ function Landing() {
           </h2>
           <div className="lp-finale-row">
             <p>
-              No account yet? Offices can sign up for a client account in a minute. Staff accounts come from the
-              Information and Technology Section (Mayor&apos;s Office), 2nd floor of the Municipal Hall.
+              No account? Sign up in a minute. Staff accounts: IT Section, Mayor&apos;s Office, 2nd floor,
+              Municipal Hall.
             </p>
             <div className="lp-finale-actions">
               {!user && <TransitionLink to="/signup" className="lp-btn lp-btn-line-light">Sign up</TransitionLink>}
