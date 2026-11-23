@@ -87,6 +87,11 @@ sudo ./deploy/install-nginx.sh
 - Data: `services/api.ts` (axios at `/api`; its interceptor redirects on `SESSION_EXPIRED`/`SESSION_REPLACED`
   and sends `PASSWORD_CHANGE_REQUIRED` to `/profile`) and TanStack Query (`services/queryClient.ts`).
   `contexts/AuthContext` holds the user; `contexts/NotificationContext` owns the socket, toasts and bell panel.
+- Live socket (`services/socket.ts`, WebSocket only): Socket.IO retries network drops by itself but gives up
+  when the server refuses (`connect_error` with `!socket.active`) or closes it (`io server disconnect`). For
+  those, `retryAfterRefusal` checks `/auth/me`: an ended session goes to the login page, otherwise it
+  reconnects with a 2–30 s backoff. `ConnectionBanner` shows "Reconnecting…" only after 4 s down. The
+  backend's `io.use` waits up to 10 s for MongoDB at startup before checking the session.
 - **CSP**: `vite.config.ts` injects a meta CSP at build time (`script-src 'self'` plus hashes of inline
   scripts, `img-src 'self' data: blob:`, `media-src 'self' blob:`, `font-src 'self'`, `object-src 'none'`).
   Inline event handlers in `index.html` are blocked, and so are `data:` fonts and third-party origins. nginx
