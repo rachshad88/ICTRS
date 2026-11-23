@@ -589,23 +589,20 @@ export async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<
     right: GRID_LINE,
   };
 
-  const dateCell = (text: string): TableCell =>
+  // A day with several accomplishments spans that many rows, so the date prints once.
+  const dateCell = (text: string, rowSpan = 1): TableCell =>
     new TableCell({
       width: { size: 2772, type: WidthType.DXA },
       borders: gridCellBorders,
+      rowSpan,
       children: [new Paragraph({ children: [tr(text, 20, { bold: true })] })],
     });
 
-  const entryCell = (entries: string[]): TableCell =>
+  const entryCell = (entry: string): TableCell =>
     new TableCell({
       width: { size: 12626, type: WidthType.DXA },
       borders: gridCellBorders,
-      children:
-        entries.length > 0
-          ? entries.map(
-              (entry) => new Paragraph({ spacing: { after: 40 }, children: [tr(entry, 20)] }),
-            )
-          : [new Paragraph({ children: [] })],
+      children: [new Paragraph({ children: [tr(entry, 20)] })],
     });
 
   const bodyTable = new Table({
@@ -618,16 +615,21 @@ export async function buildDesignedDocx(rows: DarRow[], meta: DarMeta): Promise<
       ? [new TableRow({
           children: [
             dateCell(fmt(days[0] ?? new Date())),
-            entryCell(['No accomplishments recorded for this period.']),
+            entryCell('No accomplishments recorded for this period.'),
           ],
         })]
-      : days
+      : // One row per accomplishment, so each gets a line under it even when it shares a date.
+        days
           .filter((day) => entriesByDay.has(day.toDateString()))
-          .map((day) => {
+          .flatMap((day) => {
             const entries = entriesByDay.get(day.toDateString()) ?? [];
-            return new TableRow({
-              children: [dateCell(fmt(day)), entryCell(entries)],
-            });
+            return entries.map(
+              (entry, i) =>
+                new TableRow({
+                  cantSplit: true,
+                  children: i === 0 ? [dateCell(fmt(day), entries.length), entryCell(entry)] : [entryCell(entry)],
+                }),
+            );
           }),
   });
 
