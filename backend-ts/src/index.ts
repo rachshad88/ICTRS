@@ -141,8 +141,25 @@ function socketUserId(socket: Socket): string | undefined {
   return socketSession(socket)?.user_id;
 }
 
+// While MongoDB is still connecting at startup, hold new connections until it is up instead of
+// refusing them (the session store already waits for it; this covers handshakes without a stored
+// session too). Past the limit, refuse: the client retries (frontend services/socket.ts).
+const SOCKET_DB_WAIT_MS = 10_000;
+function waitForDB(): Promise<boolean> {
+  if (isDBReady()) return Promise.resolve(true);
+  let timer: NodeJS.Timeout | undefined;
+  return Promise.race([
+    mongoClientReady.then(() => true),
+    new Promise<boolean>((resolve) => { timer = setTimeout(() => resolve(false), SOCKET_DB_WAIT_MS); }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 io.use(async (socket, next) => {
   try {
+    if (!(await waitForDB())) {
+      next(new Error('Server starting'));
+      return;
+    }
     const session = socketSession(socket);
     const sessionId = (socket.request as IncomingMessage & { sessionID?: string }).sessionID;
     if ((await sessionStatus(session?.user_id, session?.session_version, sessionId)) !== 'ok') {
