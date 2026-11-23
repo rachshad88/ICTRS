@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { api } from './api';
 
 let socket: Socket | null = null;
 
@@ -20,24 +21,68 @@ const setConnection = (up: boolean) => {
   connectionListeners.forEach((l) => l(up));
 };
 
+// Socket.IO retries by itself after a network drop, but gives up for good when the server refused
+// the connection (its session check failed, e.g. while the backend was still starting) or closed it.
+// The page kept working over HTTP while the banner said "Reconnecting…" forever. So ask the API
+// whether the session is still good: if it ended, go to the login page; otherwise connect again.
+const RETRY_MIN_MS = 2000;
+const RETRY_MAX_MS = 30000;
+let retryDelay = RETRY_MIN_MS;
+let retryTimer: number | undefined;
+
+const retryAfterRefusal = (s: Socket) => {
+  if (retryTimer !== undefined) return;
+  retryTimer = window.setTimeout(async () => {
+    retryTimer = undefined;
+    if (socket !== s || s.connected) return;
+    try {
+      await api.get('/auth/me', { headers: { 'Cache-Control': 'no-cache' } });
+    } catch (error) {
+      const res = (error as { response?: { status?: number; data?: { code?: string } } }).response;
+      if (res?.status === 401 && (res.data?.code === 'SESSION_EXPIRED' || res.data?.code === 'SESSION_REPLACED')) {
+        window.location.assign(res.data.code === 'SESSION_REPLACED' ? '/login?replaced=1' : '/login?expired=1');
+        return;
+      }
+      // Anything else (network down, server restarting): just try again.
+    }
+    if (socket !== s || s.connected) return;
+    retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS);
+    s.connect();
+  }, retryDelay);
+};
+
 // The server identifies the user from the session cookie sent with the connection.
 export const initSocket = (): Socket => {
   if (!socket) {
     // WebSocket only: the backend runs one process per core, and long-polling would need every
     // request of a connection to reach the same one (backend-ts/src/config/socket.ts).
-    socket = io('/', {
+    const s = io('/', {
       transports: ['websocket']
     });
-    socket.onAny(tell);
-    socket.io.on('reconnect', () => tell('reconnect'));
-    socket.on('connect', () => setConnection(true));
-    socket.on('connect_error', () => setConnection(false));
-    socket.on('disconnect', (reason) => setConnection(reason === 'io client disconnect'));
+    socket = s;
+    s.onAny(tell);
+    s.io.on('reconnect', () => tell('reconnect'));
+    s.on('connect', () => {
+      retryDelay = RETRY_MIN_MS;
+      setConnection(true);
+    });
+    s.on('connect_error', () => {
+      setConnection(false);
+      // Not active: the server refused, and the client will not retry on its own.
+      if (!s.active) retryAfterRefusal(s);
+    });
+    s.on('disconnect', (reason) => {
+      setConnection(reason === 'io client disconnect');
+      if (reason === 'io server disconnect') retryAfterRefusal(s);
+    });
   }
   return socket;
 };
 
 export const disconnectSocket = () => {
+  window.clearTimeout(retryTimer);
+  retryTimer = undefined;
+  retryDelay = RETRY_MIN_MS;
   if (socket) {
     socket.disconnect();
     socket = null;
